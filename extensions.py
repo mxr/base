@@ -5,7 +5,7 @@ from copier_template_extensions import ContextHook
 
 class DetectStack(ContextHook):
     def hook(self, context):
-        dst = context["_copier_conf"].dst_path
+        dst = context["_copier_conf"]["dst_path"]
         detected = []
         if os.path.exists(os.path.join(dst, "Cargo.toml")):
             detected.append("rust")
