@@ -1,0 +1,60 @@
+name: propagate copier update
+
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  propagate:
+    runs-on: ubuntu-24.04
+    steps:
+    - uses: astral-sh/setup-uv@v4
+
+    - name: update downstream repos
+      env:
+        GH_TOKEN: ${{ secrets.REPO_SYNC_TOKEN }}
+      run: |
+        set -euo pipefail
+        tag="${GITHUB_REF_NAME}"
+        owner="$(gh api user --jq .login)"
+
+        repos=$(gh repo list "$owner" --limit 200 --json name,isFork,isArchived \
+          --jq '.[] | select(.isFork == false and .isArchived == false) | .name')
+
+        for repo in $repos; do
+          echo "::group::${repo}"
+          workdir="$(mktemp -d)"
+          git clone --quiet "https://x-access-token:${GH_TOKEN}@github.com/${owner}/${repo}.git" "$workdir"
+
+          if [ ! -f "$workdir/.copier-answers.yml" ]; then
+            echo "not templated, skip"
+            echo "::endgroup::"
+            continue
+          fi
+
+          git -C "$workdir" config user.name "copier-bot"
+          git -C "$workdir" config user.email "copier-bot@users.noreply.github.com"
+
+          branch="copier-update-${tag}"
+          git -C "$workdir" checkout -b "$branch"
+
+          (cd "$workdir" && uvx --with copier-template-extensions copier update --defaults --vcs-ref "$tag")
+
+          if git -C "$workdir" diff --quiet && git -C "$workdir" diff --cached --quiet; then
+            echo "no changes"
+            echo "::endgroup::"
+            continue
+          fi
+
+          git -C "$workdir" add -A
+          git -C "$workdir" commit -m "chore: copier update to ${tag}"
+          git -C "$workdir" push -u origin "$branch"
+
+          gh pr create \
+            --repo "${owner}/${repo}" \
+            --title "[copier] update to ${tag}" \
+            --body "Automated update from base template ${tag}." \
+            --head "$branch" || true
+
+          echo "::endgroup::"
+        done

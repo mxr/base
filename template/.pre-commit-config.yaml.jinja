@@ -1,0 +1,26 @@
+repos:
+- repo: https://github.com/pre-commit/pre-commit-hooks
+  rev: v5.0.0
+  hooks:
+  - id: trailing-whitespace
+
+{% if "python" in stack %}
+- repo: https://github.com/astral-sh/ruff-pre-commit
+  rev: v0.8.0
+  hooks:
+  - id: ruff-format
+  - id: ruff
+{% endif %}
+{% if "rust" in stack %}
+- repo: https://github.com/doublify/pre-commit-rust
+  rev: v1.0
+  hooks:
+  - id: fmt
+  - id: clippy
+{% endif %}
+{% if "node" in stack %}
+- repo: https://github.com/pre-commit/mirrors-eslint
+  rev: v9.15.0
+  hooks:
+  - id: eslint
+{% endif %}

@@ -1,0 +1,16 @@
+_min_copier_version: "9.0.0"
+_subdirectory: template
+
+_jinja_extensions:
+- extensions.py:DetectStack
+
+_tasks:
+- command: pre-commit autoupdate --freeze
+  working_directory: "{{ _copier_conf.dst_path }}"
+
+stack:
+  type: str
+  multiselect: true
+  choices: [python, rust, node]
+  default: "{{ _stack_detected }}"
+  when: false
