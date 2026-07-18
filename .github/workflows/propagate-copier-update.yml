@@ -47,7 +47,7 @@ jobs:
           branch="copier-update-${tag}"
           git -C "$workdir" checkout -b "$branch"
 
-          (cd "$workdir" && uvx --with copier-template-extensions copier update --defaults --vcs-ref "$tag")
+          (cd "$workdir" && uvx --with copier-template-extensions copier update --trust --defaults --vcs-ref "$tag")
 
           if git -C "$workdir" diff --quiet && git -C "$workdir" diff --cached --quiet; then
             echo "no changes"
