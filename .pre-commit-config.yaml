@@ -1,0 +1,15 @@
+repos:
+- repo: https://github.com/pre-commit/pre-commit-hooks
+  rev: 3e8a8703264a2f4a69428a0aa4dcb512790b2c8c  # frozen: v6.0.0
+  hooks:
+  - id: trailing-whitespace
+
+
+- repo: https://github.com/astral-sh/ruff-pre-commit
+  rev: 2700fd5671c633760d912769c041bfcde2b9a01b  # frozen: v0.15.22
+  hooks:
+  - id: ruff-format
+  - id: ruff
+
+
+
