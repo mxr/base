@@ -5,7 +5,7 @@ _jinja_extensions:
 - extensions:DetectStack
 
 _tasks:
-- command: pre-commit autoupdate --freeze
+- command: uvx pre-commit autoupdate --freeze
   working_directory: "{{ _copier_conf.dst_path }}"
 
 stack:
