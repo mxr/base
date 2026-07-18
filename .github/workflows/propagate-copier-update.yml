@@ -23,6 +23,10 @@ jobs:
         set -euo pipefail
         tag="${GITHUB_REF_NAME}"
 
+        # copier internally re-clones the template repo (and any repo it needs to
+        # inspect) with plain git, so private repos need credentials wired globally
+        git config --global url."https://x-access-token:${GH_TOKEN}@github.com/".insteadOf "https://github.com/"
+
         # TEMP: restricted to base only for testing, revert to the full installation-repositories query before real rollout
         repos="mxr/base"
 
