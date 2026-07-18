@@ -10,21 +10,26 @@ jobs:
     steps:
     - uses: astral-sh/setup-uv@v4
 
+    - uses: actions/create-github-app-token@v1
+      id: app-token
+      with:
+        app-id: ${{ secrets.APP_ID }}
+        private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
     - name: update downstream repos
       env:
-        GH_TOKEN: ${{ secrets.REPO_SYNC_TOKEN }}
+        GH_TOKEN: ${{ steps.app-token.outputs.token }}
       run: |
         set -euo pipefail
         tag="${GITHUB_REF_NAME}"
-        owner="$(gh api user --jq .login)"
 
-        repos=$(gh repo list "$owner" --limit 200 --json name,isFork,isArchived \
-          --jq '.[] | select(.isFork == false and .isArchived == false) | .name')
+        repos=$(gh api /installation/repositories --paginate \
+          --jq '.repositories[] | select(.fork == false and .archived == false) | .full_name')
 
         for repo in $repos; do
           echo "::group::${repo}"
           workdir="$(mktemp -d)"
-          git clone --quiet "https://x-access-token:${GH_TOKEN}@github.com/${owner}/${repo}.git" "$workdir"
+          git clone --quiet "https://x-access-token:${GH_TOKEN}@github.com/${repo}.git" "$workdir"
 
           if [ ! -f "$workdir/.copier-answers.yml" ]; then
             echo "not templated, skip"
@@ -32,8 +37,8 @@ jobs:
             continue
           fi
 
-          git -C "$workdir" config user.name "copier-bot"
-          git -C "$workdir" config user.email "copier-bot@users.noreply.github.com"
+          git -C "$workdir" config user.name "mxr-base-copier-sync[bot]"
+          git -C "$workdir" config user.email "4334921+mxr-base-copier-sync[bot]@users.noreply.github.com"
 
           branch="copier-update-${tag}"
           git -C "$workdir" checkout -b "$branch"
@@ -51,7 +56,7 @@ jobs:
           git -C "$workdir" push -u origin "$branch"
 
           gh pr create \
-            --repo "${owner}/${repo}" \
+            --repo "${repo}" \
             --title "[copier] update to ${tag}" \
             --body "Automated update from base template ${tag}." \
             --head "$branch" || true

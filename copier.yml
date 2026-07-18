@@ -2,7 +2,7 @@ _min_copier_version: "9.0.0"
 _subdirectory: template
 
 _jinja_extensions:
-- extensions.py:DetectStack
+- extensions:DetectStack
 
 _tasks:
 - command: pre-commit autoupdate --freeze
