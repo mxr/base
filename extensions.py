@@ -238,7 +238,7 @@ def _sort_repos(repos: list[dict[str, Any]]) -> list[dict[str, Any]]:
 class DetectStack(ContextHook):
     @override
     def hook(self, context: dict[str, Any]) -> dict[str, Any]:
-        dst: Path = context["_copier_conf"]["dst_path"]
+        dst: Path = Path(context["_copier_conf"]["dst_path"])
         suffixes, top_level = _scan(dst, _WANTED_SUFFIXES)
         detected = []
         if "Cargo.toml" in top_level:
