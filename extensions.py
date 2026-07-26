@@ -43,6 +43,21 @@ _STACK_REPOS = {
                 {"id": "ruff-format"},
             ],
         },
+        {
+            "repo": "https://github.com/pre-commit/mirrors-mypy",
+            "rev": "v0.0.0",
+            "hooks": [{"id": "mypy"}],
+        },
+        {
+            "repo": "https://github.com/mxr/mirrors-ty",
+            "rev": "v0.0.0",
+            "hooks": [{"id": "ty"}],
+        },
+        {
+            "repo": "https://github.com/mxr/sync-typing-deps",
+            "rev": "v0.0.0",
+            "hooks": [{"id": "sync-typing-deps"}],
+        },
     ],
     "sql": [
         {
