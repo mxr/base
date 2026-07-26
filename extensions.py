@@ -1,4 +1,5 @@
 from collections import defaultdict
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any, override
 
@@ -170,56 +171,11 @@ _STACK_REPOS: dict[str, tuple[dict[str, Any], ...]] = {
 }
 
 
-def _inline_short_lists(value: Any) -> Any:
-    if isinstance(value, dict):
-        return {k: _inline_short_lists(v) for k, v in value.items()}
-    if isinstance(value, (list, tuple)):
-        items = [_inline_short_lists(v) for v in value]
-        is_scalar_list = all(isinstance(v, (str, int, float, bool)) for v in items)
-        if is_scalar_list and len(", ".join(map(str, items))) <= _INLINE_LIST_MAX_WIDTH:
-            return _InlineList(items)
-        return items
-    return value
-
-
-def _scan(dst: Path, wanted_suffixes: frozenset[str]) -> tuple[set[str], set[str]]:
-    suffixes: set[str] = set()
-    top_level: set[str] = set()
-    for root, dirs, files in dst.walk():
-        dirs[:] = [d for d in dirs if d not in _SKIP_DIRS]
-        if root == dst:
-            top_level = set(dirs) | set(files)
-        for name in files:
-            suffixes.add(Path(name).suffix)
-        if suffixes >= wanted_suffixes:
-            break
-    return suffixes, top_level
-
-
-def _merge_repos(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    # TODO: this merges hooks across all "repo: local" entries into one block,
-    # which is wrong if there's ever more than one distinct local repo entry.
-    # Fine for now since we only ever have a single local entry (biome-migrate).
-    hooks_by_repo: dict[str, list[dict[str, Any]]] = defaultdict(list)
-    for entry in entries:
-        hooks_by_repo[entry["repo"]].extend(entry["hooks"])
-
-    repos = []
-    for key, hooks in hooks_by_repo.items():
-        repo: dict[str, Any] = {"repo": key}
-        if key != "local":
-            repo["rev"] = "v0.0.0"
-        repo["hooks"] = sorted(hooks, key=lambda h: h["id"])
-        repos.append(repo)
-
-    return sorted(repos, key=lambda r: (r["repo"] == "local", r["repo"]))
-
-
 class DetectStack(ContextHook):
     @override
     def hook(self, context: dict[str, Any]) -> dict[str, Any]:
         dst = Path(context["_copier_conf"]["dst_path"])
-        suffixes, top_level = _scan(dst, _WANTED_SUFFIXES)
+        suffixes, top_level = self._scan(dst, _WANTED_SUFFIXES)
 
         detected = []
 
@@ -253,5 +209,56 @@ class DetectStack(ContextHook):
         return {
             **context,
             "_stack_detected": detected,
-            "_pre_commit_repos": _inline_short_lists(_merge_repos(entries)),
+            "_pre_commit_repos": self._inline_short_lists(self._merge_repos(entries)),
         }
+
+    def _scan(
+        self, dst: Path, wanted_suffixes: frozenset[str]
+    ) -> tuple[set[str], set[str]]:
+        suffixes: set[str] = set()
+        for suffix in self._iter_suffixes(dst):
+            suffixes.add(suffix)
+            if suffixes >= wanted_suffixes:
+                break
+
+        top_level = {p.name for p in dst.iterdir()}
+
+        return suffixes, top_level
+
+    def _iter_suffixes(self, dst: Path) -> Iterator[str]:
+        for _, dirs, files in dst.walk():
+            dirs[:] = [d for d in dirs if d not in _SKIP_DIRS]
+            for name in files:
+                yield Path(name).suffix
+
+    def _merge_repos(self, entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        # TODO: this merges hooks across all "repo: local" entries into one block,
+        # which is wrong if there's ever more than one distinct local repo entry.
+        # Fine for now since we only ever have a single local entry (biome-migrate).
+        hooks_by_repo: dict[str, list[dict[str, Any]]] = defaultdict(list)
+        for entry in entries:
+            hooks_by_repo[entry["repo"]].extend(entry["hooks"])
+
+        repos = []
+        for key, hooks in hooks_by_repo.items():
+            repo: dict[str, Any] = {"repo": key}
+            if key != "local":
+                repo["rev"] = "v0.0.0"
+            repo["hooks"] = sorted(hooks, key=lambda h: h["id"])
+            repos.append(repo)
+
+        return sorted(repos, key=lambda r: (r["repo"] == "local", r["repo"]))
+
+    def _inline_short_lists(self, value: Any) -> Any:
+        if isinstance(value, dict):
+            return {k: self._inline_short_lists(v) for k, v in value.items()}
+        if isinstance(value, (list, tuple)):
+            items = [self._inline_short_lists(v) for v in value]
+            is_scalar_list = all(isinstance(v, (str, int, float, bool)) for v in items)
+            if (
+                is_scalar_list
+                and len(", ".join(map(str, items))) <= _INLINE_LIST_MAX_WIDTH
+            ):
+                return _InlineList(items)
+            return items
+        return value
