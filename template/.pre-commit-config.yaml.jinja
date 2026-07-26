@@ -23,7 +23,14 @@ repos:
   - id: sqlfluff-fix
     args: [--dialect, sqlite]
 {% endif -%}
-{% if "node" in stack -%}
+{% if "json" in stack -%}
+- repo: https://github.com/pre-commit/pre-commit-hooks
+  rev: 3e8a8703264a2f4a69428a0aa4dcb512790b2c8c  # frozen: v6.0.0
+  hooks:
+  - id: pretty-format-json
+    args: [--autofix]
+{% endif -%}
+{% if "frontend" in stack -%}
 - repo: https://github.com/biomejs/pre-commit
   rev: 5bb716344fd6979d991634e7ece88f407e599ee0  # frozen: v2.5.4
   hooks:

@@ -11,6 +11,6 @@ _tasks:
 stack:
   type: str
   multiselect: true
-  choices: [python, sql, node, rust, shell, gha]
+  choices: [python, sql, frontend, json, rust, shell, gha]
   default: "{{ _stack_detected }}"
   when: false
