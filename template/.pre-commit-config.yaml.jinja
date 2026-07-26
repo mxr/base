@@ -7,8 +7,31 @@ repos:
 - repo: https://github.com/astral-sh/ruff-pre-commit
   rev: v0.8.0
   hooks:
+  - id: ruff-check
+    args: [--fix]
   - id: ruff-format
-  - id: ruff
+{% endif -%}
+{% if "sql" in stack -%}
+- repo: https://github.com/sqlfluff/sqlfluff
+  rev: 4.2.2
+  hooks:
+  - id: sqlfluff-fix
+    args: [--dialect, sqlite]
+{% endif -%}
+{% if "node" in stack -%}
+- repo: https://github.com/biomejs/pre-commit
+  rev: v2.5.4
+  hooks:
+  - id: biome-check
+- repo: local
+  hooks:
+  - id: biome-migrate
+    name: biome migrate
+    entry: biome migrate --write
+    language: node
+    additional_dependencies: ['@biomejs/biome@2.5.4']
+    files: ^\.pre-commit-config\.yaml$
+    pass_filenames: false
 {% endif -%}
 {% if "rust" in stack -%}
 - repo: https://github.com/doublify/pre-commit-rust
@@ -17,9 +40,22 @@ repos:
   - id: fmt
   - id: clippy
 {% endif -%}
-{% if "node" in stack -%}
-- repo: https://github.com/pre-commit/mirrors-eslint
-  rev: v9.15.0
+{% if "shell" in stack -%}
+- repo: https://github.com/mxr/mirrors-shfmt
+  rev: v3.13.1
   hooks:
-  - id: eslint
+  - id: shfmt
+{% endif -%}
+{% if "gha" in stack -%}
+- repo: https://github.com/zizmorcore/zizmor-pre-commit
+  rev: v1.27.0
+  hooks:
+  - id: zizmor
+    args: [--no-progress, --fix]
+- repo: https://github.com/rhysd/actionlint
+  rev: v1.7.12
+  hooks:
+  - id: actionlint
+    additional_dependencies:
+    - github.com/wasilibs/go-shellcheck/cmd/shellcheck@latest
 {% endif -%}
