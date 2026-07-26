@@ -195,10 +195,9 @@ class DetectStack(ContextHook):
         if (dst / ".github" / "workflows").is_dir():
             detected.append("github-actions")
 
-        # mutually exclusive because biome sorts json
         if "package.json" in top_level or ".js" in suffixes or ".ts" in suffixes:
             detected.append("frontend")
-        elif ".json" in suffixes:
+        if ".json" in suffixes:
             detected.append("json")
 
         entries = [
