@@ -25,7 +25,11 @@ _UNCONDITIONAL: list[dict[str, Any]] = [
     {
         "repo": "https://github.com/pre-commit/pre-commit-hooks",
         "rev": "v0.0.0",
-        "hooks": [{"id": "trailing-whitespace"}],
+        "hooks": [
+            {"id": "check-merge-conflict"},
+            {"id": "end-of-file-fixer"},
+            {"id": "trailing-whitespace"},
+        ],
     },
     {
         "repo": "https://github.com/macisamuele/language-formatters-pre-commit-hooks",
@@ -58,6 +62,11 @@ _STACK_REPOS: dict[str, list[dict[str, Any]]] = {
             "repo": "https://github.com/mxr/sync-typing-deps",
             "rev": "v0.0.0",
             "hooks": [{"id": "sync-typing-deps"}],
+        },
+        {
+            "repo": "https://github.com/pre-commit/pre-commit-hooks",
+            "rev": "v0.0.0",
+            "hooks": [{"id": "debug-statements"}],
         },
     ],
     "sql": [
