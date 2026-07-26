@@ -1,9 +1,35 @@
 import os
 from typing import Any
 
+import yaml
 from copier_template_extensions import ContextHook
 
 _SKIP_DIRS = {".git", "node_modules", "__pycache__"}
+_INLINE_LIST_MAX_WIDTH = 60
+
+
+class _InlineList(list):
+    pass
+
+
+yaml.add_representer(
+    _InlineList,
+    lambda dumper, data: dumper.represent_sequence(
+        "tag:yaml.org,2002:seq", data, flow_style=True,
+    ),
+)
+
+
+def _inline_short_lists(value):
+    if isinstance(value, dict):
+        return {k: _inline_short_lists(v) for k, v in value.items()}
+    if isinstance(value, list):
+        items = [_inline_short_lists(v) for v in value]
+        is_scalar_list = all(isinstance(v, (str, int, float, bool)) for v in items)
+        if is_scalar_list and len(", ".join(map(str, items))) <= _INLINE_LIST_MAX_WIDTH:
+            return _InlineList(items)
+        return items
+    return value
 
 
 def _scan(dst, wanted_suffixes):
@@ -150,7 +176,7 @@ _STACK_REPOS: dict[str, list[dict[str, Any]]] = {
             "hooks": [{"id": "shfmt"}],
         },
     ],
-    "gha": [
+    "github-actions": [
         {
             "repo": "https://github.com/zizmorcore/zizmor-pre-commit",
             "rev": "v0.0.0",
@@ -205,7 +231,7 @@ class DetectStack(ContextHook):
         if "pyproject.toml" in top_level:
             detected.append("python")
         if os.path.isdir(os.path.join(str(dst), ".github", "workflows")):
-            detected.append("gha")
+            detected.append("github-actions")
         if ".sql" in suffixes:
             detected.append("sql")
         if ".sh" in suffixes:
@@ -220,5 +246,6 @@ class DetectStack(ContextHook):
             entries.extend(_STACK_REPOS.get(name, []))
 
         context["_stack_detected"] = detected
-        context["_pre_commit_repos"] = _sort_repos(_merge_repos(entries))
+        repos = _sort_repos(_merge_repos(entries))
+        context["_pre_commit_repos"] = _inline_short_lists(repos)
         return context
