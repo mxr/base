@@ -239,6 +239,7 @@ class DetectStack(ContextHook):
     def hook(self, context: dict[str, Any]) -> dict[str, Any]:
         dst: Path = Path(context["_copier_conf"]["dst_path"])
         suffixes, top_level = _scan(dst, _WANTED_SUFFIXES)
+
         detected = []
         if "Cargo.toml" in top_level:
             detected.append("rust")
@@ -261,7 +262,10 @@ class DetectStack(ContextHook):
         for name in detected:
             entries.extend(_STACK_REPOS.get(name, []))
 
-        context["_stack_detected"] = detected
-        repos = _sort_repos(_merge_repos(entries))
-        context["_pre_commit_repos"] = _inline_short_lists(repos)
-        return context
+        return {
+            **context,
+            "_stack_detected": detected,
+            "_pre_commit_repos": _inline_short_lists(
+                _sort_repos(_merge_repos(entries))
+            ),
+        }
