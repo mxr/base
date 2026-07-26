@@ -222,10 +222,12 @@ class DetectStack(ContextHook):
         suffixes, top_level = _scan(dst, _WANTED_SUFFIXES)
 
         detected = []
+
         if "Cargo.toml" in top_level:
             detected.append("rust")
         if "pyproject.toml" in top_level:
             detected.append("python")
+
         if ".toml" in suffixes:
             detected.append("toml")
         if ".sql" in suffixes:
