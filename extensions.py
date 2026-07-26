@@ -258,9 +258,7 @@ class DetectStack(ContextHook):
         elif ".json" in suffixes:
             detected.append("json")
 
-        entries = list(_UNCONDITIONAL)
-        for name in detected:
-            entries.extend(_STACK_REPOS.get(name, ()))
+        entries = [*_UNCONDITIONAL, *(h for name in detected for h in _STACK_REPOS.get(name, ()))]
 
         return {
             **context,
