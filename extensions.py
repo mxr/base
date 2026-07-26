@@ -97,6 +97,15 @@ _STACK_REPOS: dict[str, list[dict[str, Any]]] = {
             "hooks": [{"id": "debug-statements"}],
         },
     ],
+    "toml": [
+        {
+            "repo": "https://github.com/macisamuele/language-formatters-pre-commit-hooks",
+            "rev": "v0.0.0",
+            "hooks": [
+                {"id": "pretty-format-toml", "args": ["--autofix", "--trailing-commas"]},
+            ],
+        },
+    ],
     "sql": [
         {
             "repo": "https://github.com/sqlfluff/sqlfluff",
@@ -226,7 +235,7 @@ def _sort_repos(repos):
 class DetectStack(ContextHook):
     def hook(self, context):
         dst = context["_copier_conf"]["dst_path"]
-        suffixes, top_level = _scan(dst, {".sql", ".sh", ".js", ".ts", ".json"})
+        suffixes, top_level = _scan(dst, {".sql", ".sh", ".js", ".ts", ".json", ".toml"})
         detected = []
         if "Cargo.toml" in top_level:
             detected.append("rust")
@@ -234,6 +243,8 @@ class DetectStack(ContextHook):
             detected.append("python")
         if os.path.isdir(os.path.join(str(dst), ".github", "workflows")):
             detected.append("github-actions")
+        if ".toml" in suffixes:
+            detected.append("toml")
         if ".sql" in suffixes:
             detected.append("sql")
         if ".sh" in suffixes:

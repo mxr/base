@@ -13,6 +13,6 @@ _tasks:
 stack:
   type: str
   multiselect: true
-  choices: [python, sql, frontend, json, rust, shell, github-actions]
+  choices: [python, sql, frontend, json, toml, rust, shell, github-actions]
   default: '{{ _stack_detected }}'
   when: false
