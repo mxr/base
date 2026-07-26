@@ -11,12 +11,12 @@ def _has_file(dst, pattern):
 _UNCONDITIONAL = [
     {
         "repo": "https://github.com/pre-commit/pre-commit-hooks",
-        "rev": "v6.0.0",
+        "rev": "v0.0.0",
         "hooks": [{"id": "trailing-whitespace"}],
     },
     {
         "repo": "https://github.com/macisamuele/language-formatters-pre-commit-hooks",
-        "rev": "v2.16.0",
+        "rev": "v0.0.0",
         "hooks": [{"id": "pretty-format-yaml", "args": ["--autofix"]}],
     },
 ]
@@ -25,7 +25,7 @@ _STACK_REPOS = {
     "python": [
         {
             "repo": "https://github.com/astral-sh/ruff-pre-commit",
-            "rev": "v0.16.0",
+            "rev": "v0.0.0",
             "hooks": [
                 {"id": "ruff-check", "args": ["--fix"]},
                 {"id": "ruff-format"},
@@ -35,21 +35,21 @@ _STACK_REPOS = {
     "sql": [
         {
             "repo": "https://github.com/sqlfluff/sqlfluff",
-            "rev": "4.2.2",
+            "rev": "v0.0.0",
             "hooks": [{"id": "sqlfluff-fix", "args": ["--dialect", "sqlite"]}],
         },
     ],
     "json": [
         {
             "repo": "https://github.com/pre-commit/pre-commit-hooks",
-            "rev": "v6.0.0",
+            "rev": "v0.0.0",
             "hooks": [{"id": "pretty-format-json", "args": ["--autofix"]}],
         },
     ],
     "frontend": [
         {
             "repo": "https://github.com/pre-commit/sync-pre-commit-deps",
-            "rev": "v0.0.5",
+            "rev": "v0.0.0",
             "hooks": [
                 {
                     "id": "sync-pre-commit-deps",
@@ -59,7 +59,7 @@ _STACK_REPOS = {
         },
         {
             "repo": "https://github.com/biomejs/pre-commit",
-            "rev": "v2.5.4",
+            "rev": "v0.0.0",
             "hooks": [{"id": "biome-check"}],
         },
         {
@@ -80,7 +80,7 @@ _STACK_REPOS = {
     "rust": [
         {
             "repo": "https://github.com/AndrejOrsula/pre-commit-cargo",
-            "rev": "0.5.0",
+            "rev": "v0.0.0",
             "hooks": [
                 {"id": "cargo-fmt"},
                 {
@@ -105,19 +105,19 @@ _STACK_REPOS = {
     "shell": [
         {
             "repo": "https://github.com/mxr/mirrors-shfmt",
-            "rev": "v3.13.1",
+            "rev": "v0.0.0",
             "hooks": [{"id": "shfmt"}],
         },
     ],
     "gha": [
         {
             "repo": "https://github.com/zizmorcore/zizmor-pre-commit",
-            "rev": "v1.28.0",
+            "rev": "v0.0.0",
             "hooks": [{"id": "zizmor", "args": ["--no-progress", "--fix"]}],
         },
         {
             "repo": "https://github.com/rhysd/actionlint",
-            "rev": "v1.7.12",
+            "rev": "v0.0.0",
             "hooks": [
                 {
                     "id": "actionlint",
