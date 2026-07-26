@@ -3,6 +3,10 @@ repos:
   rev: 3e8a8703264a2f4a69428a0aa4dcb512790b2c8c  # frozen: v6.0.0
   hooks:
   - id: trailing-whitespace
+{% if "json" in stack -%}
+  - id: pretty-format-json
+    args: [--autofix]
+{% endif -%}
 - repo: https://github.com/macisamuele/language-formatters-pre-commit-hooks
   rev: 4380fbb73a154b5f5624794c1c78d9719ccc860f  # frozen: v2.16.0
   hooks:
@@ -23,23 +27,16 @@ repos:
   - id: sqlfluff-fix
     args: [--dialect, sqlite]
 {% endif -%}
-{% if "json" in stack -%}
-- repo: https://github.com/pre-commit/pre-commit-hooks
-  rev: 3e8a8703264a2f4a69428a0aa4dcb512790b2c8c  # frozen: v6.0.0
-  hooks:
-  - id: pretty-format-json
-    args: [--autofix]
-{% endif -%}
 {% if "frontend" in stack -%}
-- repo: https://github.com/biomejs/pre-commit
-  rev: 5bb716344fd6979d991634e7ece88f407e599ee0  # frozen: v2.5.4
-  hooks:
-  - id: biome-check
 - repo: https://github.com/pre-commit/sync-pre-commit-deps
   rev: 497f8ebf9d58162bb5898e3973a633d31d511169  # frozen: v0.0.5
   hooks:
   - id: sync-pre-commit-deps
     args: [--yaml-mapping=2, --yaml-sequence=2, --yaml-offset=0]
+- repo: https://github.com/biomejs/pre-commit
+  rev: 5bb716344fd6979d991634e7ece88f407e599ee0  # frozen: v2.5.4
+  hooks:
+  - id: biome-check
 - repo: local
   hooks:
   - id: biome-migrate
