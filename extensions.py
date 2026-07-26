@@ -16,7 +16,11 @@ class DetectStack(ContextHook):
             detected.append("rust")
         if os.path.exists(os.path.join(dst, "pyproject.toml")):
             detected.append("python")
-        is_frontend = os.path.exists(os.path.join(dst, "package.json"))
+        is_frontend = (
+            os.path.exists(os.path.join(dst, "package.json"))
+            or _has_file(dst, "*.js")
+            or _has_file(dst, "*.ts")
+        )
         if is_frontend:
             detected.append("frontend")
         if os.path.exists(os.path.join(dst, ".github", "workflows")):
