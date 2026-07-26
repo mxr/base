@@ -7,20 +7,17 @@ _SKIP_DIRS = {".git", "node_modules", "__pycache__"}
 
 def _scan(dst, wanted_suffixes):
     dst = str(dst)
-    gha = os.path.isdir(os.path.join(dst, ".github", "workflows"))
     suffixes = set()
     top_level = set()
     for root, dirs, files in os.walk(dst):
         dirs[:] = [d for d in dirs if d not in _SKIP_DIRS]
-        if os.path.basename(root) == ".github":
-            dirs[:] = [d for d in dirs if d != "workflows"]
         if root == dst:
             top_level = set(dirs) | set(files)
         for name in files:
             suffixes.add(os.path.splitext(name)[1])
         if suffixes >= wanted_suffixes:
             break
-    return suffixes, top_level, gha
+    return suffixes, top_level
 
 
 _UNCONDITIONAL = [
@@ -172,13 +169,13 @@ def _sort_repos(repos):
 class DetectStack(ContextHook):
     def hook(self, context):
         dst = context["_copier_conf"]["dst_path"]
-        suffixes, top_level, gha = _scan(dst, {".sql", ".sh", ".js", ".ts", ".json"})
+        suffixes, top_level = _scan(dst, {".sql", ".sh", ".js", ".ts", ".json"})
         detected = []
         if "Cargo.toml" in top_level:
             detected.append("rust")
         if "pyproject.toml" in top_level:
             detected.append("python")
-        if gha:
+        if os.path.isdir(os.path.join(str(dst), ".github", "workflows")):
             detected.append("gha")
         if ".sql" in suffixes:
             detected.append("sql")
