@@ -4,17 +4,23 @@ on:
   push:
     tags: [v*]
 
+permissions: {}
+
 jobs:
   propagate:
     runs-on: ubuntu-24.04
     steps:
-    - uses: astral-sh/setup-uv@v4
+    - uses: astral-sh/setup-uv@38f3f104447c67c051c4a08e39b64a148898af3a # v4
+      with:
+        enable-cache: false
 
-    - uses: actions/create-github-app-token@v1
+    - uses: actions/create-github-app-token@d72941d797fd3113feb6b93fd0dec494b13a2547 # v1
       id: app-token
       with:
         app-id: ${{ secrets.APP_ID }}
         private-key: ${{ secrets.APP_PRIVATE_KEY }}
+        permission-contents: write
+        permission-pull-requests: write
 
     - name: update downstream repos
       env:
