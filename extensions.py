@@ -6,6 +6,7 @@ _SKIP_DIRS = {".git", "node_modules", "__pycache__"}
 
 
 def _scan(dst):
+    dst = str(dst)
     suffixes = set()
     top_level = set()
     gha = False
