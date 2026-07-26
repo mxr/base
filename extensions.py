@@ -1,3 +1,4 @@
+from collections import defaultdict
 from pathlib import Path
 from typing import Any, override
 
@@ -25,7 +26,6 @@ yaml.add_representer(
 _UNCONDITIONAL: tuple[dict[str, Any], ...] = (
     {
         "repo": "https://github.com/pre-commit/pre-commit-hooks",
-        "rev": "v0.0.0",
         "hooks": (
             {"id": "check-merge-conflict"},
             {"id": "end-of-file-fixer"},
@@ -34,7 +34,6 @@ _UNCONDITIONAL: tuple[dict[str, Any], ...] = (
     },
     {
         "repo": "https://github.com/macisamuele/language-formatters-pre-commit-hooks",
-        "rev": "v0.0.0",
         "hooks": ({"id": "pretty-format-yaml", "args": ("--autofix",)},),
     },
 )
@@ -43,7 +42,6 @@ _STACK_REPOS: dict[str, tuple[dict[str, Any], ...]] = {
     "python": (
         {
             "repo": "https://github.com/astral-sh/ruff-pre-commit",
-            "rev": "v0.0.0",
             "hooks": (
                 {"id": "ruff-check", "args": ("--fix",)},
                 {"id": "ruff-format"},
@@ -51,29 +49,24 @@ _STACK_REPOS: dict[str, tuple[dict[str, Any], ...]] = {
         },
         {
             "repo": "https://github.com/pre-commit/mirrors-mypy",
-            "rev": "v0.0.0",
             "hooks": ({"id": "mypy"},),
         },
         {
             "repo": "https://github.com/mxr/mirrors-ty",
-            "rev": "v0.0.0",
             "hooks": ({"id": "ty"},),
         },
         {
             "repo": "https://github.com/mxr/sync-typing-deps",
-            "rev": "v0.0.0",
             "hooks": ({"id": "sync-typing-deps"},),
         },
         {
             "repo": "https://github.com/pre-commit/pre-commit-hooks",
-            "rev": "v0.0.0",
             "hooks": ({"id": "debug-statements"},),
         },
     ),
     "toml": (
         {
             "repo": "https://github.com/macisamuele/language-formatters-pre-commit-hooks",
-            "rev": "v0.0.0",
             "hooks": (
                 {
                     "id": "pretty-format-toml",
@@ -85,21 +78,18 @@ _STACK_REPOS: dict[str, tuple[dict[str, Any], ...]] = {
     "sql": (
         {
             "repo": "https://github.com/sqlfluff/sqlfluff",
-            "rev": "v0.0.0",
             "hooks": ({"id": "sqlfluff-fix", "args": ("--dialect", "sqlite")},),
         },
     ),
     "json": (
         {
             "repo": "https://github.com/pre-commit/pre-commit-hooks",
-            "rev": "v0.0.0",
             "hooks": ({"id": "pretty-format-json", "args": ("--autofix",)},),
         },
     ),
     "frontend": (
         {
             "repo": "https://github.com/pre-commit/sync-pre-commit-deps",
-            "rev": "v0.0.0",
             "hooks": (
                 {
                     "id": "sync-pre-commit-deps",
@@ -113,7 +103,6 @@ _STACK_REPOS: dict[str, tuple[dict[str, Any], ...]] = {
         },
         {
             "repo": "https://github.com/biomejs/pre-commit",
-            "rev": "v0.0.0",
             "hooks": ({"id": "biome-check"},),
         },
         {
@@ -134,7 +123,6 @@ _STACK_REPOS: dict[str, tuple[dict[str, Any], ...]] = {
     "rust": (
         {
             "repo": "https://github.com/AndrejOrsula/pre-commit-cargo",
-            "rev": "v0.0.0",
             "hooks": (
                 {"id": "cargo-fmt"},
                 {
@@ -159,19 +147,16 @@ _STACK_REPOS: dict[str, tuple[dict[str, Any], ...]] = {
     "shell": (
         {
             "repo": "https://github.com/mxr/mirrors-shfmt",
-            "rev": "v0.0.0",
             "hooks": ({"id": "shfmt"},),
         },
     ),
     "github-actions": (
         {
             "repo": "https://github.com/zizmorcore/zizmor-pre-commit",
-            "rev": "v0.0.0",
             "hooks": ({"id": "zizmor", "args": ("--no-progress", "--fix")},),
         },
         {
             "repo": "https://github.com/rhysd/actionlint",
-            "rev": "v0.0.0",
             "hooks": (
                 {
                     "id": "actionlint",
@@ -212,32 +197,28 @@ def _scan(dst: Path, wanted_suffixes: frozenset[str]) -> tuple[set[str], set[str
 
 
 def _merge_repos(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    by_repo: dict[str, dict[str, Any]] = {}
-    order = []
+    # TODO: this merges hooks across all "repo: local" entries into one block,
+    # which is wrong if there's ever more than one distinct local repo entry.
+    # Fine for now since we only ever have a single local entry (biome-migrate).
+    hooks_by_repo: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for entry in entries:
-        key = entry["repo"]
-        if key not in by_repo:
-            by_repo[key] = {"repo": key, "rev": entry.get("rev"), "hooks": []}
-            order.append(key)
-        by_repo[key]["hooks"].extend(entry["hooks"])
-    return [by_repo[key] for key in order]
+        hooks_by_repo[entry["repo"]].extend(entry["hooks"])
 
+    repos = []
+    for key, hooks in hooks_by_repo.items():
+        repo: dict[str, Any] = {"repo": key}
+        if key != "local":
+            repo["rev"] = "v0.0.0"
+        repo["hooks"] = sorted(hooks, key=lambda h: h["id"])
+        repos.append(repo)
 
-def _sort_repos(repos: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    local = [r for r in repos if r["repo"] == "local"]
-    others = [r for r in repos if r["repo"] != "local"]
-    others.sort(key=lambda r: r["repo"])
-    for r in others + local:
-        r["hooks"].sort(key=lambda h: h["id"])
-    for r in local:
-        r.pop("rev", None)
-    return others + local
+    return sorted(repos, key=lambda r: (r["repo"] == "local", r["repo"]))
 
 
 class DetectStack(ContextHook):
     @override
     def hook(self, context: dict[str, Any]) -> dict[str, Any]:
-        dst: Path = Path(context["_copier_conf"]["dst_path"])
+        dst = Path(context["_copier_conf"]["dst_path"])
         suffixes, top_level = _scan(dst, _WANTED_SUFFIXES)
 
         detected = []
@@ -266,7 +247,5 @@ class DetectStack(ContextHook):
         return {
             **context,
             "_stack_detected": detected,
-            "_pre_commit_repos": _inline_short_lists(
-                _sort_repos(_merge_repos(entries))
-            ),
+            "_pre_commit_repos": _inline_short_lists(_merge_repos(entries)),
         }
