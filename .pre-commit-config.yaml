@@ -8,6 +8,8 @@ repos:
 - repo: https://github.com/macisamuele/language-formatters-pre-commit-hooks
   rev: 4380fbb73a154b5f5624794c1c78d9719ccc860f  # frozen: v2.16.0
   hooks:
+  - id: pretty-format-toml
+    args: [--autofix, --trailing-commas]
   - id: pretty-format-yaml
     args: [--autofix]
 - repo: https://github.com/mxr/mirrors-ty

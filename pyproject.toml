@@ -1,17 +1,11 @@
 [build-system]
-requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"
+requires = ["setuptools>=61"]
 
 [project]
+dependencies = ["copier-template-extensions", "pyyaml"]
 name = "base-copier-extensions"
 version = "0.1.0"
-dependencies = ["copier-template-extensions", "pyyaml"]
-
-[tool.setuptools]
-py-modules = ["extensions"]
-
-[tool.ty.rules]
-all = "error"
 
 [tool.mypy]
 check_untyped_defs = true
@@ -28,3 +22,9 @@ module = "testing.*"
 [[tool.mypy.overrides]]
 disallow_untyped_defs = false
 module = "tests.*"
+
+[tool.setuptools]
+py-modules = ["extensions"]
+
+[tool.ty.rules]
+all = "error"

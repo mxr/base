@@ -4,11 +4,12 @@ from typing import Any
 import yaml
 from copier_template_extensions import ContextHook
 
-_SKIP_DIRS = {".git", "node_modules", "__pycache__"}
+_SKIP_DIRS = frozenset({".git", "node_modules", "__pycache__"})
+_WANTED_SUFFIXES = frozenset({".js", ".json", ".sh", ".sql", ".toml", ".ts"})
 _INLINE_LIST_MAX_WIDTH = 60
 
 
-class _InlineList(list):
+class _InlineList(list[Any]):
     pass
 
 
@@ -22,7 +23,7 @@ yaml.add_representer(
 )
 
 
-def _inline_short_lists(value):
+def _inline_short_lists(value: Any) -> Any:
     if isinstance(value, dict):
         return {k: _inline_short_lists(v) for k, v in value.items()}
     if isinstance(value, list):
@@ -34,10 +35,10 @@ def _inline_short_lists(value):
     return value
 
 
-def _scan(dst, wanted_suffixes):
+def _scan(dst: Any, wanted_suffixes: frozenset[str]) -> tuple[set[str], set[str]]:
     dst = str(dst)
-    suffixes = set()
-    top_level = set()
+    suffixes: set[str] = set()
+    top_level: set[str] = set()
     for root, dirs, files in os.walk(dst):
         dirs[:] = [d for d in dirs if d not in _SKIP_DIRS]
         if root == dst:
@@ -102,7 +103,10 @@ _STACK_REPOS: dict[str, list[dict[str, Any]]] = {
             "repo": "https://github.com/macisamuele/language-formatters-pre-commit-hooks",
             "rev": "v0.0.0",
             "hooks": [
-                {"id": "pretty-format-toml", "args": ["--autofix", "--trailing-commas"]},
+                {
+                    "id": "pretty-format-toml",
+                    "args": ["--autofix", "--trailing-commas"],
+                },
             ],
         },
     ],
@@ -209,8 +213,8 @@ _STACK_REPOS: dict[str, list[dict[str, Any]]] = {
 }
 
 
-def _merge_repos(entries):
-    by_repo = {}
+def _merge_repos(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    by_repo: dict[str, dict[str, Any]] = {}
     order = []
     for entry in entries:
         key = entry["repo"]
@@ -221,7 +225,7 @@ def _merge_repos(entries):
     return [by_repo[key] for key in order]
 
 
-def _sort_repos(repos):
+def _sort_repos(repos: list[dict[str, Any]]) -> list[dict[str, Any]]:
     local = [r for r in repos if r["repo"] == "local"]
     others = [r for r in repos if r["repo"] != "local"]
     others.sort(key=lambda r: r["repo"])
@@ -233,9 +237,9 @@ def _sort_repos(repos):
 
 
 class DetectStack(ContextHook):
-    def hook(self, context):
+    def hook(self, context: dict[str, Any]) -> dict[str, Any]:
         dst = context["_copier_conf"]["dst_path"]
-        suffixes, top_level = _scan(dst, {".sql", ".sh", ".js", ".ts", ".json", ".toml"})
+        suffixes, top_level = _scan(dst, _WANTED_SUFFIXES)
         detected = []
         if "Cargo.toml" in top_level:
             detected.append("rust")
