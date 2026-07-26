@@ -22,33 +22,6 @@ yaml.add_representer(
     ),
 )
 
-
-def _inline_short_lists(value: Any) -> Any:
-    if isinstance(value, dict):
-        return {k: _inline_short_lists(v) for k, v in value.items()}
-    if isinstance(value, list):
-        items = [_inline_short_lists(v) for v in value]
-        is_scalar_list = all(isinstance(v, (str, int, float, bool)) for v in items)
-        if is_scalar_list and len(", ".join(map(str, items))) <= _INLINE_LIST_MAX_WIDTH:
-            return _InlineList(items)
-        return items
-    return value
-
-
-def _scan(dst: Path, wanted_suffixes: frozenset[str]) -> tuple[set[str], set[str]]:
-    suffixes: set[str] = set()
-    top_level: set[str] = set()
-    for root, dirs, files in dst.walk():
-        dirs[:] = [d for d in dirs if d not in _SKIP_DIRS]
-        if root == dst:
-            top_level = set(dirs) | set(files)
-        for name in files:
-            suffixes.add(Path(name).suffix)
-        if suffixes >= wanted_suffixes:
-            break
-    return suffixes, top_level
-
-
 _UNCONDITIONAL: list[dict[str, Any]] = [
     {
         "repo": "https://github.com/pre-commit/pre-commit-hooks",
@@ -210,6 +183,32 @@ _STACK_REPOS: dict[str, list[dict[str, Any]]] = {
         },
     ],
 }
+
+
+def _inline_short_lists(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {k: _inline_short_lists(v) for k, v in value.items()}
+    if isinstance(value, list):
+        items = [_inline_short_lists(v) for v in value]
+        is_scalar_list = all(isinstance(v, (str, int, float, bool)) for v in items)
+        if is_scalar_list and len(", ".join(map(str, items))) <= _INLINE_LIST_MAX_WIDTH:
+            return _InlineList(items)
+        return items
+    return value
+
+
+def _scan(dst: Path, wanted_suffixes: frozenset[str]) -> tuple[set[str], set[str]]:
+    suffixes: set[str] = set()
+    top_level: set[str] = set()
+    for root, dirs, files in dst.walk():
+        dirs[:] = [d for d in dirs if d not in _SKIP_DIRS]
+        if root == dst:
+            top_level = set(dirs) | set(files)
+        for name in files:
+            suffixes.add(Path(name).suffix)
+        if suffixes >= wanted_suffixes:
+            break
+    return suffixes, top_level
 
 
 def _merge_repos(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
