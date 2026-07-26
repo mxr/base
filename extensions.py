@@ -226,14 +226,18 @@ class DetectStack(ContextHook):
             detected.append("rust")
         if "pyproject.toml" in top_level:
             detected.append("python")
-        if (dst / ".github" / "workflows").is_dir():
-            detected.append("github-actions")
         if ".toml" in suffixes:
             detected.append("toml")
         if ".sql" in suffixes:
             detected.append("sql")
         if ".sh" in suffixes:
             detected.append("shell")
+
+        # fencepost this since it's annoying to find in _scan()
+        if (dst / ".github" / "workflows").is_dir():
+            detected.append("github-actions")
+
+        # mutually exclusive because biome sorts json
         if "package.json" in top_level or ".js" in suffixes or ".ts" in suffixes:
             detected.append("frontend")
         elif ".json" in suffixes:
