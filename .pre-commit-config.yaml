@@ -18,6 +18,8 @@ repos:
   - id: ty
     additional_dependencies:
     - copier-template-extensions
+    - coverage
+    - pytest
     - pyyaml
     - setuptools>=61
 - repo: https://github.com/mxr/sync-typing-deps
@@ -30,6 +32,8 @@ repos:
   - id: mypy
     additional_dependencies:
     - copier-template-extensions
+    - coverage
+    - pytest
     - pyyaml
     - setuptools>=61
 - repo: https://github.com/pre-commit/pre-commit-hooks
