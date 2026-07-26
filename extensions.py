@@ -1,5 +1,5 @@
 import os
-from typing import Any
+from typing import Any, override
 
 import yaml
 from copier_template_extensions import ContextHook
@@ -237,6 +237,7 @@ def _sort_repos(repos: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 class DetectStack(ContextHook):
+    @override
     def hook(self, context: dict[str, Any]) -> dict[str, Any]:
         dst = context["_copier_conf"]["dst_path"]
         suffixes, top_level = _scan(dst, _WANTED_SUFFIXES)
