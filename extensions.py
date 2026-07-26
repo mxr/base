@@ -5,13 +5,19 @@ from copier_template_extensions import ContextHook
 _SKIP_DIRS = {".git", "node_modules", "__pycache__"}
 
 
-def _suffixes_present(dst):
+def _scan(dst):
     suffixes = set()
+    top_level = set()
+    gha = False
     for root, dirs, files in os.walk(dst):
         dirs[:] = [d for d in dirs if d not in _SKIP_DIRS]
+        if root == dst:
+            top_level = set(dirs) | set(files)
+        elif root == os.path.join(dst, ".github") and "workflows" in dirs:
+            gha = True
         for name in files:
             suffixes.add(os.path.splitext(name)[1])
-    return suffixes
+    return suffixes, top_level, gha
 
 
 _UNCONDITIONAL = [
@@ -163,23 +169,19 @@ def _sort_repos(repos):
 class DetectStack(ContextHook):
     def hook(self, context):
         dst = context["_copier_conf"]["dst_path"]
-        suffixes = _suffixes_present(dst)
+        suffixes, top_level, gha = _scan(dst)
         detected = []
-        if os.path.exists(os.path.join(dst, "Cargo.toml")):
+        if "Cargo.toml" in top_level:
             detected.append("rust")
-        if os.path.exists(os.path.join(dst, "pyproject.toml")):
+        if "pyproject.toml" in top_level:
             detected.append("python")
-        if os.path.exists(os.path.join(dst, ".github", "workflows")):
+        if gha:
             detected.append("gha")
         if ".sql" in suffixes:
             detected.append("sql")
         if ".sh" in suffixes:
             detected.append("shell")
-        if (
-            os.path.exists(os.path.join(dst, "package.json"))
-            or ".js" in suffixes
-            or ".ts" in suffixes
-        ):
+        if "package.json" in top_level or ".js" in suffixes or ".ts" in suffixes:
             detected.append("frontend")
         elif ".json" in suffixes:
             detected.append("json")
