@@ -5,19 +5,21 @@ from copier_template_extensions import ContextHook
 _SKIP_DIRS = {".git", "node_modules", "__pycache__"}
 
 
-def _scan(dst):
+def _scan(dst, wanted_suffixes):
     dst = str(dst)
+    gha = os.path.isdir(os.path.join(dst, ".github", "workflows"))
     suffixes = set()
     top_level = set()
-    gha = False
     for root, dirs, files in os.walk(dst):
         dirs[:] = [d for d in dirs if d not in _SKIP_DIRS]
+        if os.path.basename(root) == ".github":
+            dirs[:] = [d for d in dirs if d != "workflows"]
         if root == dst:
             top_level = set(dirs) | set(files)
-        elif root == os.path.join(dst, ".github") and "workflows" in dirs:
-            gha = True
         for name in files:
             suffixes.add(os.path.splitext(name)[1])
+        if suffixes >= wanted_suffixes:
+            break
     return suffixes, top_level, gha
 
 
@@ -170,7 +172,7 @@ def _sort_repos(repos):
 class DetectStack(ContextHook):
     def hook(self, context):
         dst = context["_copier_conf"]["dst_path"]
-        suffixes, top_level, gha = _scan(dst)
+        suffixes, top_level, gha = _scan(dst, {".sql", ".sh", ".js", ".ts", ".json"})
         detected = []
         if "Cargo.toml" in top_level:
             detected.append("rust")
