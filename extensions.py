@@ -1,4 +1,5 @@
 import os
+from typing import Any
 
 from copier_template_extensions import ContextHook
 
@@ -20,7 +21,7 @@ def _scan(dst, wanted_suffixes):
     return suffixes, top_level
 
 
-_UNCONDITIONAL = [
+_UNCONDITIONAL: list[dict[str, Any]] = [
     {
         "repo": "https://github.com/pre-commit/pre-commit-hooks",
         "rev": "v0.0.0",
@@ -33,7 +34,7 @@ _UNCONDITIONAL = [
     },
 ]
 
-_STACK_REPOS = {
+_STACK_REPOS: dict[str, list[dict[str, Any]]] = {
     "python": [
         {
             "repo": "https://github.com/astral-sh/ruff-pre-commit",
@@ -80,7 +81,11 @@ _STACK_REPOS = {
             "hooks": [
                 {
                     "id": "sync-pre-commit-deps",
-                    "args": ["--yaml-mapping=2", "--yaml-sequence=2", "--yaml-offset=0"],
+                    "args": [
+                        "--yaml-mapping=2",
+                        "--yaml-sequence=2",
+                        "--yaml-offset=0",
+                    ],
                 },
             ],
         },

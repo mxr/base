@@ -2,7 +2,7 @@ name: propagate copier update
 
 on:
   push:
-    tags: ["v*"]
+    tags: [v*]
 
 jobs:
   propagate:

@@ -5,6 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "base-copier-extensions"
 version = "0.1.0"
+dependencies = ["copier-template-extensions"]
 
 [tool.setuptools]
 py-modules = ["extensions"]

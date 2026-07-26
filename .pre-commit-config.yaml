@@ -12,6 +12,22 @@ repos:
   - id: pretty-format-yaml
     args:
     - --autofix
+- repo: https://github.com/mxr/mirrors-ty
+  rev: d7f08bf6b37691c482773f198ba01539eb331d6a  # frozen: v0.0.63
+  hooks:
+  - id: ty
+    additional_dependencies:
+    - setuptools>=61
+- repo: https://github.com/mxr/sync-typing-deps
+  rev: c2ec0c01a31703615c17e3fe11d1fe28c003f1d8  # frozen: v0.5.3
+  hooks:
+  - id: sync-typing-deps
+- repo: https://github.com/pre-commit/mirrors-mypy
+  rev: 41e691678310dfd3833f7ab4e180ddb014310356  # frozen: v2.3.0
+  hooks:
+  - id: mypy
+    additional_dependencies:
+    - setuptools>=61
 - repo: https://github.com/pre-commit/pre-commit-hooks
   rev: 3e8a8703264a2f4a69428a0aa4dcb512790b2c8c  # frozen: v6.0.0
   hooks:
