@@ -22,124 +22,124 @@ yaml.add_representer(
     ),
 )
 
-_UNCONDITIONAL: list[dict[str, Any]] = [
+_UNCONDITIONAL: tuple[dict[str, Any], ...] = (
     {
         "repo": "https://github.com/pre-commit/pre-commit-hooks",
         "rev": "v0.0.0",
-        "hooks": [
+        "hooks": (
             {"id": "check-merge-conflict"},
             {"id": "end-of-file-fixer"},
             {"id": "trailing-whitespace"},
-        ],
+        ),
     },
     {
         "repo": "https://github.com/macisamuele/language-formatters-pre-commit-hooks",
         "rev": "v0.0.0",
-        "hooks": [{"id": "pretty-format-yaml", "args": ["--autofix"]}],
+        "hooks": ({"id": "pretty-format-yaml", "args": ("--autofix",)},),
     },
-]
+)
 
-_STACK_REPOS: dict[str, list[dict[str, Any]]] = {
-    "python": [
+_STACK_REPOS: dict[str, tuple[dict[str, Any], ...]] = {
+    "python": (
         {
             "repo": "https://github.com/astral-sh/ruff-pre-commit",
             "rev": "v0.0.0",
-            "hooks": [
-                {"id": "ruff-check", "args": ["--fix"]},
+            "hooks": (
+                {"id": "ruff-check", "args": ("--fix",)},
                 {"id": "ruff-format"},
-            ],
+            ),
         },
         {
             "repo": "https://github.com/pre-commit/mirrors-mypy",
             "rev": "v0.0.0",
-            "hooks": [{"id": "mypy"}],
+            "hooks": ({"id": "mypy"},),
         },
         {
             "repo": "https://github.com/mxr/mirrors-ty",
             "rev": "v0.0.0",
-            "hooks": [{"id": "ty"}],
+            "hooks": ({"id": "ty"},),
         },
         {
             "repo": "https://github.com/mxr/sync-typing-deps",
             "rev": "v0.0.0",
-            "hooks": [{"id": "sync-typing-deps"}],
+            "hooks": ({"id": "sync-typing-deps"},),
         },
         {
             "repo": "https://github.com/pre-commit/pre-commit-hooks",
             "rev": "v0.0.0",
-            "hooks": [{"id": "debug-statements"}],
+            "hooks": ({"id": "debug-statements"},),
         },
-    ],
-    "toml": [
+    ),
+    "toml": (
         {
             "repo": "https://github.com/macisamuele/language-formatters-pre-commit-hooks",
             "rev": "v0.0.0",
-            "hooks": [
+            "hooks": (
                 {
                     "id": "pretty-format-toml",
-                    "args": ["--autofix", "--trailing-commas"],
+                    "args": ("--autofix", "--trailing-commas"),
                 },
-            ],
+            ),
         },
-    ],
-    "sql": [
+    ),
+    "sql": (
         {
             "repo": "https://github.com/sqlfluff/sqlfluff",
             "rev": "v0.0.0",
-            "hooks": [{"id": "sqlfluff-fix", "args": ["--dialect", "sqlite"]}],
+            "hooks": ({"id": "sqlfluff-fix", "args": ("--dialect", "sqlite")},),
         },
-    ],
-    "json": [
+    ),
+    "json": (
         {
             "repo": "https://github.com/pre-commit/pre-commit-hooks",
             "rev": "v0.0.0",
-            "hooks": [{"id": "pretty-format-json", "args": ["--autofix"]}],
+            "hooks": ({"id": "pretty-format-json", "args": ("--autofix",)},),
         },
-    ],
-    "frontend": [
+    ),
+    "frontend": (
         {
             "repo": "https://github.com/pre-commit/sync-pre-commit-deps",
             "rev": "v0.0.0",
-            "hooks": [
+            "hooks": (
                 {
                     "id": "sync-pre-commit-deps",
-                    "args": [
+                    "args": (
                         "--yaml-mapping=2",
                         "--yaml-sequence=2",
                         "--yaml-offset=0",
-                    ],
+                    ),
                 },
-            ],
+            ),
         },
         {
             "repo": "https://github.com/biomejs/pre-commit",
             "rev": "v0.0.0",
-            "hooks": [{"id": "biome-check"}],
+            "hooks": ({"id": "biome-check"},),
         },
         {
             "repo": "local",
-            "hooks": [
+            "hooks": (
                 {
                     "id": "biome-migrate",
                     "name": "biome migrate",
                     "entry": "biome migrate --write",
                     "language": "node",
-                    "additional_dependencies": ["@biomejs/biome@2.5.4"],
+                    "additional_dependencies": ("@biomejs/biome@2.5.4",),
                     "files": r"^\.pre-commit-config\.yaml$",
                     "pass_filenames": False,
                 },
-            ],
+            ),
         },
-    ],
-    "rust": [
+    ),
+    "rust": (
         {
             "repo": "https://github.com/AndrejOrsula/pre-commit-cargo",
             "rev": "v0.0.0",
-            "hooks": [
+            "hooks": (
                 {"id": "cargo-fmt"},
                 {
                     "id": "cargo-clippy",
-                    "args": [
+                    "args": (
                         "--all-targets",
                         "--locked",
                         "--",
@@ -151,44 +151,44 @@ _STACK_REPOS: dict[str, list[dict[str, Any]]] = {
                         "clippy::nursery",
                         "-D",
                         "clippy::cargo",
-                    ],
+                    ),
                 },
-            ],
+            ),
         },
-    ],
-    "shell": [
+    ),
+    "shell": (
         {
             "repo": "https://github.com/mxr/mirrors-shfmt",
             "rev": "v0.0.0",
-            "hooks": [{"id": "shfmt"}],
+            "hooks": ({"id": "shfmt"},),
         },
-    ],
-    "github-actions": [
+    ),
+    "github-actions": (
         {
             "repo": "https://github.com/zizmorcore/zizmor-pre-commit",
             "rev": "v0.0.0",
-            "hooks": [{"id": "zizmor", "args": ["--no-progress", "--fix"]}],
+            "hooks": ({"id": "zizmor", "args": ("--no-progress", "--fix")},),
         },
         {
             "repo": "https://github.com/rhysd/actionlint",
             "rev": "v0.0.0",
-            "hooks": [
+            "hooks": (
                 {
                     "id": "actionlint",
-                    "additional_dependencies": [
+                    "additional_dependencies": (
                         "github.com/wasilibs/go-shellcheck/cmd/shellcheck@latest",
-                    ],
+                    ),
                 },
-            ],
+            ),
         },
-    ],
+    ),
 }
 
 
 def _inline_short_lists(value: Any) -> Any:
     if isinstance(value, dict):
         return {k: _inline_short_lists(v) for k, v in value.items()}
-    if isinstance(value, list):
+    if isinstance(value, (list, tuple)):
         items = [_inline_short_lists(v) for v in value]
         is_scalar_list = all(isinstance(v, (str, int, float, bool)) for v in items)
         if is_scalar_list and len(", ".join(map(str, items))) <= _INLINE_LIST_MAX_WIDTH:
@@ -260,7 +260,7 @@ class DetectStack(ContextHook):
 
         entries = list(_UNCONDITIONAL)
         for name in detected:
-            entries.extend(_STACK_REPOS.get(name, []))
+            entries.extend(_STACK_REPOS.get(name, ()))
 
         return {
             **context,
