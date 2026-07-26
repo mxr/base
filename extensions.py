@@ -1,4 +1,4 @@
-import os
+from pathlib import Path
 from typing import Any, override
 
 import yaml
@@ -35,15 +35,15 @@ def _inline_short_lists(value: Any) -> Any:
     return value
 
 
-def _scan(dst: str, wanted_suffixes: frozenset[str]) -> tuple[set[str], set[str]]:
+def _scan(dst: Path, wanted_suffixes: frozenset[str]) -> tuple[set[str], set[str]]:
     suffixes: set[str] = set()
     top_level: set[str] = set()
-    for root, dirs, files in os.walk(dst):
+    for root, dirs, files in dst.walk():
         dirs[:] = [d for d in dirs if d not in _SKIP_DIRS]
         if root == dst:
             top_level = set(dirs) | set(files)
         for name in files:
-            suffixes.add(os.path.splitext(name)[1])
+            suffixes.add(Path(name).suffix)
         if suffixes >= wanted_suffixes:
             break
     return suffixes, top_level
@@ -238,14 +238,14 @@ def _sort_repos(repos: list[dict[str, Any]]) -> list[dict[str, Any]]:
 class DetectStack(ContextHook):
     @override
     def hook(self, context: dict[str, Any]) -> dict[str, Any]:
-        dst: str = str(context["_copier_conf"]["dst_path"])
+        dst: Path = context["_copier_conf"]["dst_path"]
         suffixes, top_level = _scan(dst, _WANTED_SUFFIXES)
         detected = []
         if "Cargo.toml" in top_level:
             detected.append("rust")
         if "pyproject.toml" in top_level:
             detected.append("python")
-        if os.path.isdir(os.path.join(dst, ".github", "workflows")):
+        if (dst / ".github" / "workflows").is_dir():
             detected.append("github-actions")
         if ".toml" in suffixes:
             detected.append("toml")
