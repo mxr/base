@@ -87,7 +87,13 @@ _STACK_REPOS: dict[str, tuple[dict[str, Any], ...]] = {
     "json": (
         {
             "repo": "https://github.com/pre-commit/pre-commit-hooks",
-            "hooks": ({"id": "pretty-format-json", "args": ("--autofix",)},),
+            "hooks": (
+                {
+                    "id": "pretty-format-json",
+                    "args": ("--autofix",),
+                    "exclude": "package-lock.json",
+                },
+            ),
         },
     ),
     "frontend": (
