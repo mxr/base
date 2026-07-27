@@ -1,5 +1,6 @@
 from collections import defaultdict
 from collections.abc import Iterator
+from collections.abc import Set as AbstractSet
 from pathlib import Path
 from typing import Any, override
 
@@ -212,7 +213,7 @@ class DetectStack(ContextHook):
         }
 
     def _scan(
-        self, dst: Path, wanted_suffixes: frozenset[str]
+        self, dst: Path, wanted_suffixes: AbstractSet[str]
     ) -> tuple[set[str], set[str]]:
         suffixes: set[str] = set()
         for suffix in self._iter_suffixes(dst):
