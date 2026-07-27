@@ -215,7 +215,7 @@ class DetectStack(ContextHook):
     def _scan(
         self, dst: Path, wanted_suffixes: AbstractSet[str]
     ) -> tuple[set[str], set[str]]:
-        suffixes: set[str] = set()
+        suffixes = set()
         for suffix in self._iter_suffixes(dst):
             suffixes.add(suffix)
             if suffixes >= wanted_suffixes:
