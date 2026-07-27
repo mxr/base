@@ -1,3 +1,4 @@
+import os
 from collections import defaultdict
 from collections.abc import Iterator
 from collections.abc import Set as AbstractSet
@@ -229,7 +230,7 @@ class DetectStack(ContextHook):
         for _, dirs, files in dst.walk():
             dirs[:] = [d for d in dirs if d not in _SKIP_DIRS]
             for name in files:
-                yield Path(name).suffix
+                yield os.path.splitext(name)[1]
 
     def _merge_repos(self, entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
         # TODO: this merges hooks across all "repo: local" entries into one block,
