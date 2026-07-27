@@ -42,19 +42,28 @@ jobs:
           workdir="$(mktemp -d)"
           git clone --quiet "https://x-access-token:${GH_TOKEN}@github.com/${repo}.git" "$workdir"
 
-          if [ ! -f "$workdir/.copier-answers.yml" ]; then
-            echo "not templated, skip"
-            echo "::endgroup::"
-            continue
-          fi
-
           git -C "$workdir" config user.name "mxr-base-copier-sync[bot]"
           git -C "$workdir" config user.email "4334921+mxr-base-copier-sync[bot]@users.noreply.github.com"
 
-          branch="copier-update-${tag}"
+          if [ -f "$workdir/.copier-answers.yml" ]; then
+            action="update"
+            branch="copier-update-${tag}"
+            pr_title="[copier] update to ${tag}"
+            pr_body="Automated update from base template ${tag}."
+          else
+            action="onboard"
+            branch="copier-onboard-${tag}"
+            pr_title="[copier] onboard to ${tag}"
+            pr_body="Automated onboarding onto base template ${tag}."
+          fi
+
           git -C "$workdir" checkout -b "$branch"
 
-          (cd "$workdir" && uvx --with copier-template-extensions --with "git+https://github.com/mxr/base.git@${tag}" copier update --trust --defaults --vcs-ref "$tag")
+          if [ "$action" = "update" ]; then
+            (cd "$workdir" && uvx --with copier-template-extensions --with "git+https://github.com/mxr/base.git@${tag}" copier update --trust --defaults --vcs-ref "$tag")
+          else
+            (cd "$workdir" && uvx --with copier-template-extensions --with "git+https://github.com/mxr/base.git@${tag}" copier copy --trust --defaults --overwrite --vcs-ref "$tag" https://github.com/mxr/base.git .)
+          fi
 
           if git -C "$workdir" diff --quiet && git -C "$workdir" diff --cached --quiet; then
             echo "no changes"
@@ -63,13 +72,13 @@ jobs:
           fi
 
           git -C "$workdir" add -A
-          git -C "$workdir" commit -m "chore: copier update to ${tag}"
+          git -C "$workdir" commit -m "[copier] ${action} to ${tag}"
           git -C "$workdir" push -u origin "$branch"
 
           gh pr create \
             --repo "${repo}" \
-            --title "[copier] update to ${tag}" \
-            --body "Automated update from base template ${tag}." \
+            --title "$pr_title" \
+            --body "$pr_body" \
             --head "$branch" || true
 
           echo "::endgroup::"
