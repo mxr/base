@@ -20,10 +20,10 @@ repos:
     - copier-template-extensions
     - coverage
     - pytest
-    - pyyaml
-    - setuptools>=61
+    - types-PyYAML
+    - types-setuptools
 - repo: https://github.com/mxr/sync-typing-deps
-  rev: c2ec0c01a31703615c17e3fe11d1fe28c003f1d8  # frozen: v0.5.3
+  rev: a8b960f5e2bb3627b5a1fc8171fe224cdd64ff0a  # frozen: v0.5.4
   hooks:
   - id: sync-typing-deps
 - repo: https://github.com/pre-commit/mirrors-mypy
@@ -34,8 +34,8 @@ repos:
     - copier-template-extensions
     - coverage
     - pytest
-    - pyyaml
-    - setuptools>=61
+    - types-PyYAML
+    - types-setuptools
 - repo: https://github.com/pre-commit/pre-commit-hooks
   rev: 3e8a8703264a2f4a69428a0aa4dcb512790b2c8c  # frozen: v6.0.0
   hooks:
