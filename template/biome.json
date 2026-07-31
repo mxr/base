@@ -24,5 +24,6 @@
     "rules": {
       "preset": "recommended"
     }
-  }
+  },
+  "root": false
 }

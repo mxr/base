@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+import os
+import subprocess
+from datetime import UTC, datetime
+
 import jinja2
 import pytest
 
@@ -18,18 +22,39 @@ def _write(tmp_path, files):
         path.write_text(content)
 
 
+def _git_commit(repo, message, date):
+    env = {
+        **os.environ,
+        "GIT_AUTHOR_NAME": "test",
+        "GIT_AUTHOR_EMAIL": "test@test.com",
+        "GIT_COMMITTER_NAME": "test",
+        "GIT_COMMITTER_EMAIL": "test@test.com",
+        "GIT_AUTHOR_DATE": date,
+        "GIT_COMMITTER_DATE": date,
+    }
+    subprocess.run(
+        ["git", "commit", "--allow-empty", "-m", message],
+        cwd=repo,
+        env=env,
+        check=True,
+        capture_output=True,
+    )
+
+
 def test_iter_suffixes_yields_suffix_of_every_file(tmp_path, detector):
     _write(tmp_path, {"a.py": "", "sub/b.sql": ""})
     assert set(detector._iter_suffixes(tmp_path)) == {".py", ".sql"}
 
 
-def test_iter_suffixes_skips_configured_dirs(tmp_path, detector):
+@pytest.mark.parametrize(
+    "skip_dir",
+    [".git", ".tox", ".venv", "__pycache__", "node_modules", "venv"],
+)
+def test_iter_suffixes_skips_configured_dirs(tmp_path, detector, skip_dir):
     _write(
         tmp_path,
         {
-            ".git/config.ext": "",
-            "node_modules/pkg.json": "",
-            "__pycache__/mod.pyc": "",
+            f"{skip_dir}/polluted.ext": "",
             "real.py": "",
         },
     )
@@ -89,22 +114,41 @@ def test_merge_repos_sorts_hooks_by_id(detector):
     assert [h["id"] for h in result[0]["hooks"]] == ["a", "b"]
 
 
-def test_inline_short_lists_wraps_short_scalar_list(detector):
-    result = detector._inline_short_lists(["--autofix"])
-    assert isinstance(result, _InlineList)
-    assert list(result) == ["--autofix"]
-
-
-def test_inline_short_lists_leaves_long_scalar_list_as_plain_list(detector):
-    long_items = [f"--flag-{i}" for i in range(20)]
-    result = detector._inline_short_lists(long_items)
-    assert type(result) is list
-    assert result == long_items
-
-
-def test_inline_short_lists_leaves_non_scalar_list_as_plain_list(detector):
-    result = detector._inline_short_lists([{"id": "a"}])
-    assert type(result) is list
+@pytest.mark.parametrize(
+    ("value", "expected_type", "expected_items"),
+    [
+        pytest.param(
+            ["--autofix"],
+            _InlineList,
+            ["--autofix"],
+            id="short-scalar-list-inlines",
+        ),
+        pytest.param(
+            [f"--flag-{i}" for i in range(20)],
+            list,
+            [f"--flag-{i}" for i in range(20)],
+            id="long-scalar-list-stays-plain",
+        ),
+        pytest.param(
+            [{"id": "a"}],
+            list,
+            [{"id": "a"}],
+            id="non-scalar-list-stays-plain",
+        ),
+        pytest.param(
+            ("--fix",),
+            _InlineList,
+            ["--fix"],
+            id="tuple-input-inlines",
+        ),
+    ],
+)
+def test_inline_short_lists_list_and_tuple_handling(
+    detector, value, expected_type, expected_items
+):
+    result = detector._inline_short_lists(value)
+    assert type(result) is expected_type
+    assert list(result) == expected_items
 
 
 def test_inline_short_lists_recurses_into_dicts(detector):
@@ -112,14 +156,42 @@ def test_inline_short_lists_recurses_into_dicts(detector):
     assert isinstance(result["args"], _InlineList)
 
 
-def test_inline_short_lists_handles_tuples(detector):
-    result = detector._inline_short_lists(("--fix",))
-    assert isinstance(result, _InlineList)
-
-
 @pytest.mark.parametrize("value", ["plain", 1, True, 1.5])
 def test_inline_short_lists_returns_scalars_unchanged(detector, value):
     assert detector._inline_short_lists(value) == value
+
+
+@pytest.mark.parametrize(
+    ("commit_dates", "expected_year"),
+    [
+        pytest.param(["2020-01-01T00:00:00"], 2020, id="single-commit"),
+        pytest.param(
+            ["2020-01-01T00:00:00", "2023-06-15T00:00:00"],
+            2020,
+            id="multiple-commits-returns-earliest",
+        ),
+    ],
+)
+def test_first_commit_year_reads_root_commit_date(
+    tmp_path, detector, commit_dates, expected_year
+):
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    for i, date in enumerate(commit_dates):
+        _git_commit(tmp_path, f"commit {i}", date)
+    assert detector._first_commit_year(tmp_path) == expected_year
+
+
+def test_first_commit_year_falls_back_to_current_year_without_commits(
+    tmp_path, detector
+):
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    assert detector._first_commit_year(tmp_path) == datetime.now(tz=UTC).year
+
+
+def test_first_commit_year_falls_back_to_current_year_without_git_repo(
+    tmp_path, detector
+):
+    assert detector._first_commit_year(tmp_path) == datetime.now(tz=UTC).year
 
 
 @pytest.mark.parametrize(
@@ -198,3 +270,11 @@ def test_hook_frontend_adds_local_repo_last(tmp_path, detector):
     repos = result["_pre_commit_repos"]
     assert repos[-1]["repo"] == "local"
     assert "rev" not in repos[-1]
+
+
+def test_hook_sets_license_year_from_first_commit(tmp_path, detector):
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    _git_commit(tmp_path, "init", "2019-03-01T00:00:00")
+    context = {"_copier_conf": {"dst_path": tmp_path}}
+    result = detector.hook(context)
+    assert result["_license_year"] == 2019

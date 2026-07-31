@@ -1,14 +1,18 @@
 import os
+import subprocess
 from collections import defaultdict
 from collections.abc import Iterator
 from collections.abc import Set as AbstractSet
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, override
 
 import yaml
 from copier_template_extensions import ContextHook
 
-_SKIP_DIRS = frozenset({".git", "node_modules", "__pycache__"})
+_SKIP_DIRS = frozenset(
+    {".git", ".tox", ".venv", "__pycache__", "node_modules", "venv"},
+)
 _WANTED_SUFFIXES = frozenset({".js", ".json", ".sh", ".sql", ".toml", ".ts"})
 _INLINE_LIST_MAX_WIDTH = 60
 
@@ -30,7 +34,7 @@ _UNCONDITIONAL: tuple[dict[str, Any], ...] = (
     {
         "repo": "https://github.com/pre-commit/pre-commit-hooks",
         "hooks": (
-            {"id": "check-merge-conflict"},
+            {"id": "check-merge-conflict", "args": ("--assume-in-merge",)},
             {"id": "end-of-file-fixer"},
             {"id": "trailing-whitespace"},
         ),
@@ -217,7 +221,46 @@ class DetectStack(ContextHook):
             **context,
             "_stack_detected": detected,
             "_pre_commit_repos": self._inline_short_lists(self._merge_repos(entries)),
+            "_license_year": self._first_commit_year(dst),
         }
+
+    def _first_commit_year(self, dst: Path) -> int:
+        try:
+            root = (
+                subprocess.run(
+                    ["git", "-C", str(dst), "rev-list", "--max-parents=0", "HEAD"],
+                    capture_output=True,
+                    text=True,
+                    timeout=10,
+                    check=True,
+                )
+                .stdout.strip()
+                .splitlines()[0]
+            )
+            year = subprocess.run(
+                [
+                    "git",
+                    "-C",
+                    str(dst),
+                    "log",
+                    "-1",
+                    "--format=%ad",
+                    "--date=format:%Y",
+                    root,
+                ],
+                capture_output=True,
+                text=True,
+                timeout=10,
+                check=True,
+            ).stdout.strip()
+            return int(year)
+        except (
+            subprocess.CalledProcessError,
+            FileNotFoundError,
+            ValueError,
+            IndexError,
+        ):
+            return datetime.now(tz=UTC).year
 
     def _scan(
         self, dst: Path, wanted_suffixes: AbstractSet[str]
