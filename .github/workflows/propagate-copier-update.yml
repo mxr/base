@@ -34,8 +34,8 @@ jobs:
         # inspect) with plain git, so private repos need credentials wired globally
         git config --global url."https://x-access-token:${GH_TOKEN}@github.com/".insteadOf "https://github.com/"
 
-        repos=$(gh api /installation/repositories --paginate \
-          --jq '.repositories[] | select(.fork == false and .archived == false) | .full_name')
+        # TEMP: restricted to dotfiles only for this run, revert to the full installation-repositories query before real rollout
+        repos="mxr/dotfiles"
 
         for repo in $repos; do
           echo "::group::${repo}"
