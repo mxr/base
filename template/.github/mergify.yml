@@ -18,7 +18,6 @@ pull_request_rules:
 - name: automatic merge for copier updates
   conditions:
   - author=mxr-base-copier-sync[bot]
-  - title~=^\[copier\]
   actions:
     merge:
       method: squash
