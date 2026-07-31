@@ -20,6 +20,7 @@ jobs:
       with:
         app-id: ${{ secrets.APP_ID }}
         private-key: ${{ secrets.APP_PRIVATE_KEY }}
+        owner: mxr # zizmor: ignore[github-app] repo list is dynamic (installation-wide), org-wide token is intentional
         permission-contents: write
         permission-pull-requests: write
 
