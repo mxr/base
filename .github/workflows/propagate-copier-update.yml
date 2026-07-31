@@ -47,7 +47,8 @@ jobs:
         app-id: ${{ secrets.APP_ID }}
         private-key: ${{ secrets.APP_PRIVATE_KEY }}
         owner: mxr
-        repositories: ${{ matrix.repo }}
+        # base itself is needed too: copier clones it to fetch the template + extensions package
+        repositories: ${{ matrix.repo }},base
         permission-contents: write
         permission-pull-requests: write
 
