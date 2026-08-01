@@ -51,6 +51,9 @@ jobs:
         repositories: ${{ matrix.repo }},base
         permission-contents: write
         permission-pull-requests: write
+        # required to push/create workflow files under .github/workflows,
+        # e.g. the templated python main.yml/release.yml
+        permission-workflows: write
 
     - name: update downstream repo
       env:
