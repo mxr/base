@@ -203,14 +203,23 @@ class DetectStack(ContextHook):
         if ".sh" in suffixes:
             detected.append("shell")
 
-        # fencepost this since it's annoying to find in _scan()
-        if (dst / ".github" / "workflows").is_dir():
+        # fencepost this since it's annoying to find in _scan(). also imply it
+        # for any stack whose own templated files land under .github/workflows
+        # (currently just python) so a first-time bootstrap doesn't need a
+        # workflows dir to already exist before it'll ever get created.
+        if (dst / ".github" / "workflows").is_dir() or "python" in detected:
             detected.append("github-actions")
 
         if "package.json" in top_level or ".js" in suffixes or ".ts" in suffixes:
             detected.append("frontend")
         if ".json" in suffixes:
             detected.append("json")
+
+        # union with whatever was already answered/persisted, so `stack` only
+        # grows (e.g. adding a .json file later still picks up "json") and
+        # never flip-flops or drops something a prior render already set
+        prior_stack = context.get("stack") or ()
+        detected = sorted({*detected, *prior_stack})
 
         # once `stack` has actually been answered (interactively, from
         # --defaults, or persisted from a prior `copier update`), it's the
