@@ -25,8 +25,8 @@ jobs:
         GH_TOKEN: ${{ steps.app-token.outputs.token }}
       run: |
         set -euo pipefail
-        # TEMP: restricted to dotfiles only for this run, revert to the full installation-repositories query before real rollout
-        echo 'repos=["dotfiles"]' >> "$GITHUB_OUTPUT"
+        # TEMP: restricted to dotfiles/base only for this run, revert to the full installation-repositories query before real rollout
+        echo 'repos=["dotfiles", "base"]' >> "$GITHUB_OUTPUT"
 
   propagate:
     needs: list
