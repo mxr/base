@@ -12,7 +12,14 @@ _exclude:
 _tasks:
 - command: sh -c 'git rev-parse --is-inside-work-tree >/dev/null 2>&1 && uvx pre-commit autoupdate --freeze || true'
   working_directory: '{{ _copier_conf.dst_path }}'
-- command: sh -c 'git rev-parse --is-inside-work-tree >/dev/null 2>&1 && uvx pre-commit run --all-files || true'
+# seed .pre-commit-config.yaml's own additional_dependencies via sync-typing-deps
+# before the real run below, otherwise ty/mypy fail with no deps on a fresh
+# render since they'd otherwise run before sync-typing-deps ever touches the file
+- command: sh -c 'git rev-parse --is-inside-work-tree >/dev/null 2>&1 && uvx pre-commit run --files .pre-commit-config.yaml || true'
+  working_directory: '{{ _copier_conf.dst_path }}'
+# unlike the tasks above, let this one actually fail the render: a broken
+# .pre-commit-config.yaml shouldn't get silently committed downstream
+- command: sh -c 'if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then uvx pre-commit run --all-files; fi'
   working_directory: '{{ _copier_conf.dst_path }}'
 
 stack:
