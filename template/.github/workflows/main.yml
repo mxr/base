@@ -1,0 +1,73 @@
+name: main
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions: {}
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      project_files: ${{ steps.filter.outputs.project_files }}
+    steps:
+    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      with:
+        persist-credentials: false
+    - uses: dorny/paths-filter@7b450fff21473bca461d4b92ce414b9d0420d706 # v4.0.2
+      id: filter
+      with:
+        filters: |
+          project_files:
+            - .github/workflows/main.yml
+            - '**/*.py'
+            - '**/*.sql'
+            - '**/*.toml'
+            - '**/*requirements*.txt'
+            - '**/setup.cfg'
+            - setup.py
+  main-real:
+    needs: [changes]
+    if: needs.changes.outputs.project_files == 'true'
+    uses: asottile/workflows/.github/workflows/tox.yml@75fa946a6d3d763b75b3a6669c18dc4d1822e939 # v1.11.1
+    with:
+      env: '["py312", "py313", "py314", "pypy7.3.20"]' # https://github.com/actions/runner-images/blob/4847d9e554d1ad62acec5c5bddfc6175fe1bef4e/images/ubuntu/Ubuntu2204-Readme.md#pypy
+  main:
+    needs: [changes, main-real]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+    - env:
+        PROJECT_FILES: ${{ needs.changes.outputs.project_files }}
+        MAIN_REAL_RESULT: ${{ needs.main-real.result }}
+      run: |
+        if [ "$PROJECT_FILES" != "true" ]; then
+          exit 0
+        fi
+        if [ "$MAIN_REAL_RESULT" != "success" ]; then
+          exit 1
+        fi
+  main-win-real:
+    needs: [changes]
+    if: needs.changes.outputs.project_files == 'true'
+    uses: asottile/workflows/.github/workflows/tox.yml@75fa946a6d3d763b75b3a6669c18dc4d1822e939 # v1.11.1
+    with:
+      env: '["py312"]'
+      os: windows-latest
+  main-win:
+    needs: [changes, main-win-real]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+    - env:
+        PROJECT_FILES: ${{ needs.changes.outputs.project_files }}
+        MAIN_WIN_REAL_RESULT: ${{ needs.main-win-real.result }}
+      run: |
+        if [ "$PROJECT_FILES" != "true" ]; then
+          exit 0
+        fi
+        if [ "$MAIN_WIN_REAL_RESULT" != "success" ]; then
+          exit 1
+        fi
