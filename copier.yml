@@ -20,4 +20,3 @@ stack:
   multiselect: true
   choices: [frontend, github-actions, json, python, rust, shell, sql, toml]
   default: '{{ _stack_detected }}'
-  when: false

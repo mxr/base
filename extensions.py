@@ -212,9 +212,16 @@ class DetectStack(ContextHook):
         if ".json" in suffixes:
             detected.append("json")
 
+        # once `stack` has actually been answered (interactively, from
+        # --defaults, or persisted from a prior `copier update`), it's the
+        # source of truth for which hooks to render — not a fresh directory
+        # scan, which can't see files this same render is about to create
+        # (e.g. `.github/workflows` on a repo's very first python bootstrap)
+        active_stacks = context.get("stack", detected)
+
         entries = [
             *_UNCONDITIONAL,
-            *(h for name in detected for h in _STACK_REPOS.get(name, ())),
+            *(h for name in active_stacks for h in _STACK_REPOS.get(name, ())),
         ]
 
         return {
