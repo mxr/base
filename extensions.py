@@ -309,7 +309,14 @@ class DetectStack(ContextHook):
         for key, hooks in hooks_by_repo.items():
             repo: dict[str, Any] = {"repo": key}
             if key != "local":
-                repo["rev"] = "v0.0.0"
+                # unique per repo rather than a shared "v0.0.0" literal: copier's
+                # diff engine is difflib-based, not a real git diff3, and with
+                # every unfrozen entry carrying the exact same "rev: v0.0.0"
+                # line it misaligns hunks across the file and conflicts with
+                # your locally frozen revs even when that entry never changed.
+                # `pre-commit autoupdate --freeze` matches hooks structurally
+                # by repo url, so the placeholder text itself doesn't matter.
+                repo["rev"] = f"v0.0.0-{key.rsplit('/', 1)[-1]}"
             repo["hooks"] = sorted(hooks, key=lambda h: h["id"])
             repos.append(repo)
 

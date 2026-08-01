@@ -82,7 +82,7 @@ def test_merge_repos_merges_hooks_for_same_repo(detector):
     ]
     result = detector._merge_repos(entries)
     assert result == [
-        {"repo": "https://x", "rev": "v0.0.0", "hooks": [{"id": "a"}, {"id": "b"}]},
+        {"repo": "https://x", "rev": "v0.0.0-x", "hooks": [{"id": "a"}, {"id": "b"}]},
     ]
 
 
@@ -199,7 +199,11 @@ def test_first_commit_year_falls_back_to_current_year_without_git_repo(
     [
         pytest.param({}, [], id="empty"),
         pytest.param({"Cargo.toml": ""}, ["rust", "toml"], id="rust"),
-        pytest.param({"pyproject.toml": ""}, ["python", "toml"], id="python"),
+        pytest.param(
+            {"pyproject.toml": ""},
+            ["github-actions", "python", "toml"],
+            id="python",
+        ),
         pytest.param({"other.toml": ""}, ["toml"], id="toml-only"),
         pytest.param({"seed.sql": ""}, ["sql"], id="sql"),
         pytest.param({"tag.sh": ""}, ["shell"], id="shell"),
@@ -227,14 +231,14 @@ def test_first_commit_year_falls_back_to_current_year_without_git_repo(
                 "package.json": "{}",
             },
             [
-                "rust",
-                "python",
-                "toml",
-                "sql",
-                "shell",
-                "github-actions",
                 "frontend",
+                "github-actions",
                 "json",
+                "python",
+                "rust",
+                "shell",
+                "sql",
+                "toml",
             ],
             id="full",
         ),
