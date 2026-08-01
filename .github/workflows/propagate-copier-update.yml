@@ -68,7 +68,7 @@ jobs:
         git clone --quiet "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git" "$workdir"
 
         git -C "$workdir" config user.name "mxr-base-copier-sync[bot]"
-        git -C "$workdir" config user.email "4334921+mxr-base-copier-sync[bot]@users.noreply.github.com"
+        git -C "$workdir" config user.email "306625798+mxr-base-copier-sync[bot]@users.noreply.github.com"
 
         if [ -f "$workdir/.copier-answers.yml" ]; then
           action="update"
