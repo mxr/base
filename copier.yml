@@ -7,7 +7,7 @@ _jinja_extensions:
 _exclude:
 - "{% if 'frontend' not in stack %}biome.json{% endif %}"
 - "{% if 'python' not in stack %}.github/workflows/main.yml{% endif %}"
-- "{% if 'python' not in stack %}.github/workflows/release.yml{% endif %}"
+- "{% if 'python-release' not in stack %}.github/workflows/release.yml{% endif %}"
 
 _tasks:
 - command: sh -c 'git rev-parse --is-inside-work-tree >/dev/null 2>&1 && uvx pre-commit autoupdate --freeze || true'
@@ -25,5 +25,5 @@ _tasks:
 stack:
   type: str
   multiselect: true
-  choices: [frontend, github-actions, json, python, rust, shell, sql, toml]
+  choices: [frontend, github-actions, json, python, python-release, rust, shell, sql, toml]
   default: '{{ _stack_detected }}'
