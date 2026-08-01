@@ -72,7 +72,7 @@ jobs:
 
         if [ -f "$workdir/.copier-answers.yml" ]; then
           action="update"
-          branch="copier-update-${tag}"
+          branch="copier-update"
           pr_title="[copier] update to ${tag}"
           pr_body="Automated update from base template ${tag}."
         else
@@ -82,7 +82,14 @@ jobs:
           pr_body="Automated onboarding onto base template ${tag}."
         fi
 
-        git -C "$workdir" checkout -b "$branch"
+        # reuse an already-open copier-update PR's branch instead of opening a new
+        # one every release, so downstream repos don't accumulate stale PRs
+        if [ "$action" = "update" ] && git -C "$workdir" ls-remote --exit-code --heads origin "$branch" > /dev/null 2>&1; then
+          git -C "$workdir" fetch --quiet origin "$branch"
+          git -C "$workdir" checkout -b "$branch" "origin/$branch"
+        else
+          git -C "$workdir" checkout -b "$branch"
+        fi
 
         if [ "$action" = "update" ]; then
           (cd "$workdir" && uvx --with copier-template-extensions --with "git+https://github.com/mxr/base.git@${tag}" copier update --trust --defaults --vcs-ref "$tag")
@@ -99,8 +106,13 @@ jobs:
         git -C "$workdir" commit -m "[copier] ${action} to ${tag}"
         git -C "$workdir" push -u origin "$branch"
 
-        gh pr create \
-          --repo "${REPO}" \
-          --title "$pr_title" \
-          --body "$pr_body" \
-          --head "$branch" || true
+        existing_pr="$(gh pr list --repo "${REPO}" --head "$branch" --json number -q '.[0].number' || true)"
+        if [ -n "$existing_pr" ]; then
+          gh pr edit "$existing_pr" --repo "${REPO}" --title "$pr_title" --body "$pr_body"
+        else
+          gh pr create \
+            --repo "${REPO}" \
+            --title "$pr_title" \
+            --body "$pr_body" \
+            --head "$branch" || true
+        fi
