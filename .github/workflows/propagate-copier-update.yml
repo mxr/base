@@ -91,12 +91,11 @@ jobs:
           pr_body="Automated onboarding onto base template ${tag}."
         fi
 
-        if git -C "$workdir" ls-remote --exit-code --heads origin "$branch" > /dev/null 2>&1; then
-          git -C "$workdir" fetch --quiet origin "$branch"
-          git -C "$workdir" checkout -b "$branch" "origin/$branch"
-        else
-          git -C "$workdir" checkout -b "$branch"
-        fi
+        # branch off main's actual content, never a prior copier-update-* PR's
+        # state — the 3-way merge has to diff against what's really on main,
+        # not whatever (possibly already-broken) output a previous run left
+        # behind, or errors just compound across reruns forever
+        git -C "$workdir" checkout -b "$branch"
 
         if [ "$action" = "update" ]; then
           (cd "$workdir" && uvx --with copier-template-extensions --with "git+https://github.com/mxr/base.git@${tag}" copier update --trust --defaults --vcs-ref "$tag")
@@ -111,7 +110,16 @@ jobs:
 
         git -C "$workdir" add -A
         git -C "$workdir" commit -m "[copier] ${action} to ${tag}"
-        git -C "$workdir" push -u origin "$branch"
+
+        # force-with-lease over any existing branch of the same name, since
+        # we deliberately rebuilt it fresh from main above instead of
+        # incrementally updating whatever was there before
+        if git -C "$workdir" ls-remote --exit-code --heads origin "$branch" > /dev/null 2>&1; then
+          git -C "$workdir" fetch --quiet origin "$branch"
+          git -C "$workdir" push --force-with-lease="$branch:refs/remotes/origin/$branch" origin "$branch"
+        else
+          git -C "$workdir" push -u origin "$branch"
+        fi
 
         existing_pr="$(gh pr list --repo "${REPO}" --head "$branch" --json number -q '.[0].number' || true)"
         if [ -n "$existing_pr" ]; then
