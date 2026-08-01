@@ -72,7 +72,13 @@ jobs:
 
         if [ -f "$workdir/.copier-answers.yml" ]; then
           action="update"
-          branch="copier-update"
+          # reuse any already-open copier-update-* PR's branch (whatever it's
+          # named — doesn't need to match this tag) instead of opening a new
+          # one every release, so downstream repos don't accumulate stale PRs
+          branch="$(gh pr list --repo "${REPO}" --state open --json headRefName -q '[.[] | select(.headRefName | startswith("copier-update"))][0].headRefName' || true)"
+          if [ -z "$branch" ]; then
+            branch="copier-update-${tag}"
+          fi
           pr_title="[copier] update to ${tag}"
           pr_body="Automated update from base template ${tag}."
         else
@@ -82,9 +88,7 @@ jobs:
           pr_body="Automated onboarding onto base template ${tag}."
         fi
 
-        # reuse an already-open copier-update PR's branch instead of opening a new
-        # one every release, so downstream repos don't accumulate stale PRs
-        if [ "$action" = "update" ] && git -C "$workdir" ls-remote --exit-code --heads origin "$branch" > /dev/null 2>&1; then
+        if git -C "$workdir" ls-remote --exit-code --heads origin "$branch" > /dev/null 2>&1; then
           git -C "$workdir" fetch --quiet origin "$branch"
           git -C "$workdir" checkout -b "$branch" "origin/$branch"
         else
