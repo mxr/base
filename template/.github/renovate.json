@@ -19,7 +19,7 @@
   ],
   "prBodyTemplate": "{{{table}}}",
   "schedule": [
-    "0 16-17 * * 1"
+    "* 16-17 * * 1"
   ],
   "separateMajorMinor": false,
   "separateMultipleMajor": false
