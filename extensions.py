@@ -203,11 +203,8 @@ class DetectStack(ContextHook):
         if ".sh" in suffixes:
             detected.append("shell")
 
-        # fencepost this since it's annoying to find in _scan(). also imply it
-        # for any stack whose own templated files land under .github/workflows
-        # (currently just python) so a first-time bootstrap doesn't need a
-        # workflows dir to already exist before it'll ever get created.
-        if (dst / ".github" / "workflows").is_dir() or "python" in detected:
+        # fencepost this since it's annoying to find in _scan()
+        if (dst / ".github" / "workflows").is_dir():
             detected.append("github-actions")
 
         if "package.json" in top_level or ".js" in suffixes or ".ts" in suffixes:

@@ -201,7 +201,7 @@ def test_first_commit_year_falls_back_to_current_year_without_git_repo(
         pytest.param({"Cargo.toml": ""}, ["rust", "toml"], id="rust"),
         pytest.param(
             {"pyproject.toml": ""},
-            ["github-actions", "python", "toml"],
+            ["python", "toml"],
             id="python",
         ),
         pytest.param({"other.toml": ""}, ["toml"], id="toml-only"),
