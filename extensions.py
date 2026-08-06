@@ -1,8 +1,7 @@
-import os
+import fnmatch
 import subprocess
 from collections import defaultdict
 from collections.abc import Iterator
-from collections.abc import Set as AbstractSet
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, override
@@ -13,8 +12,23 @@ from copier_template_extensions import ContextHook
 _SKIP_DIRS = frozenset(
     {".git", ".tox", ".venv", "__pycache__", "node_modules", "venv"},
 )
-_WANTED_SUFFIXES = frozenset({".js", ".json", ".sh", ".sql", ".toml", ".ts"})
 _INLINE_LIST_MAX_WIDTH = 60
+
+# glob patterns (matched against the repo-relative posix path, so a bare
+# "*.ext" matches at any depth while a plain filename like "Cargo.toml" only
+# matches at the root) that count as evidence for a stack entry. This same
+# scan also sees whatever a prior render generated, so once a stack entry
+# causes matching output to exist, it becomes self-sustaining evidence too.
+_STACK_GLOBS: dict[str, tuple[str, ...]] = {
+    "rust": ("Cargo.toml",),
+    "python": ("pyproject.toml",),
+    "toml": ("*.toml",),
+    "sql": ("*.sql",),
+    "shell": ("*.sh",),
+    "github-actions": (".github/workflows/*",),
+    "frontend": ("package.json", "*.js", "*.ts"),
+    "json": ("*.json",),
+}
 
 
 class _InlineList(list[Any]):
@@ -187,47 +201,39 @@ class DetectStack(ContextHook):
     @override
     def hook(self, context: dict[str, Any]) -> dict[str, Any]:
         dst = Path(context["_copier_conf"]["dst_path"])
-        suffixes, top_level = self._scan(dst, _WANTED_SUFFIXES)
+        relpaths = list(self._iter_relpaths(dst))
 
-        detected = []
+        detected = {
+            stack
+            for stack, patterns in _STACK_GLOBS.items()
+            if any(
+                fnmatch.fnmatch(relpath, pattern)
+                for relpath in relpaths
+                for pattern in patterns
+            )
+        }
 
-        if "Cargo.toml" in top_level:
-            detected.append("rust")
-        if "pyproject.toml" in top_level:
-            detected.append("python")
-
-        if ".toml" in suffixes:
-            detected.append("toml")
-        if ".sql" in suffixes:
-            detected.append("sql")
-        if ".sh" in suffixes:
-            detected.append("shell")
-
-        # fencepost this since it's annoying to find in _scan()
-        if (dst / ".github" / "workflows").is_dir():
-            detected.append("github-actions")
-
-        if "package.json" in top_level or ".js" in suffixes or ".ts" in suffixes:
-            detected.append("frontend")
-        if ".json" in suffixes:
-            detected.append("json")
-
-        # union with the persisted answer, so `stack` is bidirectional: a file
-        # re-adds its entry even if the answer dropped it, and a manually-added
-        # entry with no matching files yet still sticks around. an entry only
-        # actually goes away once both the answer AND its files are gone —
-        # dropping just the files gets it silently re-added next render
+        # .github/workflows isn't copier-managed output, so copier update's
+        # diff-only render pass (used purely to compute the 3-way merge, not
+        # the real write) can't see it even when it really exists in the
+        # destination; fall back to the persisted answer rather than wrongly
+        # detecting its removal there. every other entry stays purely
+        # evidence-based: a manually-added entry with nothing matching its
+        # glob (and nothing generated for it) does NOT persist.
         prior_stack = context.get("stack") or ()
-        detected = sorted({*detected, *prior_stack})
+        if "github-actions" in prior_stack:
+            detected.add("github-actions")
+
+        stack = sorted(detected)
 
         entries = [
             *_UNCONDITIONAL,
-            *(h for name in detected for h in _STACK_REPOS.get(name, ())),
+            *(h for name in stack for h in _STACK_REPOS.get(name, ())),
         ]
 
         return {
             **context,
-            "_stack_detected": detected,
+            "_stack_detected": stack,
             "_pre_commit_repos": self._inline_short_lists(self._merge_repos(entries)),
             "_license_year": self._first_commit_year(dst),
         }
@@ -270,24 +276,11 @@ class DetectStack(ContextHook):
         ):
             return datetime.now(tz=UTC).year
 
-    def _scan(
-        self, dst: Path, wanted_suffixes: AbstractSet[str]
-    ) -> tuple[set[str], set[str]]:
-        suffixes = set()
-        for suffix in self._iter_suffixes(dst):
-            suffixes.add(suffix)
-            if suffixes >= wanted_suffixes:
-                break
-
-        top_level = {p.name for p in dst.iterdir()}
-
-        return suffixes, top_level
-
-    def _iter_suffixes(self, dst: Path) -> Iterator[str]:
-        for _, dirs, files in dst.walk():
+    def _iter_relpaths(self, dst: Path) -> Iterator[str]:
+        for root, dirs, files in dst.walk():
             dirs[:] = [d for d in dirs if d not in _SKIP_DIRS]
             for name in files:
-                yield os.path.splitext(name)[1]
+                yield (root / name).relative_to(dst).as_posix()
 
     def _merge_repos(self, entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
         # TODO: this merges hooks across all "repo: local" entries into one block,

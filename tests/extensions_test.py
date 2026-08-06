@@ -41,16 +41,16 @@ def _git_commit(repo, message, date):
     )
 
 
-def test_iter_suffixes_yields_suffix_of_every_file(tmp_path, detector):
+def test_iter_relpaths_yields_posix_relpath_of_every_file(tmp_path, detector):
     _write(tmp_path, {"a.py": "", "sub/b.sql": ""})
-    assert set(detector._iter_suffixes(tmp_path)) == {".py", ".sql"}
+    assert set(detector._iter_relpaths(tmp_path)) == {"a.py", "sub/b.sql"}
 
 
 @pytest.mark.parametrize(
     "skip_dir",
     [".git", ".tox", ".venv", "__pycache__", "node_modules", "venv"],
 )
-def test_iter_suffixes_skips_configured_dirs(tmp_path, detector, skip_dir):
+def test_iter_relpaths_skips_configured_dirs(tmp_path, detector, skip_dir):
     _write(
         tmp_path,
         {
@@ -58,21 +58,7 @@ def test_iter_suffixes_skips_configured_dirs(tmp_path, detector, skip_dir):
             "real.py": "",
         },
     )
-    assert set(detector._iter_suffixes(tmp_path)) == {".py"}
-
-
-def test_scan_breaks_early_once_wanted_suffixes_satisfied(tmp_path, detector):
-    _write(tmp_path, {"a.sql": "", "b.sh": "", "c.unwanted": ""})
-    suffixes, top_level = detector._scan(tmp_path, frozenset({".sql", ".sh"}))
-    assert suffixes == {".sql", ".sh"}
-    assert top_level == {"a.sql", "b.sh", "c.unwanted"}
-
-
-def test_scan_exhausts_walk_when_wanted_suffixes_never_satisfied(tmp_path, detector):
-    _write(tmp_path, {"a.sql": ""})
-    suffixes, top_level = detector._scan(tmp_path, frozenset({".sql", ".missing"}))
-    assert suffixes == {".sql"}
-    assert top_level == {"a.sql"}
+    assert set(detector._iter_relpaths(tmp_path)) == {"real.py"}
 
 
 def test_merge_repos_merges_hooks_for_same_repo(detector):
@@ -251,12 +237,14 @@ def test_hook_detects_stack(tmp_path, detector, files, expected_detected):
     assert result["_stack_detected"] == expected_detected
 
 
-def test_hook_keeps_manually_added_stack_entry_with_no_matching_files(
+def test_hook_drops_manually_added_stack_entry_with_no_matching_files(
     tmp_path, detector
 ):
+    # shell has no glob evidence and generates nothing distinct of its own,
+    # so a manual add with nothing to back it up does not stick
     context = {"_copier_conf": {"dst_path": tmp_path}, "stack": ["shell"]}
     result = detector.hook(context)
-    assert result["_stack_detected"] == ["shell"]
+    assert result["_stack_detected"] == []
 
 
 def test_hook_readds_stack_entry_when_files_still_present_despite_dropped_answer(
@@ -268,10 +256,13 @@ def test_hook_readds_stack_entry_when_files_still_present_despite_dropped_answer
     assert result["_stack_detected"] == ["shell"]
 
 
-def test_hook_drops_stack_entry_once_both_answer_and_files_are_gone(tmp_path, detector):
-    context = {"_copier_conf": {"dst_path": tmp_path}, "stack": []}
+def test_hook_falls_back_to_persisted_stack_for_github_actions(tmp_path, detector):
+    # .github/workflows isn't copier-managed output, so copier update's
+    # diff-only render pass can't see it even when it's really there;
+    # trust the persisted answer instead of wrongly detecting its removal
+    context = {"_copier_conf": {"dst_path": tmp_path}, "stack": ["github-actions"]}
     result = detector.hook(context)
-    assert result["_stack_detected"] == []
+    assert result["_stack_detected"] == ["github-actions"]
 
 
 def test_hook_preserves_existing_context_keys(tmp_path, detector):
