@@ -251,6 +251,21 @@ def test_hook_detects_stack(tmp_path, detector, files, expected_detected):
     assert result["_stack_detected"] == expected_detected
 
 
+def test_hook_drops_stack_entry_once_its_files_are_gone(tmp_path, detector):
+    context = {"_copier_conf": {"dst_path": tmp_path}, "stack": ["python", "toml"]}
+    result = detector.hook(context)
+    assert result["_stack_detected"] == []
+
+
+def test_hook_falls_back_to_persisted_stack_for_github_actions(tmp_path, detector):
+    # .github/workflows isn't copier-managed output, so copier update's
+    # diff-only render pass can't see it even when it's really there;
+    # trust the persisted answer instead of wrongly detecting its removal
+    context = {"_copier_conf": {"dst_path": tmp_path}, "stack": ["github-actions"]}
+    result = detector.hook(context)
+    assert result["_stack_detected"] == ["github-actions"]
+
+
 def test_hook_preserves_existing_context_keys(tmp_path, detector):
     context = {"_copier_conf": {"dst_path": tmp_path}, "other_key": "value"}
     result = detector.hook(context)
