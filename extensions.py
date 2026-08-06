@@ -203,13 +203,8 @@ class DetectStack(ContextHook):
         if ".sh" in suffixes:
             detected.append("shell")
 
-        # fencepost this since it's annoying to find in _scan(). .github/workflows
-        # isn't copier-managed output, so `copier update`'s diff-only render pass
-        # (used purely to compute the 3-way merge, not the real write) can't see
-        # it even when it really exists in the destination; fall back to the
-        # persisted answer rather than wrongly detecting its removal there
-        prior_stack = context.get("stack") or ()
-        if (dst / ".github" / "workflows").is_dir() or "github-actions" in prior_stack:
+        # fencepost this since it's annoying to find in _scan()
+        if (dst / ".github" / "workflows").is_dir():
             detected.append("github-actions")
 
         if "package.json" in top_level or ".js" in suffixes or ".ts" in suffixes:
@@ -217,11 +212,13 @@ class DetectStack(ContextHook):
         if ".json" in suffixes:
             detected.append("json")
 
-        # otherwise `stack` tracks live evidence in both directions: adding a
-        # file re-adds an entry, and removing an entry's files removes it too
-        # (an entry only actually drops once both the stack answer AND the
-        # files that would re-trigger it are gone)
-        detected = sorted(set(detected))
+        # union with the persisted answer, so `stack` is bidirectional: a file
+        # re-adds its entry even if the answer dropped it, and a manually-added
+        # entry with no matching files yet still sticks around. an entry only
+        # actually goes away once both the answer AND its files are gone —
+        # dropping just the files gets it silently re-added next render
+        prior_stack = context.get("stack") or ()
+        detected = sorted({*detected, *prior_stack})
 
         entries = [
             *_UNCONDITIONAL,
