@@ -30,4 +30,10 @@ const project = new cdk.JsiiProject({
 const upgradeMain = project.tryFindObjectFile('.github/workflows/upgrade-main.yml');
 upgradeMain?.addOverride('jobs.pr.permissions.contents', 'write');
 upgradeMain?.addOverride('jobs.pr.permissions.pull-requests', 'write');
+
+// releases are manual (see releaseTrigger above): `npx projen release` bumps,
+// tags and pushes; fold the npm publish in here too so that one command does
+// the whole thing. the pushed tag then triggers propagate-update.yml in CI.
+project.tasks.tryFind('release')?.exec('npm publish');
+
 project.synth();

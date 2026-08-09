@@ -271,6 +271,9 @@
         },
         {
           "spawn": "publish:git"
+        },
+        {
+          "exec": "npm publish"
         }
       ]
     },
