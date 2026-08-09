@@ -91,7 +91,7 @@ jobs:
         fi
 
         git -C "$workdir" add -A
-        git -C "$workdir" commit -m "chore: update base to ${tag}"
+        git -C "$workdir" commit -m "[base] update to ${tag}"
 
         # force-with-lease over any existing branch of the same name, since
         # we deliberately rebuilt it fresh from main above instead of
@@ -105,11 +105,11 @@ jobs:
 
         existing_pr="$(gh pr list --repo "${REPO}" --head "$branch" --json number -q '.[0].number' || true)"
         if [ -n "$existing_pr" ]; then
-          gh pr edit "$existing_pr" --repo "${REPO}" --title "chore: update base to ${tag}" --body "Automated update from base ${tag}."
+          gh pr edit "$existing_pr" --repo "${REPO}" --title "[base] update to ${tag}" --body "Automated update from base ${tag}."
         else
           gh pr create \
             --repo "${REPO}" \
-            --title "chore: update base to ${tag}" \
+            --title "[base] update to ${tag}" \
             --body "Automated update from base ${tag}." \
             --head "$branch" || true
         fi
