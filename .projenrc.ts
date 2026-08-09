@@ -1,4 +1,5 @@
 import { cdk, javascript } from 'projen';
+import { ReleaseTrigger } from 'projen/lib/release';
 const project = new cdk.JsiiProject({
   author: 'Max R',
   authorAddress: 'mxr@users.noreply.github.com',
@@ -21,6 +22,7 @@ const project = new cdk.JsiiProject({
   projenrcJson: false,
   projenrcTs: true,
   releaseToNpm: true,
+  releaseTrigger: ReleaseTrigger.manual(),
   repository: 'https://github.com/mxr/base.git',
   repositoryUrl: 'https://github.com/mxr/base.git',
 });

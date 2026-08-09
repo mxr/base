@@ -24,6 +24,18 @@ package once published):
 npx projen new base --from /path/to/base --stack python --stack toml
 ```
 
+## Releasing
+
+Releases are manual, not triggered by pushing to `main`:
+
+```sh
+npx projen release   # bumps version, tags, and pushes the tag to origin
+npm publish           # publishes @mxr/base to GitHub Packages
+```
+
+Pushing the tag fires `.github/workflows/propagate-update.yml`, which bumps
+`@mxr/base` in downstream repos and opens a PR.
+
 ## `stack`
 
 `stack` is a plain, declared list — not something re-detected from the
