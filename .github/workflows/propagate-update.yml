@@ -1,8 +1,11 @@
 name: propagate update
 
 on:
-  push:
-    tags: [v*]
+  # projen's own release workflow creates the tag+release via `gh release
+  # create` (an API call), not a real `git push` of the tag ref — that
+  # doesn't fire a "push" event, so this has to key off "release" instead
+  release:
+    types: [published]
 
 permissions: {}
 
@@ -51,9 +54,10 @@ jobs:
       env:
         GH_TOKEN: ${{ steps.app-token.outputs.token }}
         REPO: mxr/${{ matrix.repo }}
+        RELEASE_TAG: ${{ github.event.release.tag_name }}
       run: |
         set -euo pipefail
-        tag="${GITHUB_REF_NAME}"
+        tag="${RELEASE_TAG}"
         version="${tag#v}"
 
         workdir="$(mktemp -d)"
