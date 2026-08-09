@@ -1,0 +1,33 @@
+import { Testing } from 'projen';
+import { BaseProject } from '../src/base-project';
+import { Stack } from '../src/stack';
+
+describe('BaseProject', () => {
+  it('uses MIT for a non-frontend stack, and skips biome.json', () => {
+    const project = new BaseProject({ name: 'test', stack: [Stack.PYTHON] });
+    const snapshot = Testing.synth(project);
+    expect(snapshot.LICENSE).toContain('Permission is hereby granted, free of charge');
+    expect(snapshot['biome.json']).toBeUndefined();
+  });
+
+  it('uses AGPL-3.0-or-later and adds biome.json for a frontend stack', () => {
+    const project = new BaseProject({ name: 'test', stack: [Stack.FRONTEND] });
+    const snapshot = Testing.synth(project);
+    expect(snapshot.LICENSE).toContain('GNU AFFERO GENERAL PUBLIC LICENSE');
+    expect(snapshot['biome.json'].$schema).toBe('https://biomejs.dev/schemas/2.5.4/schema.json');
+  });
+
+  it('writes the mergify and renovate config', () => {
+    const project = new BaseProject({ name: 'test', stack: [] });
+    const snapshot = Testing.synth(project);
+    expect(snapshot['.mergify.yml']).toContain('renovate[bot]');
+    expect(snapshot['.mergify.yml']).toContain('mxr-base-sync[bot]');
+    expect(snapshot['.github/renovate.json']).toMatchObject({ commitMessagePrefix: '[renovate]' });
+  });
+
+  it('writes a pre-commit config', () => {
+    const project = new BaseProject({ name: 'test', stack: [] });
+    const snapshot = Testing.synth(project);
+    expect(snapshot['.pre-commit-config.yaml']).toContain('repos:');
+  });
+});

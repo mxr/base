@@ -1,0 +1,115 @@
+name: propagate update
+
+on:
+  push:
+    tags: [v*]
+
+permissions: {}
+
+jobs:
+  list:
+    runs-on: ubuntu-24.04
+    outputs:
+      repos: ${{ steps.list.outputs.repos }}
+    steps:
+    - uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
+      id: app-token
+      with:
+        client-id: ${{ secrets.APP_ID }}
+        private-key: ${{ secrets.APP_PRIVATE_KEY }}
+        owner: mxr # zizmor: ignore[github-app] read-only, used only to enumerate installed repos; no write perms granted here
+        permission-metadata: read
+
+    - id: list
+      env:
+        GH_TOKEN: ${{ steps.app-token.outputs.token }}
+      run: |
+        set -euo pipefail
+        # TEMP: restricted to dotfiles only for this run, revert to the full installation-repositories query before real rollout
+        echo 'repos=["dotfiles"]' >> "$GITHUB_OUTPUT"
+
+  propagate:
+    needs: list
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        repo: ${{ fromJson(needs.list.outputs.repos) }}
+    steps:
+    - uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
+      id: app-token
+      with:
+        client-id: ${{ secrets.APP_ID }}
+        private-key: ${{ secrets.APP_PRIVATE_KEY }}
+        owner: mxr
+        repositories: ${{ matrix.repo }}
+        permission-contents: write
+        permission-pull-requests: write
+        permission-packages: read
+
+    - name: update downstream repo
+      env:
+        GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        REPO: mxr/${{ matrix.repo }}
+      run: |
+        set -euo pipefail
+        tag="${GITHUB_REF_NAME}"
+        version="${tag#v}"
+
+        workdir="$(mktemp -d)"
+        git clone --quiet "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git" "$workdir"
+
+        git -C "$workdir" config user.name "mxr-base-sync[bot]"
+        git -C "$workdir" config user.email "306625798+mxr-base-sync[bot]@users.noreply.github.com"
+
+        if [ ! -f "$workdir/package.json" ]; then
+          echo "not a projen repo, skipping"
+          exit 0
+        fi
+
+        # reuse any already-open base-update-* PR's branch (whatever it's
+        # named — doesn't need to match this tag) instead of opening a new
+        # one every release, so downstream repos don't accumulate stale PRs
+        branch="$(gh pr list --repo "${REPO}" --state open --json headRefName -q '[.[] | select(.headRefName | startswith("base-update"))][0].headRefName' || true)"
+        if [ -z "$branch" ]; then
+          branch="base-update-${tag}"
+        fi
+
+        # branch off main's actual content, never a prior base-update-* PR's
+        # state — the diff has to be against what's really on main, not
+        # whatever a previous run left behind
+        git -C "$workdir" checkout -b "$branch"
+
+        echo "@mxr:registry=https://npm.pkg.github.com" > "$workdir/.npmrc"
+        echo "//npm.pkg.github.com/:_authToken=${GH_TOKEN}" >> "$workdir/.npmrc"
+        (cd "$workdir" && npm install --save-dev "@mxr/base@${version}" && npx projen)
+        rm -f "$workdir/.npmrc"
+
+        if git -C "$workdir" diff --quiet && git -C "$workdir" diff --cached --quiet; then
+          echo "no changes"
+          exit 0
+        fi
+
+        git -C "$workdir" add -A
+        git -C "$workdir" commit -m "chore: update base to ${tag}"
+
+        # force-with-lease over any existing branch of the same name, since
+        # we deliberately rebuilt it fresh from main above instead of
+        # incrementally updating whatever was there before
+        if git -C "$workdir" ls-remote --exit-code --heads origin "$branch" > /dev/null 2>&1; then
+          git -C "$workdir" fetch --quiet origin "$branch"
+          git -C "$workdir" push --force-with-lease="$branch:refs/remotes/origin/$branch" origin "$branch"
+        else
+          git -C "$workdir" push -u origin "$branch"
+        fi
+
+        existing_pr="$(gh pr list --repo "${REPO}" --head "$branch" --json number -q '.[0].number' || true)"
+        if [ -n "$existing_pr" ]; then
+          gh pr edit "$existing_pr" --repo "${REPO}" --title "chore: update base to ${tag}" --body "Automated update from base ${tag}."
+        else
+          gh pr create \
+            --repo "${REPO}" \
+            --title "chore: update base to ${tag}" \
+            --body "Automated update from base ${tag}." \
+            --head "$branch" || true
+        fi
