@@ -51,6 +51,7 @@ jobs:
       env:
         GH_TOKEN: ${{ steps.app-token.outputs.token }}
         REPO: mxr/${{ matrix.repo }}
+      # zizmor: ignore[adhoc-packages] deliberately bumps to a specific new base version, not installable from a lockfile
       run: |
         set -euo pipefail
         tag="${GITHUB_REF_NAME}"
