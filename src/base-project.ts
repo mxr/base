@@ -66,7 +66,7 @@ export class BaseProject extends GitHubProject {
   private readonly renovateIgnoreMajor: string[];
 
   constructor(options: BaseProjectOptions) {
-    super(options);
+    super({ pullRequestLint: false, ...options });
 
     this.stack = options.stack;
     this.renovateIgnoreMajor = options.renovateIgnoreMajor ?? [];
