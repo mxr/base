@@ -101,6 +101,7 @@ const project = new cdk.JsiiProject({
   npmRegistryUrl: "https://npm.pkg.github.com",
   npmTokenSecret: "GITHUB_TOKEN",
   packageManager: javascript.NodePackageManager.NPM,
+  pullRequestTemplate: false,
   peerDeps: ["constructs", "projen"],
   prettier: false,
   projenrcJson: false,
