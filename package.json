@@ -6,7 +6,6 @@
     "url": "https://github.com/mxr/base.git"
   },
   "scripts": {
-    "biome": "projen biome",
     "build": "projen build",
     "bump": "projen bump",
     "bump:releasable-commits": "projen bump:releasable-commits",
@@ -36,7 +35,6 @@
     "organization": false
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.5",
     "@types/jest": "^30.0.0",
     "@types/node": "^26.2.0",
     "commit-and-tag-version": "^12",

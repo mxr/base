@@ -10,11 +10,12 @@
 /.gitignore linguist-generated
 /.mergify.yml linguist-generated
 /.npmignore linguist-generated
+/.pre-commit-config.yaml linguist-generated
 /.projen/** linguist-generated
 /.projen/deps.json linguist-generated
 /.projen/files.json linguist-generated
 /.projen/tasks.json linguist-generated
-/biome.jsonc linguist-generated linguist-language=JSON-with-Comments
+/biome.json linguist-generated
 /LICENSE linguist-generated
 /package-lock.json linguist-generated
 /package.json linguist-generated

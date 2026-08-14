@@ -4,16 +4,6 @@
     "PATH": "$(npx -c \"node --print process.env.PATH\")"
   },
   "tasks": {
-    "biome": {
-      "name": "biome",
-      "description": "Runs Biome against the codebase",
-      "steps": [
-        {
-          "exec": "biome check --no-errors-on-unmatched --write",
-          "receiveArgs": true
-        }
-      ]
-    },
     "build": {
       "name": "build",
       "description": "Full release build",
@@ -280,9 +270,6 @@
         {
           "exec": "jest --passWithNoTests --updateSnapshot",
           "receiveArgs": true
-        },
-        {
-          "spawn": "biome"
         }
       ]
     },
@@ -338,7 +325,6 @@
           "execArgs": [
             "npm",
             "update",
-            "@biomejs/biome",
             "@types/jest",
             "@types/node",
             "commit-and-tag-version",
