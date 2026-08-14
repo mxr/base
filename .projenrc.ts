@@ -81,6 +81,7 @@ const project = new cdk.JsiiProject({
   authorAddress: "mxr@users.noreply.github.com",
   authorEmail: "mxr@users.noreply.github.com",
   authorName: "Max R",
+  depsUpgrade: false,
   description: "projen external project type: stack-appropriate pre-commit config, license and repo metadata for my personal repos",
   devDeps: ["constructs@10.8.1", "projen@0.101.30"],
   docgen: false,
@@ -112,10 +113,6 @@ const project = new cdk.JsiiProject({
 
 new TextFile(project, "biome.json", { lines: BIOME_JSON.split("\n"), readonly: false });
 new TextFile(project, ".pre-commit-config.yaml", { lines: PRE_COMMIT_CONFIG.split("\n"), readonly: false });
-
-const upgradeMain = project.tryFindObjectFile(".github/workflows/upgrade-main.yml");
-upgradeMain?.addOverride("jobs.pr.permissions.contents", "write");
-upgradeMain?.addOverride("jobs.pr.permissions.pull-requests", "write");
 
 // releases are manual (see releaseTrigger above): `npx projen release` bumps,
 // tags and pushes; fold the npm publish in here too so that one command does
