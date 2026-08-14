@@ -49,6 +49,12 @@ jobs:
       pull-requests: write
     if: ${{ needs.upgrade.outputs.patch_created }}
     steps:
+      - name: Generate token
+        id: generate_token
+        uses: actions/create-github-app-token@f8d387b68d61c58ab83c6c016672934102569859
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
       - name: Checkout
         id: checkout
         uses: actions/checkout@v6
@@ -72,7 +78,7 @@ jobs:
         id: create-pr
         uses: peter-evans/create-pull-request@v8
         with:
-          token: ${{ secrets.PROJEN_GITHUB_TOKEN }}
+          token: ${{ steps.generate_token.outputs.token }}
           commit-message: |-
             chore(deps): upgrade dependencies
 

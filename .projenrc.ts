@@ -1,4 +1,5 @@
 import { cdk, javascript, TextFile } from "projen";
+import { GithubCredentials } from "projen/lib/github";
 import { ReleaseTrigger } from "projen/lib/release";
 
 const BIOME_JSON = `{
@@ -85,6 +86,12 @@ const project = new cdk.JsiiProject({
   docgen: false,
   eslint: false,
   github: true,
+  githubOptions: {
+    projenCredentials: GithubCredentials.fromApp({
+      appIdSecret: "APP_ID",
+      privateKeySecret: "APP_PRIVATE_KEY",
+    }),
+  },
   jsiiVersion: "~6.0.0",
   keywords: ["projen", "projen-external-module"],
   license: "MIT",
