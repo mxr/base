@@ -15,6 +15,15 @@
       "matchPackageNames": [
         "*"
       ]
+    },
+    {
+      "enabled": false,
+      "matchPackageNames": [
+        "typescript"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ]
     }
   ],
   "prBodyTemplate": "{{{table}}}",
