@@ -1,0 +1,9 @@
+rules:
+  unpinned-uses:
+    config:
+      policies:
+        '*': hash-pin
+        actions/*: ref-pin
+  dangerous-triggers:
+    ignore:
+    - pull-request-lint.yml

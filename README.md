@@ -29,12 +29,15 @@ npx projen new base --from /path/to/base --stack python --stack toml
 Releases are manual, not triggered by pushing to `main`:
 
 ```sh
-npx projen release   # bumps version, tags, and pushes the tag to origin
-npm publish           # publishes @mxr/base to GitHub Packages
+npm run release   # bumps version, builds, publishes to GitHub Packages, tags and pushes
 ```
 
 Pushing the tag fires `.github/workflows/propagate-update.yml`, which bumps
 `@mxr/base` in downstream repos and opens a PR.
+
+Note this repo itself isn't managed by projen (unlike the repos it
+generates) — `package.json`, `.pre-commit-config.yaml`, `biome.json`,
+`.github/renovate.json`, etc. are hand-maintained here, not synthesized.
 
 ## `stack`
 

@@ -18,13 +18,20 @@
     "enabled": true
   },
   "files": {
-    "includes": ["**", "!.projen", "!projenrc/tsconfig.json", "!test/tsconfig.json", "!tsconfig.json"]
+    "includes": [
+      "**"
+    ]
   },
   "formatter": {
     "enabled": true,
     "indentStyle": "space",
     "indentWidth": 2,
     "lineWidth": 140
+  },
+  "json": {
+    "formatter": {
+      "enabled": false
+    }
   },
   "linter": {
     "enabled": true,

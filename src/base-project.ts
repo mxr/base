@@ -137,6 +137,13 @@ export class BaseProject extends GitHubProject {
       return;
     }
 
+    // projen marks most generated files readonly to discourage hand-edits
+    // between synths, but some pre-commit hooks (e.g. end-of-file-fixer)
+    // unconditionally open every file for writing even when no fix is
+    // needed, so they'd hard-fail on any readonly file; unlock everything
+    // since it's all about to be regenerated on the next synth anyway
+    execFileSync("chmod", ["-R", "u+w", this.outdir]);
+
     // seed .pre-commit-config.yaml's own additional_dependencies via
     // sync-typing-deps before the real run below, otherwise ty/mypy fail with
     // no deps on a fresh render since they'd otherwise run before
