@@ -1,4 +1,4 @@
-import { execFileSync } from 'child_process';
+import { execFileSync } from "child_process";
 
 /**
  * Returns the year of the repo's first commit, so the LICENSE year reflects
@@ -7,20 +7,20 @@ import { execFileSync } from 'child_process';
  */
 export function firstCommitYear(outdir: string): number {
   try {
-    const root = execFileSync('git', ['-C', outdir, 'rev-list', '--max-parents=0', 'HEAD'], {
-      encoding: 'utf-8',
-      stdio: ['ignore', 'pipe', 'ignore'],
+    const root = execFileSync("git", ["-C", outdir, "rev-list", "--max-parents=0", "HEAD"], {
+      encoding: "utf-8",
+      stdio: ["ignore", "pipe", "ignore"],
     })
       .trim()
-      .split('\n')[0];
+      .split("\n")[0];
 
     if (!root) {
-      throw new Error('no root commit');
+      throw new Error("no root commit");
     }
 
-    const year = execFileSync('git', ['-C', outdir, 'log', '-1', '--format=%ad', '--date=format:%Y', root], {
-      encoding: 'utf-8',
-      stdio: ['ignore', 'pipe', 'ignore'],
+    const year = execFileSync("git", ["-C", outdir, "log", "-1", "--format=%ad", "--date=format:%Y", root], {
+      encoding: "utf-8",
+      stdio: ["ignore", "pipe", "ignore"],
     }).trim();
 
     const parsed = Number.parseInt(year, 10);

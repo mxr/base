@@ -6,6 +6,7 @@
     "url": "https://github.com/mxr/base.git"
   },
   "scripts": {
+    "biome": "projen biome",
     "build": "projen build",
     "bump": "projen bump",
     "bump:releasable-commits": "projen bump:releasable-commits",
@@ -14,7 +15,6 @@
     "compile": "projen compile",
     "default": "projen default",
     "eject": "projen eject",
-    "eslint": "projen eslint",
     "package": "projen package",
     "package-all": "projen package-all",
     "package:js": "projen package:js",
@@ -36,16 +36,11 @@
     "organization": false
   },
   "devDependencies": {
-    "@stylistic/eslint-plugin": "^2",
+    "@biomejs/biome": "^2.5",
     "@types/jest": "^30.0.0",
     "@types/node": "^26.2.0",
-    "@typescript-eslint/eslint-plugin": "^8",
-    "@typescript-eslint/parser": "^8",
     "commit-and-tag-version": "^12",
     "constructs": "^10.0.0",
-    "eslint": "^9",
-    "eslint-import-resolver-typescript": "^4.4.5",
-    "eslint-plugin-import": "^2.32.0",
     "jest": "^30.4.2",
     "jest-junit": "^17",
     "jsii": "~6.0.0",

@@ -39,13 +39,13 @@ junit.xml
 !/.mergify.yml
 !/.github/workflows/upgrade-main.yml
 !/.github/pull_request_template.md
+!/biome.jsonc
 !/test/
 !/tsconfig.json
 !/test/tsconfig.json
 !/src/
 /lib
 /dist/
-!/.eslintrc.json
 !/projenrc/tsconfig.json
 .jsii
 !/.projenrc.ts

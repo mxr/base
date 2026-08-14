@@ -4,6 +4,16 @@
     "PATH": "$(npx -c \"node --print process.env.PATH\")"
   },
   "tasks": {
+    "biome": {
+      "name": "biome",
+      "description": "Runs Biome against the codebase",
+      "steps": [
+        {
+          "exec": "biome check --no-errors-on-unmatched --write",
+          "receiveArgs": true
+        }
+      ]
+    },
     "build": {
       "name": "build",
       "description": "Full release build",
@@ -144,20 +154,6 @@
         }
       ]
     },
-    "eslint": {
-      "name": "eslint",
-      "description": "Runs eslint against the codebase",
-      "env": {
-        "ESLINT_USE_FLAT_CONFIG": "false",
-        "NODE_NO_WARNINGS": "1"
-      },
-      "steps": [
-        {
-          "exec": "eslint --ext .ts,.tsx --fix --no-error-on-unmatched-pattern $@ src test build-tools projenrc .projenrc.ts",
-          "receiveArgs": true
-        }
-      ]
-    },
     "install": {
       "name": "install",
       "description": "Install project dependencies and update lockfile (non-frozen)",
@@ -286,7 +282,7 @@
           "receiveArgs": true
         },
         {
-          "spawn": "eslint"
+          "spawn": "biome"
         }
       ]
     },
@@ -332,7 +328,7 @@
             "--peer",
             "--no-deprecated",
             "--dep=dev,prod,peer,optional",
-            "--filter=@types/jest,@types/node,eslint-import-resolver-typescript,eslint-plugin-import,jest,jsii-diff,jsii-pacmak,projen,ts-jest,ts-node,typescript,constructs"
+            "--filter=@types/jest,@types/node,jest,jsii-diff,jsii-pacmak,projen,ts-jest,ts-node,typescript,constructs"
           ]
         },
         {
@@ -342,16 +338,11 @@
           "execArgs": [
             "npm",
             "update",
-            "@stylistic/eslint-plugin",
+            "@biomejs/biome",
             "@types/jest",
             "@types/node",
-            "@typescript-eslint/eslint-plugin",
-            "@typescript-eslint/parser",
             "commit-and-tag-version",
             "constructs",
-            "eslint-import-resolver-typescript",
-            "eslint-plugin-import",
-            "eslint",
             "jest",
             "jest-junit",
             "jsii-diff",
