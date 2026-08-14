@@ -44,6 +44,15 @@ export interface BaseProjectOptions extends GitHubProjectOptions {
    * gets MIT), and whether a starter `biome.json` is added.
    */
   readonly stack: Stack[];
+
+  /**
+   * Package names to exclude from Renovate major-version updates (e.g.
+   * `["typescript"]` for a jsii project, since jsii pins its own typescript
+   * compiler version and a major bump breaks its compile step).
+   *
+   * @default [] - no packages excluded
+   */
+  readonly renovateIgnoreMajor?: string[];
 }
 
 /**
@@ -54,11 +63,13 @@ export interface BaseProjectOptions extends GitHubProjectOptions {
  */
 export class BaseProject extends GitHubProject {
   public readonly stack: Stack[];
+  private readonly renovateIgnoreMajor: string[];
 
   constructor(options: BaseProjectOptions) {
     super(options);
 
     this.stack = options.stack;
+    this.renovateIgnoreMajor = options.renovateIgnoreMajor ?? [];
     const isFrontend = this.stack.includes(Stack.FRONTEND);
 
     new License(this, {
@@ -105,7 +116,12 @@ export class BaseProject extends GitHubProject {
         extends: ["config:recommended", ":disableDependencyDashboard"],
         groupSingleUpdates: true,
         minimumReleaseAge: "7 days",
-        packageRules: [{ commitMessageExtra: " ", groupName: "update", matchPackageNames: ["*"] }],
+        packageRules: [
+          { commitMessageExtra: " ", groupName: "update", matchPackageNames: ["*"] },
+          ...(this.renovateIgnoreMajor.length > 0
+            ? [{ matchPackageNames: this.renovateIgnoreMajor, matchUpdateTypes: ["major"], enabled: false }]
+            : []),
+        ],
         prBodyTemplate: "{{{table}}}",
         schedule: ["* 16-17 * * 1"],
         separateMajorMinor: false,
