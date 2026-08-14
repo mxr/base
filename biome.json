@@ -18,7 +18,13 @@
     "enabled": true
   },
   "files": {
-    "includes": ["**", "!.projen", "!projenrc/tsconfig.json", "!test/tsconfig.json", "!tsconfig.json"]
+    "includes": [
+      "**",
+      "!.projen/**",
+      "!projenrc/tsconfig.json",
+      "!test/tsconfig.json",
+      "!tsconfig.json"
+    ]
   },
   "formatter": {
     "enabled": true,
