@@ -1,6 +1,6 @@
 import { execFileSync } from "child_process";
-import { JsonFile, License, TextFile } from "projen";
-import { GitHubProject, Mergify } from "projen/lib/github";
+import { JsonFile, License, TextFile, YamlFile } from "projen";
+import { GitHubProject } from "projen/lib/github";
 import { firstCommitYear } from "./git";
 import { PreCommitConfigFile } from "./pre-commit-config-file";
 import { Stack } from "./stack";
@@ -66,7 +66,7 @@ export class BaseProject extends GitHubProject {
   private readonly renovateIgnoreMajor: string[];
 
   constructor(options: BaseProjectOptions) {
-    super({ pullRequestLint: false, ...options });
+    super({ ...options, githubOptions: { pullRequestLint: false, ...options.githubOptions } });
 
     this.stack = options.stack;
     this.renovateIgnoreMajor = options.renovateIgnoreMajor ?? [];
@@ -85,25 +85,31 @@ export class BaseProject extends GitHubProject {
     }
 
     if (this.github) {
-      new Mergify(this.github, {
-        rules: [
-          {
-            // pre-commit ci won't automerge (see https://github.com/pre-commit-ci/issues/issues/48)
-            name: "automatic merge for pre-commit ci updates",
-            conditions: ["author=pre-commit-ci[bot]", "title=[pre-commit.ci] pre-commit autoupdate"],
-            actions: { merge: { method: "squash" } },
-          },
-          {
-            name: "automatic merge for renovate updates",
-            conditions: ["author=renovate[bot]"],
-            actions: { merge: { method: "squash" } },
-          },
-          {
-            name: "automatic merge for base updates",
-            conditions: ["author=mxr-base-sync[bot]"],
-            actions: { merge: { method: "squash" } },
-          },
-        ],
+      // projen's own Mergify component hardcodes its output to root
+      // `.mergify.yml`; write the same shape it would to `.github/mergify.yml`
+      // instead, since that's the path this repo's downstream consumers expect
+      new YamlFile(this, ".github/mergify.yml", {
+        committed: true,
+        obj: {
+          pull_request_rules: [
+            {
+              // pre-commit ci won't automerge (see https://github.com/pre-commit-ci/issues/issues/48)
+              name: "automatic merge for pre-commit ci updates",
+              conditions: ["author=pre-commit-ci[bot]", "title=[pre-commit.ci] pre-commit autoupdate"],
+              actions: { merge: { method: "squash" } },
+            },
+            {
+              name: "automatic merge for renovate updates",
+              conditions: ["author=renovate[bot]"],
+              actions: { merge: { method: "squash" } },
+            },
+            {
+              name: "automatic merge for base updates",
+              conditions: ["author=mxr-base-sync[bot]"],
+              actions: { merge: { method: "squash" } },
+            },
+          ],
+        },
       });
     }
 

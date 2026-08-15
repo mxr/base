@@ -63,8 +63,8 @@ jobs:
         git -C "$workdir" config user.name "mxr-base-sync[bot]"
         git -C "$workdir" config user.email "306625798+mxr-base-sync[bot]@users.noreply.github.com"
 
-        if [ ! -f "$workdir/package.json" ]; then
-          echo "not a projen repo, skipping"
+        if [ ! -f "$workdir/.github/base.yml" ]; then
+          echo "no .github/base.yml, skipping"
           exit 0
         fi
 
@@ -81,10 +81,48 @@ jobs:
         # whatever a previous run left behind
         git -C "$workdir" checkout -b "$branch"
 
+        # .github/base.yml is the only thing downstream repos check in; the
+        # rest of this is scaffolded fresh every run so a plain projen
+        # dependency never has to live in the repo between syncs
+        name="$(basename "$REPO")"
+        stack_json="$(yq -o=json '.stack' "$workdir/.github/base.yml")"
+        ignore_json="$(yq -o=json '.renovateIgnoreMajor // []' "$workdir/.github/base.yml")"
+
+        # plain .projenrc.js (not .ts) so this doesn't need typescript/ts-node
+        # as a dependency just to synth
+        cat > "$workdir/.projenrc.js" <<EOF
+        const { BaseProject } = require("@mxr/base");
+
+        new BaseProject({
+          name: "${name}",
+          stack: ${stack_json},
+          renovateIgnoreMajor: ${ignore_json},
+        }).synth();
+        EOF
+
+        cat > "$workdir/package.json" <<EOF
+        {
+          "name": "${name}-base-sync",
+          "private": true,
+          "devDependencies": {
+            "@mxr/base": "${version}",
+            "constructs": "^10.8.1",
+            "projen": "^0.101.30"
+          }
+        }
+        EOF
+
         echo "@mxr:registry=https://npm.pkg.github.com" > "$workdir/.npmrc"
         echo "//npm.pkg.github.com/:_authToken=${GH_TOKEN}" >> "$workdir/.npmrc"
-        (cd "$workdir" && npm install --save-dev "@mxr/base@${version}" && npx projen)
-        rm -f "$workdir/.npmrc"
+        # `npx projen` refuses to run without a pre-existing .projen/tasks.json
+        # (chicken-and-egg on a from-scratch scaffold like this); .projenrc.js
+        # calls .synth() itself, so run it directly instead
+        (cd "$workdir" && npm install && node .projenrc.js)
+
+        # scaffolding was only ever a means to synth; strip it back out so
+        # only .github/base.yml plus the generated files get committed
+        rm -f "$workdir/.npmrc" "$workdir/package.json" "$workdir/package-lock.json" "$workdir/.projenrc.js"
+        rm -rf "$workdir/node_modules"
 
         if git -C "$workdir" diff --quiet && git -C "$workdir" diff --cached --quiet; then
           echo "no changes"
