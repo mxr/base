@@ -62,6 +62,7 @@ jobs:
       matrix:
         repo: ${{ fromJson(needs.list.outputs.repos) }}
     steps:
+    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v5.0.0
     - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
       with:
         enable-cache: false
@@ -88,6 +89,9 @@ jobs:
         tag="${GITHUB_REF_NAME}"
         version="${tag#v}"
         branch="base-update"
+
+        constructs_version="$(jq -r '.peerDependencies.constructs' package.json)"
+        projen_version="$(jq -r '.peerDependencies.projen' package.json)"
 
         workdir="$(mktemp -d)"
         git clone --quiet "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git" "$workdir"
@@ -132,8 +136,8 @@ jobs:
           "private": true,
           "devDependencies": {
             "@mxr/base": "${version}",
-            "constructs": "^10.8.1",
-            "projen": "^0.101.30"
+            "constructs": "${constructs_version}",
+            "projen": "${projen_version}"
           }
         }
         EOF
@@ -173,11 +177,7 @@ jobs:
 
         existing_pr="$(gh pr list --repo "${REPO}" --head "$branch" --json number -q '.[0].number' || true)"
         if [ -n "$existing_pr" ]; then
-          gh pr edit "$existing_pr" --repo "${REPO}" --title "[base] update to ${tag}" --body "Automated update from base ${tag}."
+          gh pr edit "$existing_pr" --repo "${REPO}" --title "[base] update to ${tag}"
         else
-          gh pr create \
-            --repo "${REPO}" \
-            --title "[base] update to ${tag}" \
-            --body "Automated update from base ${tag}." \
-            --head "$branch" || true
+          gh pr create --repo "${REPO}" --fill --head "$branch"
         fi
