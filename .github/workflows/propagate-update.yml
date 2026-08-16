@@ -71,11 +71,13 @@ jobs:
         repositories: ${{ matrix.repo }}
         permission-contents: write
         permission-pull-requests: write
-        permission-packages: read
 
     - name: update downstream repo
       env:
         GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        # GitHub App installation tokens can't read packages owned by a personal
+        # account (only orgs), so a PAT is needed just for the npm registry auth
+        GH_PACKAGES_READ_TOKEN: ${{ secrets.GH_PACKAGES_READ_TOKEN }}
         REPO: mxr/${{ matrix.repo }}
       # zizmor: ignore[adhoc-packages] deliberately bumps to a specific new base version, not installable from a lockfile
       run: |
@@ -139,7 +141,7 @@ jobs:
         EOF
 
         echo "@mxr:registry=https://npm.pkg.github.com" > "$workdir/.npmrc"
-        echo "//npm.pkg.github.com/:_authToken=${GH_TOKEN}" >> "$workdir/.npmrc"
+        echo "//npm.pkg.github.com/:_authToken=${GH_PACKAGES_READ_TOKEN}" >> "$workdir/.npmrc"
         # `npx projen` refuses to run without a pre-existing .projen/tasks.json
         # (chicken-and-egg on a from-scratch scaffold like this); .projenrc.js
         # calls .synth() itself, so run it directly instead
