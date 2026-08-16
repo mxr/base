@@ -26,6 +26,9 @@
       "onFail": "ignore"
     }
   },
+  "engines": {
+    "node": ">=20"
+  },
   "jest": {
     "clearMocks": true,
     "collectCoverage": true,
