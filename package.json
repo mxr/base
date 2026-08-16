@@ -26,6 +26,9 @@
       "onFail": "ignore"
     }
   },
+  "engines": {
+    "node": ">=24"
+  },
   "jest": {
     "clearMocks": true,
     "collectCoverage": true,
@@ -104,5 +107,5 @@
   },
   "stability": "stable",
   "types": "lib/index.d.ts",
-  "version": "0.0.18"
+  "version": "0.0.26"
 }

@@ -1,6 +1,9 @@
 import { execFileSync } from "child_process";
-import { JsonFile, License, TextFile, YamlFile } from "projen";
+import * as fs from "fs";
+import * as path from "path";
+import { JsonFile, License, TextFile } from "projen";
 import { GitHubProject } from "projen/lib/github";
+import { BANNER } from "./banner";
 import { firstCommitYear } from "./git";
 import { PreCommitConfigFile } from "./pre-commit-config-file";
 import { Stack } from "./stack";
@@ -87,33 +90,41 @@ export class BaseProject extends GitHubProject {
     if (this.github) {
       // projen's own Mergify component hardcodes its output to root
       // `.mergify.yml`; write the same shape it would to `.github/mergify.yml`
-      // instead, since that's the path this repo's downstream consumers expect
-      new YamlFile(this, ".github/mergify.yml", {
+      // instead, since that's the path this repo's downstream consumers expect.
+      // Pre-commit ci won't automerge on its own (see
+      // https://github.com/pre-commit-ci/issues/issues/48), hence that rule.
+      new TextFile(this, ".github/mergify.yml", {
+        marker: false,
         committed: true,
-        obj: {
-          pull_request_rules: [
-            {
-              // pre-commit ci won't automerge (see https://github.com/pre-commit-ci/issues/issues/48)
-              name: "automatic merge for pre-commit ci updates",
-              conditions: ["author=pre-commit-ci[bot]", "title=[pre-commit.ci] pre-commit autoupdate"],
-              actions: { merge: { method: "squash" } },
-            },
-            {
-              name: "automatic merge for renovate updates",
-              conditions: ["author=renovate[bot]"],
-              actions: { merge: { method: "squash" } },
-            },
-            {
-              name: "automatic merge for base updates",
-              conditions: ["author=mxr-base-sync[bot]"],
-              actions: { merge: { method: "squash" } },
-            },
-          ],
-        },
+        lines: [
+          `# ${BANNER}`,
+          "",
+          "pull_request_rules:",
+          "- name: automatic merge for pre-commit ci updates",
+          "  conditions:",
+          "  - author=pre-commit-ci[bot]",
+          "  - title=[pre-commit.ci] pre-commit autoupdate",
+          "  actions:",
+          "    merge:",
+          "      method: squash",
+          "- name: automatic merge for renovate updates",
+          "  conditions:",
+          "  - author=renovate[bot]",
+          "  actions:",
+          "    merge:",
+          "      method: squash",
+          "- name: automatic merge for base updates",
+          "  conditions:",
+          "  - author=mxr-base-sync[bot]",
+          "  actions:",
+          "    merge:",
+          "      method: squash",
+        ],
       });
     }
 
     new JsonFile(this, ".github/renovate.json", {
+      marker: false,
       committed: true,
       obj: {
         $schema: "https://docs.renovatebot.com/renovate-schema.json",
@@ -132,6 +143,7 @@ export class BaseProject extends GitHubProject {
         schedule: ["* 16-17 * * 1"],
         separateMajorMinor: false,
         separateMultipleMajor: false,
+        "//": BANNER,
       },
     });
   }
@@ -149,6 +161,17 @@ export class BaseProject extends GitHubProject {
     // needed, so they'd hard-fail on any readonly file; unlock everything
     // since it's all about to be regenerated on the next synth anyway
     execFileSync("chmod", ["-R", "u+w", this.outdir]);
+
+    // BaseProject only manages a handful of files; strip projen's own
+    // default scaffolding that it insists on creating regardless of options,
+    // since downstream repos aren't full projen-managed projects
+    fs.rmSync(path.join(this.outdir, ".gitignore"), { force: true });
+    fs.rmSync(path.join(this.outdir, ".gitattributes"), { force: true });
+    fs.rmSync(path.join(this.outdir, ".projen"), { recursive: true, force: true });
+    const readmePath = path.join(this.outdir, "README.md");
+    if (fs.existsSync(readmePath) && fs.readFileSync(readmePath, "utf-8").trim() === "# replace this") {
+      fs.rmSync(readmePath);
+    }
 
     // seed .pre-commit-config.yaml's own additional_dependencies via
     // sync-typing-deps before the real run below, otherwise ty/mypy fail with
