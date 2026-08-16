@@ -1,19 +1,13 @@
 import { execFileSync } from "child_process";
 import * as fs from "fs";
 import * as path from "path";
-import { JsonFile, License, ProjenrcFile, TextFile, YamlFile } from "projen";
+import { JsonFile, License, TextFile } from "projen";
 import { GitHubProject } from "projen/lib/github";
+import { BANNER } from "./banner";
 import { firstCommitYear } from "./git";
 import { PreCommitConfigFile } from "./pre-commit-config-file";
 import { Stack } from "./stack";
 import type { GitHubProjectOptions } from "projen/lib/github";
-
-// registers as this project's "projenrc" purely so FileBase's marker text
-// points contributors at .github/base.yml instead of a .projenrc.js that
-// doesn't actually exist in downstream repos
-class BaseYamlMarker extends ProjenrcFile {
-  public readonly filePath = ".github/base.yml";
-}
 
 const BIOME_JSON = `{
   "$schema": "https://biomejs.dev/schemas/2.5.4/schema.json",
@@ -75,13 +69,7 @@ export class BaseProject extends GitHubProject {
   private readonly renovateIgnoreMajor: string[];
 
   constructor(options: BaseProjectOptions) {
-    super({
-      ...options,
-      githubOptions: { pullRequestLint: false, ...options.githubOptions },
-      projenCommand: "retrigger the propagate workflow in mxr/base",
-    });
-
-    new BaseYamlMarker(this);
+    super({ ...options, githubOptions: { pullRequestLint: false, ...options.githubOptions } });
 
     this.stack = options.stack;
     this.renovateIgnoreMajor = options.renovateIgnoreMajor ?? [];
@@ -102,33 +90,41 @@ export class BaseProject extends GitHubProject {
     if (this.github) {
       // projen's own Mergify component hardcodes its output to root
       // `.mergify.yml`; write the same shape it would to `.github/mergify.yml`
-      // instead, since that's the path this repo's downstream consumers expect
-      new YamlFile(this, ".github/mergify.yml", {
+      // instead, since that's the path this repo's downstream consumers expect.
+      // Pre-commit ci won't automerge on its own (see
+      // https://github.com/pre-commit-ci/issues/issues/48), hence that rule.
+      new TextFile(this, ".github/mergify.yml", {
+        marker: false,
         committed: true,
-        obj: {
-          pull_request_rules: [
-            {
-              // pre-commit ci won't automerge (see https://github.com/pre-commit-ci/issues/issues/48)
-              name: "automatic merge for pre-commit ci updates",
-              conditions: ["author=pre-commit-ci[bot]", "title=[pre-commit.ci] pre-commit autoupdate"],
-              actions: { merge: { method: "squash" } },
-            },
-            {
-              name: "automatic merge for renovate updates",
-              conditions: ["author=renovate[bot]"],
-              actions: { merge: { method: "squash" } },
-            },
-            {
-              name: "automatic merge for base updates",
-              conditions: ["author=mxr-base-sync[bot]"],
-              actions: { merge: { method: "squash" } },
-            },
-          ],
-        },
+        lines: [
+          `# ${BANNER}`,
+          "",
+          "pull_request_rules:",
+          "- name: automatic merge for pre-commit ci updates",
+          "  conditions:",
+          "  - author=pre-commit-ci[bot]",
+          "  - title=[pre-commit.ci] pre-commit autoupdate",
+          "  actions:",
+          "    merge:",
+          "      method: squash",
+          "- name: automatic merge for renovate updates",
+          "  conditions:",
+          "  - author=renovate[bot]",
+          "  actions:",
+          "    merge:",
+          "      method: squash",
+          "- name: automatic merge for base updates",
+          "  conditions:",
+          "  - author=mxr-base-sync[bot]",
+          "  actions:",
+          "    merge:",
+          "      method: squash",
+        ],
       });
     }
 
     new JsonFile(this, ".github/renovate.json", {
+      marker: false,
       committed: true,
       obj: {
         $schema: "https://docs.renovatebot.com/renovate-schema.json",
@@ -147,6 +143,7 @@ export class BaseProject extends GitHubProject {
         schedule: ["* 16-17 * * 1"],
         separateMajorMinor: false,
         separateMultipleMajor: false,
+        "//": BANNER,
       },
     });
   }

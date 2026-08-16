@@ -155,7 +155,10 @@ jobs:
         rm -f "$workdir/.npmrc" "$workdir/package.json" "$workdir/package-lock.json" "$workdir/.projenrc.js"
         rm -rf "$workdir/node_modules"
 
-        if git -C "$workdir" diff --quiet && git -C "$workdir" diff --cached --quiet; then
+        # `git diff --quiet` only catches modifications to already-tracked
+        # files, not newly-generated untracked ones; status --porcelain
+        # catches both
+        if [ -z "$(git -C "$workdir" status --porcelain)" ]; then
           echo "no changes"
           exit 0
         fi

@@ -1,4 +1,5 @@
 import { FileBase } from "projen";
+import { BANNER } from "./banner";
 import { renderPreCommitConfig } from "./pre-commit";
 import type { IConstruct } from "constructs";
 import type { FileBaseOptions, IResolver } from "projen";
@@ -15,12 +16,11 @@ export class PreCommitConfigFile extends FileBase {
   private readonly stack: Stack[];
 
   constructor(scope: IConstruct, options: PreCommitConfigFileOptions) {
-    super(scope, ".pre-commit-config.yaml", options);
+    super(scope, ".pre-commit-config.yaml", { ...options, marker: false });
     this.stack = options.stack;
   }
 
   protected synthesizeContent(_resolver: IResolver): string | undefined {
-    const marker = this.marker ? [`# ${this.marker}`, ""] : [];
-    return [...marker, renderPreCommitConfig(this.stack)].join("\n");
+    return [`# ${BANNER}`, "", renderPreCommitConfig(this.stack)].join("\n");
   }
 }
