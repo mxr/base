@@ -192,7 +192,9 @@ export function mergeRepos(entries: PreCommitRepo[]): PreCommitRepo[] {
  * given stacks.
  */
 export function buildPreCommitRepos(stack: Stack[]): PreCommitRepo[] {
-  const entries = [...UNCONDITIONAL, ...stack.flatMap((name) => STACK_REPOS[name] ?? [])];
+  // every Stack member has an entry in STACK_REPOS today; the fallback just
+  // guards against a future stack being added to one without the other
+  const entries = [...UNCONDITIONAL, ...stack.flatMap((name) => STACK_REPOS[name] ?? /* v8 ignore next */ [])];
   return mergeRepos(entries);
 }
 
@@ -258,14 +260,11 @@ function entryLines(key: string, value: unknown, indent: number, prefix: string)
   if (Array.isArray(value)) {
     return [`${prefix}${key}:`, ...seqLines(value, indent)];
   }
+  /* v8 ignore next 3 - defensive: no current hook field is object-valued */
   if (value !== null && typeof value === "object") {
-    return [`${prefix}${key}:`, ...mapLines(value as Record<string, unknown>, indent + 2)];
+    throw new Error(`unreachable: unsupported object-valued key "${key}"`);
   }
   return [`${prefix}${key}: ${scalar(value as string | number | boolean)}`];
-}
-
-function mapLines(obj: Record<string, unknown>, indent: number): string[] {
-  return Object.entries(obj).flatMap(([k, v]) => entryLines(k, v, indent, sp(indent)));
 }
 
 function seqLines(items: readonly unknown[], indent: number): string[] {

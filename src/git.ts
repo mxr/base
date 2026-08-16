@@ -14,6 +14,7 @@ export function firstCommitYear(outdir: string): number {
       .trim()
       .split("\n")[0];
 
+    /* v8 ignore next 3 - defensive: rev-list only succeeds when a root commit exists */
     if (!root) {
       throw new Error("no root commit");
     }
@@ -24,6 +25,7 @@ export function firstCommitYear(outdir: string): number {
     }).trim();
 
     const parsed = Number.parseInt(year, 10);
+    /* v8 ignore next 3 - defensive: --date=format:%Y always produces digits */
     if (Number.isNaN(parsed)) {
       throw new Error(`unparseable year: ${year}`);
     }

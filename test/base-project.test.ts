@@ -1,3 +1,6 @@
+import * as fs from "fs";
+import * as os from "os";
+import * as path from "path";
 import { Testing } from "projen";
 import { BaseProject } from "../src/base-project";
 import { Stack } from "../src/stack";
@@ -29,5 +32,24 @@ describe("BaseProject", () => {
     const project = new BaseProject({ name: "test", stack: [] });
     const snapshot = Testing.synth(project);
     expect(snapshot[".pre-commit-config.yaml"]).toContain("repos:");
+  });
+
+  it("adds a renovate packageRule disabling major updates for the given packages", () => {
+    const project = new BaseProject({ name: "test", stack: [], renovateIgnoreMajor: ["typescript"] });
+    const snapshot = Testing.synth(project);
+    expect(snapshot[".github/renovate.json"].packageRules).toContainEqual({
+      matchPackageNames: ["typescript"],
+      matchUpdateTypes: ["major"],
+      enabled: false,
+    });
+  });
+});
+
+describe("BaseProject.postSynthesize", () => {
+  it("skips pre-commit and cleanup entirely outside a git repo", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "base-projen-postsynth-"));
+    const project = new BaseProject({ name: "test", stack: [], outdir: dir });
+    project.synth();
+    expect(fs.existsSync(path.join(dir, ".gitignore"))).toBe(true);
   });
 });

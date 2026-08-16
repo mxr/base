@@ -74,4 +74,9 @@ describe("renderPreCommitConfig", () => {
   it("ends with a trailing newline", () => {
     expect(renderPreCommitConfig([])).toMatch(/\n$/);
   });
+
+  it("renders long scalar lists as an indentless block sequence", () => {
+    const yaml = renderPreCommitConfig([Stack.RUST]);
+    expect(yaml).toContain("    args:\n    - --all-targets\n    - --locked");
+  });
 });
