@@ -119,7 +119,6 @@ export class BaseProject extends GitHubProject {
           "  actions:",
           "    merge:",
           "      method: squash",
-          "",
         ],
       });
     }
