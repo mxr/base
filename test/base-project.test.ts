@@ -20,8 +20,8 @@ describe("BaseProject", () => {
   it("writes the mergify and renovate config", () => {
     const project = new BaseProject({ name: "test", stack: [] });
     const snapshot = Testing.synth(project);
-    expect(snapshot[".mergify.yml"]).toContain("renovate[bot]");
-    expect(snapshot[".mergify.yml"]).toContain("mxr-base-sync[bot]");
+    expect(snapshot[".github/mergify.yml"]).toContain("renovate[bot]");
+    expect(snapshot[".github/mergify.yml"]).toContain("mxr-base-sync[bot]");
     expect(snapshot[".github/renovate.json"]).toMatchObject({ commitMessagePrefix: "[renovate]" });
   });
 
