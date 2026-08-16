@@ -7,7 +7,33 @@ on:
 permissions: {}
 
 jobs:
+  build:
+    uses: ./.github/workflows/build.yml
+    permissions:
+      contents: read
+
+  publish:
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      packages: write
+    steps:
+    - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+      with:
+        node-version: lts/*
+        registry-url: https://npm.pkg.github.com
+        scope: '@mxr'
+        package-manager-cache: false
+    - uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v6.0.0
+      with:
+        name: build-artifact
+        path: dist
+    - run: npm publish dist/js/*.tgz # zizmor: ignore[use-trusted-publishing] GitHub Packages npm registry doesn't support OIDC trusted publishing
+      env:
+        NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   list:
+    needs: publish
     runs-on: ubuntu-24.04
     outputs:
       repos: ${{ steps.list.outputs.repos }}
