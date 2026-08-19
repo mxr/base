@@ -173,12 +173,15 @@ export class BaseProject extends GitHubProject {
       fs.rmSync(readmePath);
     }
 
+    // resolve the placeholder `v0.0.0-<repo>` revs (see mergeRepos in
+    // pre-commit.ts) to real pinned revs first, so no hook ever gets its env
+    // set up against a rev that was never a real ref
+    runIgnoringFailure(["uvx", "pre-commit", "autoupdate", "--freeze"], this.outdir);
     // seed .pre-commit-config.yaml's own additional_dependencies via
     // sync-typing-deps before the real run below, otherwise ty/mypy fail with
     // no deps on a fresh render since they'd otherwise run before
     // sync-typing-deps ever touches the file
     runIgnoringFailure(["uvx", "pre-commit", "run", "--files", ".pre-commit-config.yaml"], this.outdir);
-    runIgnoringFailure(["uvx", "pre-commit", "autoupdate", "--freeze"], this.outdir);
     // first pass may still fail on files that formatters just fixed; a
     // genuinely broken repo should fail loudly on the second pass instead of
     // synth silently swallowing it
