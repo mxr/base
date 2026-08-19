@@ -7,7 +7,7 @@ describe("mergeRepos", () => {
       { repo: "https://x", hooks: [{ id: "b" }] },
       { repo: "https://x", hooks: [{ id: "a" }] },
     ]);
-    expect(result).toEqual([{ repo: "https://x", rev: "v0", hooks: [{ id: "a" }, { id: "b" }] }]);
+    expect(result).toEqual([{ repo: "https://x", rev: "v0.0.0", hooks: [{ id: "a" }, { id: "b" }] }]);
   });
 
   it.each([
@@ -64,7 +64,7 @@ describe("renderPreCommitConfig", () => {
     expect(yaml.split("\n").slice(0, 6)).toEqual([
       "repos:",
       "- repo: https://github.com/macisamuele/language-formatters-pre-commit-hooks",
-      "  rev: v0",
+      "  rev: v0.0.0",
       "  hooks:",
       "  - id: pretty-format-yaml",
       "    args: [--autofix]",
