@@ -1,4 +1,8 @@
 {
+  "allowScripts": {
+    "fsevents@2.3.3": true,
+    "unrs-resolver@1.12.2": true
+  },
   "author": {
     "email": "mxr@users.noreply.github.com",
     "name": "Max R",
