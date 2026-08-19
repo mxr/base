@@ -129,6 +129,10 @@ const STACK_REPOS: Partial<Record<Stack, PreCommitRepo[]>> = {
       repo: "https://github.com/mxr/mirrors-shfmt",
       hooks: [{ id: "shfmt" }],
     },
+    {
+      repo: "https://github.com/shellcheck-py/shellcheck-py",
+      hooks: [{ id: "shellcheck" }],
+    },
   ],
   [Stack.GITHUB_ACTIONS]: [
     {
@@ -152,11 +156,8 @@ const STACK_REPOS: Partial<Record<Stack, PreCommitRepo[]>> = {
  * id), assigns each non-local repo a placeholder `rev`, and sorts `local`
  * last.
  *
- * The placeholder rev is unique per repo rather than a shared literal:
  * `pre-commit autoupdate --freeze` matches hooks structurally by repo url, so
- * the placeholder text itself doesn't matter, but a real diff/merge tool
- * comparing two renders needs distinct text per repo to avoid misaligning
- * hunks across entries that never changed.
+ * the placeholder rev text itself doesn't matter.
  *
  * TODO: this merges hooks across all "repo: local" entries into one block,
  * which is wrong if there's ever more than one distinct local repo entry.
@@ -174,7 +175,7 @@ export function mergeRepos(entries: PreCommitRepo[]): PreCommitRepo[] {
   for (const [repo, hooks] of hooksByRepo) {
     repos.push({
       repo,
-      ...(repo === "local" ? {} : { rev: `v0.0.0-${repo.split("/").pop()}` }),
+      ...(repo === "local" ? {} : { rev: "v0" }),
       hooks: [...hooks].sort((a, b) => a.id.localeCompare(b.id)),
     });
   }
