@@ -84,6 +84,9 @@
   "license": "MIT",
   "main": "lib/index.js",
   "name": "@mxr/base",
+  "overrides": {
+    "glob": "^13.0.6"
+  },
   "peerDependencies": {
     "constructs": "^10.8.1",
     "projen": "^0.101.31"
