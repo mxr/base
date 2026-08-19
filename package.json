@@ -53,14 +53,10 @@
       ]
     ],
     "testMatch": [
-      "<rootDir>/@(src|test)/**/*(*.)@(spec|test).ts?(x)",
-      "<rootDir>/@(src|test)/**/__tests__/**/*.ts?(x)"
-    ],
-    "testPathIgnorePatterns": [
-      "/node_modules/"
+      "<rootDir>/test/**/*.test.ts"
     ],
     "transform": {
-      "^.+\\.[t]sx?$": [
+      "^.+\\.tsx?$": [
         "ts-jest",
         {
           "tsconfig": "test/tsconfig.json"
