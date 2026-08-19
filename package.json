@@ -19,7 +19,7 @@
     "jsii-diff": "^1.139.0",
     "jsii-pacmak": "^1.139.0",
     "jsii-rosetta": "~6.0.0",
-    "projen": "0.101.30",
+    "projen": "0.101.31",
     "ts-jest": "^29.4.12",
     "typescript": "^6.0.3"
   },
@@ -30,7 +30,7 @@
     }
   },
   "engines": {
-    "node": "24.14.1"
+    "node": "24.19.0"
   },
   "jest": {
     "clearMocks": true,
