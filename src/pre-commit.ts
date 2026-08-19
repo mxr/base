@@ -175,7 +175,7 @@ export function mergeRepos(entries: PreCommitRepo[]): PreCommitRepo[] {
   for (const [repo, hooks] of hooksByRepo) {
     repos.push({
       repo,
-      ...(repo === "local" ? {} : { rev: "v0" }),
+      ...(repo === "local" ? {} : { rev: "v0.0.0" }),
       hooks: [...hooks].sort((a, b) => a.id.localeCompare(b.id)),
     });
   }
