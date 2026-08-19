@@ -86,7 +86,7 @@
   "name": "@mxr/base",
   "peerDependencies": {
     "constructs": "^10.8.1",
-    "projen": "^0.101.30"
+    "projen": "^0.101.31"
   },
   "publishConfig": {
     "registry": "https://npm.pkg.github.com/"
