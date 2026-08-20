@@ -6,6 +6,8 @@ export interface PreCommitHook {
   readonly id: string;
   readonly args?: string[];
   readonly exclude?: string;
+  readonly types?: string[];
+  readonly exclude_types?: string[];
   readonly additionalDependencies?: string[];
   readonly name?: string;
   readonly entry?: string;
@@ -131,7 +133,7 @@ const STACK_REPOS: Partial<Record<Stack, PreCommitRepo[]>> = {
     },
     {
       repo: "https://github.com/shellcheck-py/shellcheck-py",
-      hooks: [{ id: "shellcheck" }],
+      hooks: [{ id: "shellcheck", types: ["shell"], exclude_types: ["zsh"] }],
     },
   ],
   [Stack.GITHUB_ACTIONS]: [
