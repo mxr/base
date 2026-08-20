@@ -182,11 +182,12 @@ export class BaseProject extends GitHubProject {
     // no deps on a fresh render since they'd otherwise run before
     // sync-typing-deps ever touches the file
     runIgnoringFailure(["uvx", "pre-commit", "run", "--files", ".pre-commit-config.yaml"], this.outdir);
-    // first pass may still fail on files that formatters just fixed; a
-    // genuinely broken repo should fail loudly on the second pass instead of
-    // synth silently swallowing it
+    // first pass may still fail on files that formatters just fixed; a repo
+    // that's still broken on the second pass should still get its PR opened
+    // so remaining issues can be resolved as part of the base update, rather
+    // than synth aborting and dropping the update entirely
     runIgnoringFailure(["uvx", "pre-commit", "run", "--all-files"], this.outdir);
-    execFileSync("uvx", ["pre-commit", "run", "--all-files"], { cwd: this.outdir, stdio: "inherit" });
+    runIgnoringFailure(["uvx", "pre-commit", "run", "--all-files"], this.outdir);
   }
 }
 
