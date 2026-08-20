@@ -13,6 +13,12 @@
 #   GH_PACKAGES_READ_TOKEN  auth token for npm.pkg.github.com; required unless LOCAL_TARBALL set
 set -euo pipefail
 
+step() {
+  echo ""
+  echo "::: 🚀 $1 :::"
+  echo ""
+}
+
 for cmd in git gh jq yq npm; do
   command -v "$cmd" > /dev/null || { echo "missing required command: $cmd" >&2; exit 1; }
 done
@@ -30,6 +36,7 @@ branch="base-update"
 workdir="$(mktemp -d)"
 trap 'rm -rf "$workdir"' EXIT
 
+step "cloning ${REPO}"
 git clone --quiet "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git" "$workdir"
 
 git -C "$workdir" config user.name "mxr-base-sync[bot]"
@@ -93,7 +100,11 @@ fi
 # `npx projen` refuses to run without a pre-existing .projen/tasks.json
 # (chicken-and-egg on a from-scratch scaffold like this); .projenrc.js calls
 # .synth() itself, so run it directly instead
-(cd "$workdir" && npm install && node .projenrc.js)
+step "running npm install"
+(cd "$workdir" && npm install)
+
+step "synthing via .projenrc.js"
+(cd "$workdir" && node .projenrc.js)
 
 # scaffolding was only ever a means to synth; strip it back out so only
 # .github/base.yml plus the generated files get committed
@@ -102,6 +113,7 @@ rm -rf "$workdir/node_modules"
 
 # `git diff --quiet` only catches modifications to already-tracked files,
 # not newly-generated untracked ones; status --porcelain catches both
+step "checking for changes"
 if [ -z "$(git -C "$workdir" status --porcelain)" ]; then
   echo "no changes"
   exit 0
@@ -116,6 +128,7 @@ fi
 
 git -C "$workdir" commit -m "[base] update to ${tag}"
 
+step "pushing ${branch}"
 # force-with-lease over any existing branch of the same name, since we
 # deliberately rebuilt it fresh from main above instead of incrementally
 # updating whatever was there before
@@ -126,6 +139,7 @@ else
   git -C "$workdir" push -u origin "$branch"
 fi
 
+step "creating/updating PR"
 existing_pr="$(gh pr list --repo "${REPO}" --head "$branch" --json number -q '.[0].number' || true)"
 if [ -n "$existing_pr" ]; then
   gh pr edit "$existing_pr" --repo "${REPO}" --title "[base] update to ${tag}"

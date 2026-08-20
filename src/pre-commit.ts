@@ -7,7 +7,7 @@ export interface PreCommitHook {
   readonly args?: string[];
   readonly exclude?: string;
   readonly types?: string[];
-  readonly exclude_types?: string[];
+  readonly excludeTypes?: string[];
   readonly additionalDependencies?: string[];
   readonly name?: string;
   readonly entry?: string;
@@ -133,7 +133,7 @@ const STACK_REPOS: Partial<Record<Stack, PreCommitRepo[]>> = {
     },
     {
       repo: "https://github.com/shellcheck-py/shellcheck-py",
-      hooks: [{ id: "shellcheck", types: ["shell"], exclude_types: ["zsh"] }],
+      hooks: [{ id: "shellcheck", types: ["shell"], excludeTypes: ["zsh"] }],
     },
   ],
   [Stack.GITHUB_ACTIONS]: [
@@ -227,6 +227,7 @@ function inlineShortLists<T>(value: T): T {
 const SNAKE_CASE_KEYS: Record<string, string> = {
   additionalDependencies: "additional_dependencies",
   passFilenames: "pass_filenames",
+  excludeTypes: "exclude_types",
 };
 
 function toSnakeCaseKeys(value: unknown): unknown {
