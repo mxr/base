@@ -130,5 +130,5 @@ existing_pr="$(gh pr list --repo "${REPO}" --head "$branch" --json number -q '.[
 if [ -n "$existing_pr" ]; then
   gh pr edit "$existing_pr" --repo "${REPO}" --title "[base] update to ${tag}"
 else
-  gh pr create -C "$workdir" --repo "${REPO}" --fill --head "$branch"
+  (cd "$workdir" && gh pr create --repo "${REPO}" --fill --head "$branch")
 fi
