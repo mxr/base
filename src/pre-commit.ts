@@ -133,7 +133,7 @@ const STACK_REPOS: Partial<Record<Stack, PreCommitRepo[]>> = {
     },
     {
       repo: "https://github.com/shellcheck-py/shellcheck-py",
-      hooks: [{ id: "shellcheck", types: ["shell"], excludeTypes: ["zsh"] }],
+      hooks: [{ id: "shellcheck" }],
     },
   ],
   [Stack.GITHUB_ACTIONS]: [

@@ -59,8 +59,6 @@ name="$(basename "$REPO")"
 stack_json="$(yq -o=json '.stack' "$workdir/.github/base.yml")"
 ignore_json="$(yq -o=json '.renovateIgnoreMajor // []' "$workdir/.github/base.yml")"
 
-# plain .projenrc.js (not .ts) so this doesn't need typescript/ts-node as a
-# dependency just to synth
 cat > "$workdir/.projenrc.js" <<EOF
 const { BaseProject } = require("@mxr/base");
 
@@ -93,8 +91,10 @@ cat > "$workdir/package.json" <<EOF
 EOF
 
 if [ -z "${LOCAL_TARBALL:-}" ]; then
-  echo "@mxr:registry=https://npm.pkg.github.com" > "$workdir/.npmrc"
-  echo "//npm.pkg.github.com/:_authToken=${GH_PACKAGES_READ_TOKEN}" >> "$workdir/.npmrc"
+  cat > "$workdir/.npmrc" <<EOF
+@mxr:registry=https://npm.pkg.github.com
+//npm.pkg.github.com/:_authToken=${GH_PACKAGES_READ_TOKEN}
+EOF
 fi
 
 # `npx projen` refuses to run without a pre-existing .projen/tasks.json
@@ -103,7 +103,7 @@ fi
 step "running npm install"
 (cd "$workdir" && npm install)
 
-step "synthing via .projenrc.js"
+step "synthing via generated .projenrc.js"
 (cd "$workdir" && node .projenrc.js)
 
 # scaffolding was only ever a means to synth; strip it back out so only
