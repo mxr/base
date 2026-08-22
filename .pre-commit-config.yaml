@@ -18,11 +18,6 @@ repos:
     args: [--autofix]
     exclude: package-lock.json
   - id: trailing-whitespace
-- repo: https://github.com/pre-commit/sync-pre-commit-deps
-  rev: 497f8ebf9d58162bb5898e3973a633d31d511169  # frozen: v0.0.5
-  hooks:
-  - id: sync-pre-commit-deps
-    args: [--yaml-mapping=2, --yaml-sequence=2, --yaml-offset=0]
 - repo: https://github.com/rhysd/actionlint
   rev: 914e7df21a07ef503a81201c76d2b11c789d3fca  # frozen: v1.7.12
   hooks:
@@ -39,10 +34,10 @@ repos:
     args: [--no-progress, --fix]
 - repo: local
   hooks:
-  - id: biome-migrate
-    name: biome migrate
-    entry: biome migrate --write
-    language: node
-    additional_dependencies: ['@biomejs/biome@2.5.8']
-    files: ^\.pre-commit-config\.yaml$
+  - id: biome-schema-version
+    name: biome schema version
+    entry: |-
+      python3 -c 'import re, pathlib; cfg = pathlib.Path(".pre-commit-config.yaml").read_text(); ver = re.search(r"biomejs/pre-commit.*?frozen: v([0-9.]+)", cfg, re.S)[1]; p = pathlib.Path("biome.json"); p.write_text(re.sub(r"schemas/[^/]+/schema\.json", f"schemas/{ver}/schema.json", p.read_text()))'
+    language: python
+    files: ^(biome\.json|\.pre-commit-config\.yaml)$
     pass_filenames: false

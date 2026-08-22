@@ -81,15 +81,6 @@ const STACK_REPOS: Partial<Record<Stack, PreCommitRepo[]>> = {
   ],
   [Stack.FRONTEND]: [
     {
-      repo: "https://github.com/pre-commit/sync-pre-commit-deps",
-      hooks: [
-        {
-          id: "sync-pre-commit-deps",
-          args: ["--yaml-mapping=2", "--yaml-sequence=2", "--yaml-offset=0"],
-        },
-      ],
-    },
-    {
       repo: "https://github.com/biomejs/pre-commit",
       hooks: [{ id: "biome-check" }],
     },
@@ -97,12 +88,12 @@ const STACK_REPOS: Partial<Record<Stack, PreCommitRepo[]>> = {
       repo: "local",
       hooks: [
         {
-          id: "biome-migrate",
-          name: "biome migrate",
-          entry: "biome migrate --write",
-          language: "node",
-          additionalDependencies: ["@biomejs/biome@2.5.4"],
-          files: "^\\.pre-commit-config\\.yaml$",
+          id: "biome-schema-version",
+          name: "biome schema version",
+          entry:
+            'python3 -c \'import re, pathlib; cfg = pathlib.Path(".pre-commit-config.yaml").read_text(); ver = re.search(r"biomejs/pre-commit.*?frozen: v([0-9.]+)", cfg, re.S)[1]; p = pathlib.Path("biome.json"); p.write_text(re.sub(r"schemas/[^/]+/schema\\.json", f"schemas/{ver}/schema.json", p.read_text()))\'',
+          language: "python",
+          files: "^(biome\\.json|\\.pre-commit-config\\.yaml)$",
           passFilenames: false,
         },
       ],
@@ -169,7 +160,7 @@ const STACK_REPOS: Partial<Record<Stack, PreCommitRepo[]>> = {
  *
  * TODO: this merges hooks across all "repo: local" entries into one block,
  * which is wrong if there's ever more than one distinct local repo entry.
- * Fine for now since we only ever have a single local entry (biome-migrate).
+ * Fine for now since we only ever have a single local entry (biome-schema-version).
  */
 export function mergeRepos(entries: PreCommitRepo[]): PreCommitRepo[] {
   const hooksByRepo = new Map<string, PreCommitHook[]>();
