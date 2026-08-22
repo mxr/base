@@ -1,7 +1,13 @@
+import { Document, isScalar, visit } from "yaml";
 import { Stack } from "./stack";
 
 const INLINE_LIST_MAX_WIDTH = 60;
 
+/**
+ * Field names are camelCase here but rendered as snake_case keys in
+ * `.pre-commit-config.yaml` (pre-commit's own convention), e.g.
+ * `additionalDependencies` -> `additional_dependencies`. See {@link toSnakeCaseKeys}.
+ */
 export interface PreCommitHook {
   readonly id: string;
   readonly args?: string[];
@@ -201,89 +207,16 @@ export function buildPreCommitRepos(stack: Stack[]): PreCommitRepo[] {
   return mergeRepos(entries);
 }
 
-class InlineList extends Array<string | number | boolean> {
-  static wrap(items: (string | number | boolean)[]): InlineList {
-    const list = new InlineList();
-    list.push(...items);
-    return list;
-  }
-}
-
-function inlineShortLists<T>(value: T): T {
-  if (Array.isArray(value)) {
-    const items = value.map((item) => inlineShortLists(item));
-    const isScalarList = items.every((item) => ["string", "number", "boolean"].includes(typeof item));
-    if (isScalarList && items.map(String).join(", ").length <= INLINE_LIST_MAX_WIDTH) {
-      return InlineList.wrap(items as (string | number | boolean)[]) as unknown as T;
-    }
-    return items as unknown as T;
-  }
-  if (value !== null && typeof value === "object") {
-    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, inlineShortLists(v)])) as T;
-  }
-  return value;
-}
-
-const SNAKE_CASE_KEYS: Record<string, string> = {
-  additionalDependencies: "additional_dependencies",
-  passFilenames: "pass_filenames",
-  excludeTypes: "exclude_types",
-};
-
 function toSnakeCaseKeys(value: unknown): unknown {
   if (Array.isArray(value)) {
     return value.map(toSnakeCaseKeys);
   }
   if (value !== null && typeof value === "object") {
-    return Object.fromEntries(Object.entries(value).map(([k, v]) => [SNAKE_CASE_KEYS[k] ?? k, toSnakeCaseKeys(v)]));
+    return Object.fromEntries(
+      Object.entries(value).map(([k, v]) => [k.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`), toSnakeCaseKeys(v)]),
+    );
   }
   return value;
-}
-
-function sp(count: number): string {
-  return " ".repeat(count);
-}
-
-function scalar(value: string | number | boolean): string {
-  if (typeof value !== "string") {
-    return String(value);
-  }
-  // only the YAML indicator characters that are actually ambiguous as the
-  // *start* of a plain scalar (dash/question/colon followed by whitespace or
-  // end-of-string, or any of the flow/quote/comment indicators) need
-  // quoting; a leading "-" as in "--fix" is not one of them
-  const needsQuoting =
-    value === "" || /^[-?:](\s|$)/.test(value) || /^[,[\]{}#&*!|>'"%@`]/.test(value) || value.includes(": ") || value.endsWith(":");
-  return needsQuoting ? JSON.stringify(value) : value;
-}
-
-function entryLines(key: string, value: unknown, indent: number, prefix: string): string[] {
-  if (value instanceof InlineList) {
-    return [`${prefix}${key}: [${value.map((item) => scalar(item)).join(", ")}]`];
-  }
-  if (Array.isArray(value)) {
-    return [`${prefix}${key}:`, ...seqLines(value, indent)];
-  }
-  /* v8 ignore next 3 - defensive: no current hook field is object-valued */
-  if (value !== null && typeof value === "object") {
-    throw new Error(`unreachable: unsupported object-valued key "${key}"`);
-  }
-  return [`${prefix}${key}: ${scalar(value as string | number | boolean)}`];
-}
-
-function seqLines(items: readonly unknown[], indent: number): string[] {
-  const lines: string[] = [];
-  for (const item of items) {
-    if (item !== null && typeof item === "object" && !Array.isArray(item)) {
-      Object.entries(item as Record<string, unknown>).forEach(([k, v], i) => {
-        const prefix = i === 0 ? `${sp(indent)}- ` : sp(indent + 2);
-        lines.push(...entryLines(k, v, indent + 2, prefix));
-      });
-    } else {
-      lines.push(`${sp(indent)}- ${scalar(item as string | number | boolean)}`);
-    }
-  }
-  return lines;
 }
 
 /**
@@ -292,6 +225,18 @@ function seqLines(items: readonly unknown[], indent: number): string[] {
  * non-scalar ones as block lists.
  */
 export function renderPreCommitConfig(stack: Stack[]): string {
-  const repos = toSnakeCaseKeys(inlineShortLists(buildPreCommitRepos(stack)));
-  return [...entryLines("repos", repos, 0, ""), ""].join("\n");
+  const repos = toSnakeCaseKeys(buildPreCommitRepos(stack));
+  const doc = new Document({ repos });
+
+  visit(doc, {
+    Seq(_, node) {
+      const values = node.items.map((item) => (isScalar(item) ? item.value : item));
+      const isScalarList = values.every((value) => ["string", "number", "boolean"].includes(typeof value));
+      if (isScalarList && values.map(String).join(", ").length <= INLINE_LIST_MAX_WIDTH) {
+        node.flow = true;
+      }
+    },
+  });
+
+  return doc.toString({ indentSeq: false, lineWidth: 0, flowCollectionPadding: false });
 }

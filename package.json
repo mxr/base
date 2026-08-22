@@ -8,6 +8,12 @@
     "name": "Max R",
     "organization": false
   },
+  "bundledDependencies": [
+    "yaml"
+  ],
+  "dependencies": {
+    "yaml": "^2.9.0"
+  },
   "description": "Projen external project type for my personal repos, providing stack-appropriate pre-commit config, license, and repo metadata.",
   "devDependencies": {
     "@types/jest": "^30.0.0",
