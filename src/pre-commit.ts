@@ -1,4 +1,4 @@
-import { Document, isScalar, visit } from "yaml";
+import { Document, isScalar, Scalar, visit } from "yaml";
 import { Stack } from "./stack";
 
 const INLINE_LIST_MAX_WIDTH = 60;
@@ -225,6 +225,11 @@ export function renderPreCommitConfig(stack: Stack[]): string {
       const isScalarList = values.every((value) => ["string", "number", "boolean"].includes(typeof value));
       if (isScalarList && values.map(String).join(", ").length <= INLINE_LIST_MAX_WIDTH) {
         node.flow = true;
+      }
+    },
+    Pair(_, pair) {
+      if (isScalar(pair.key) && pair.key.value === "entry" && isScalar(pair.value) && typeof pair.value.value === "string") {
+        pair.value.type = Scalar.BLOCK_LITERAL;
       }
     },
   });

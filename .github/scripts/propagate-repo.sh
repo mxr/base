@@ -67,7 +67,7 @@ git -C "$workdir" checkout -b "$branch"
 name="$(basename "$REPO")"
 stack_json="$(yq -o=json '.stack' "$base_yml")"
 ignore_json="$(yq -o=json '.renovateIgnoreMajor // []' "$base_yml")"
-skip_biome_json="$(yq -o=json '.skipBiomeJson // false' "$base_yml")"
+opts_json="$(yq -o=json '.opts // {}' "$base_yml")"
 
 cat > "$workdir/.projenrc.js" <<EOF
 const { BaseProject } = require("@mxr/base");
@@ -76,7 +76,7 @@ new BaseProject({
   name: "${name}",
   stack: ${stack_json},
   renovateIgnoreMajor: ${ignore_json},
-  skipBiomeJson: ${skip_biome_json},
+  opts: ${opts_json},
 }).synth();
 EOF
 
