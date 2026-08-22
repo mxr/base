@@ -56,6 +56,15 @@ export interface BaseProjectOptions extends GitHubProjectOptions {
    * @default [] - no packages excluded
    */
   readonly renovateIgnoreMajor?: string[];
+
+  /**
+   * Skip writing the starter `biome.json` even for a `frontend` stack, for a
+   * repo that already has its own biome config it doesn't want overwritten.
+   * `frontend`'s other effects (pre-commit hooks, AGPL license) still apply.
+   *
+   * @default false
+   */
+  readonly skipBiomeJson?: boolean;
 }
 
 /**
@@ -83,7 +92,7 @@ export class BaseProject extends GitHubProject {
 
     new PreCommitConfigFile(this, { stack: this.stack });
 
-    if (isFrontend) {
+    if (isFrontend && !options.skipBiomeJson) {
       new TextFile(this, "biome.json", { lines: BIOME_JSON.split("\n") });
     }
 

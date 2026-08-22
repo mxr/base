@@ -11,6 +11,11 @@
 #   DRY_RUN                 defaults to true (print diff, exit before push/PR); set to "false" to push/PR for real
 #   LOCAL_TARBALL           if set, VERSION is treated as a path to a local tarball instead of a registry version
 #   GH_PACKAGES_READ_TOKEN  auth token for npm.pkg.github.com; required unless LOCAL_TARBALL set
+#   STACK                    base.yml contents to use instead of the downstream repo's .github/base.yml
+#                            (handy for testing config changes before they're committed downstream)
+#
+# Example: dry-run a local @mxr/base build against mxr/dotfiles
+#   REPO=mxr/dotfiles VERSION="$(pwd)/$(npm pack --silent)" LOCAL_TARBALL=1 GH_TOKEN=$(gh auth token) .github/scripts/propagate-repo.sh
 set -euo pipefail
 
 step() {
@@ -42,7 +47,11 @@ git clone --quiet "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git" "$
 git -C "$workdir" config user.name "mxr-base-sync[bot]"
 git -C "$workdir" config user.email "306625798+mxr-base-sync[bot]@users.noreply.github.com"
 
-if [ ! -f "$workdir/.github/base.yml" ]; then
+base_yml="$workdir/.github/base.yml"
+if [ -n "${STACK:-}" ]; then
+  base_yml="$workdir/.base-yml-override.yml"
+  printf '%s\n' "$STACK" > "$base_yml"
+elif [ ! -f "$base_yml" ]; then
   echo "no .github/base.yml, skipping"
   exit 0
 fi
@@ -56,8 +65,9 @@ git -C "$workdir" checkout -b "$branch"
 # this is scaffolded fresh every run so a plain projen dependency never has
 # to live in the repo between syncs
 name="$(basename "$REPO")"
-stack_json="$(yq -o=json '.stack' "$workdir/.github/base.yml")"
-ignore_json="$(yq -o=json '.renovateIgnoreMajor // []' "$workdir/.github/base.yml")"
+stack_json="$(yq -o=json '.stack' "$base_yml")"
+ignore_json="$(yq -o=json '.renovateIgnoreMajor // []' "$base_yml")"
+skip_biome_json="$(yq -o=json '.skipBiomeJson // false' "$base_yml")"
 
 cat > "$workdir/.projenrc.js" <<EOF
 const { BaseProject } = require("@mxr/base");
@@ -66,6 +76,7 @@ new BaseProject({
   name: "${name}",
   stack: ${stack_json},
   renovateIgnoreMajor: ${ignore_json},
+  skipBiomeJson: ${skip_biome_json},
 }).synth();
 EOF
 
@@ -108,7 +119,7 @@ step "synthing via generated .projenrc.js"
 
 # scaffolding was only ever a means to synth; strip it back out so only
 # .github/base.yml plus the generated files get committed
-rm -f "$workdir/.npmrc" "$workdir/package.json" "$workdir/package-lock.json" "$workdir/.projenrc.js"
+rm -f "$workdir/.npmrc" "$workdir/package.json" "$workdir/package-lock.json" "$workdir/.projenrc.js" "$workdir/.base-yml-override.yml"
 rm -rf "$workdir/node_modules"
 
 # `git diff --quiet` only catches modifications to already-tracked files,

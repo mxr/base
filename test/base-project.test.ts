@@ -20,6 +20,13 @@ describe("BaseProject", () => {
     expect(snapshot["biome.json"].$schema).toBe("https://biomejs.dev/schemas/2.5.4/schema.json");
   });
 
+  it("skips biome.json for a frontend stack when skipBiomeJson is set", () => {
+    const project = new BaseProject({ name: "test", stack: [Stack.FRONTEND], skipBiomeJson: true });
+    const snapshot = Testing.synth(project);
+    expect(snapshot.LICENSE).toContain("GNU AFFERO GENERAL PUBLIC LICENSE");
+    expect(snapshot["biome.json"]).toBeUndefined();
+  });
+
   it("writes the mergify and renovate config", () => {
     const project = new BaseProject({ name: "test", stack: [] });
     const snapshot = Testing.synth(project);
