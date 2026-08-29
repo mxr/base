@@ -9,6 +9,125 @@ import { PreCommitConfigFile } from "./pre-commit-config-file";
 import { Stack } from "./stack";
 import type { GitHubProjectOptions } from "projen/lib/github";
 
+const RUST_MAIN_WORKFLOW = `name: main
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions: {}
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      project_files: \${{ steps.filter.outputs.project_files }}
+    steps:
+    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      with:
+        persist-credentials: false
+    - uses: dorny/paths-filter@7b450fff21473bca461d4b92ce414b9d0420d706 # v4.0.2
+      id: filter
+      with:
+        filters: |
+          project_files:
+            - .github/workflows/main.yml
+            - '**/*.rs'
+            - Cargo.toml
+            - Cargo.lock
+
+  lint-real:
+    needs: [changes]
+    if: needs.changes.outputs.project_files == 'true'
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      with:
+        persist-credentials: false
+    - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659 # v1.17.0
+      with:
+        components: clippy
+    - run: cargo clippy --all-targets --locked -- -D warnings -D clippy::pedantic -D clippy::nursery -D clippy::cargo
+
+  test-real:
+    needs: [changes]
+    if: needs.changes.outputs.project_files == 'true'
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      with:
+        persist-credentials: false
+    - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659 # v1.17.0
+      with:
+        components: llvm-tools-preview
+    - uses: taiki-e/install-action@07b4745e0c39a41822af610387492e3e53aa222b # v2.83.4
+      with:
+        tool: cargo-llvm-cov
+    - run: cargo llvm-cov --locked --fail-under-lines 100
+
+  main:
+    needs: [changes, lint-real, test-real]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+    - env:
+        PROJECT_FILES: \${{ needs.changes.outputs.project_files }}
+        LINT_REAL_RESULT: \${{ needs.lint-real.result }}
+        TEST_REAL_RESULT: \${{ needs.test-real.result }}
+      run: |
+        if [ "$PROJECT_FILES" != "true" ]; then
+          exit 0
+        fi
+        if [ "$LINT_REAL_RESULT" != "success" ]; then
+          exit 1
+        fi
+        if [ "$TEST_REAL_RESULT" != "success" ]; then
+          exit 1
+        fi
+`;
+
+const RUST_RELEASE_WORKFLOW = `name: release
+
+on:
+  push:
+    tags:
+    - '**'
+
+permissions: {}
+
+concurrency:
+  group: release-\${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: crates-io
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      with:
+        persist-credentials: false
+    - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659 # v1.17.0
+      with:
+        cache: false
+    - uses: rust-lang/crates-io-auth-action@c6f97d42243bad5fab37ca0427f495c86d5b1a18 # v1.0.5
+      id: auth
+    - name: Publish to crates.io
+      env:
+        CARGO_REGISTRY_TOKEN: \${{ steps.auth.outputs.token }}
+      run: cargo publish
+    - name: Create GitHub release
+      env:
+        GH_TOKEN: \${{ github.token }}
+      run: gh release create "$GITHUB_REF_NAME" --verify-tag --generate-notes
+`;
+
 const BIOME_JSON = `{
   "$schema": "https://biomejs.dev/schemas/2.5.4/schema.json",
   "assist": {
@@ -107,6 +226,19 @@ export class BaseProject extends GitHubProject {
       new TextFile(this, "biome.json", { lines: BIOME_JSON.split("\n") });
     }
 
+    if (this.stack.includes(Stack.RUST)) {
+      new TextFile(this, ".github/workflows/main.yml", {
+        marker: false,
+        committed: true,
+        lines: [`# ${BANNER}`, "", ...RUST_MAIN_WORKFLOW.trimEnd().split("\n")],
+      });
+      new TextFile(this, ".github/workflows/release.yml", {
+        marker: false,
+        committed: true,
+        lines: [`# ${BANNER}`, "", ...RUST_RELEASE_WORKFLOW.trimEnd().split("\n")],
+      });
+    }
+
     if (this.github) {
       // projen's own Mergify component hardcodes its output to root
       // `.mergify.yml`; write the same shape it would to `.github/mergify.yml`
@@ -188,6 +320,9 @@ export class BaseProject extends GitHubProject {
     fs.rmSync(path.join(this.outdir, ".gitignore"), { force: true });
     fs.rmSync(path.join(this.outdir, ".gitattributes"), { force: true });
     fs.rmSync(path.join(this.outdir, ".projen"), { recursive: true, force: true });
+    if (this.stack.includes(Stack.RUST)) {
+      fs.writeFileSync(path.join(this.outdir, ".gitignore"), "/target/\n");
+    }
     const readmePath = path.join(this.outdir, "README.md");
     if (fs.existsSync(readmePath) && fs.readFileSync(readmePath, "utf-8").trim() === "# replace this") {
       fs.rmSync(readmePath);
@@ -197,6 +332,12 @@ export class BaseProject extends GitHubProject {
     // pre-commit.ts) to real pinned revs first, so no hook ever gets its env
     // set up against a rev that was never a real ref
     runIgnoringFailure(["uvx", "pre-commit", "autoupdate", "--freeze"], this.outdir);
+    if (this.stack.includes(Stack.RUST)) {
+      // pins the GitHub Actions refs in the rust stack's generated workflow
+      // files to a full sha with a version comment; scoped to just those
+      // files so it never touches workflows this project doesn't manage
+      runIgnoringFailure(["pinact", "run", ".github/workflows/main.yml", ".github/workflows/release.yml"], this.outdir);
+    }
     // seed .pre-commit-config.yaml's own additional_dependencies via
     // sync-typing-deps before the real run below, otherwise ty/mypy fail with
     // no deps on a fresh render since they'd otherwise run before

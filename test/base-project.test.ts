@@ -35,10 +35,28 @@ describe("BaseProject", () => {
     expect(snapshot[".github/renovate.json"]).toMatchObject({ commitMessagePrefix: "[renovate]" });
   });
 
+  it("writes rust workflow files only for a rust stack", () => {
+    const rust = Testing.synth(new BaseProject({ name: "test", stack: [Stack.RUST] }));
+    expect(rust[".github/workflows/main.yml"]).toContain("cargo clippy");
+    expect(rust[".github/workflows/release.yml"]).toContain("cargo publish");
+
+    const nonRust = Testing.synth(new BaseProject({ name: "test", stack: [] }));
+    expect(nonRust[".github/workflows/main.yml"]).toBeUndefined();
+    expect(nonRust[".github/workflows/release.yml"]).toBeUndefined();
+  });
+
   it("writes a pre-commit config", () => {
     const project = new BaseProject({ name: "test", stack: [] });
     const snapshot = Testing.synth(project);
     expect(snapshot[".pre-commit-config.yaml"]).toContain("repos:");
+  });
+
+  it("writes a ci.skip block for a rust stack, and skips it otherwise", () => {
+    const rust = Testing.synth(new BaseProject({ name: "test", stack: [Stack.RUST] }));
+    expect(rust[".pre-commit-config.yaml"]).toContain("ci:\n  skip: [clippy] # runs via GHA to avoid keeping deps in-sync here\n");
+
+    const nonRust = Testing.synth(new BaseProject({ name: "test", stack: [] }));
+    expect(nonRust[".pre-commit-config.yaml"]).not.toContain("ci:");
   });
 
   it("adds a renovate packageRule disabling major updates for the given packages", () => {

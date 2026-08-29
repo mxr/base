@@ -64,7 +64,7 @@ const STACK_REPOS: Partial<Record<Stack, PreCommitRepo[]>> = {
   [Stack.TOML]: [
     {
       repo: "https://github.com/macisamuele/language-formatters-pre-commit-hooks",
-      hooks: [{ id: "pretty-format-toml", args: ["--autofix", "--trailing-commas"] }],
+      hooks: [{ id: "pretty-format-toml", args: ["--autofix", "--trailing-commas"], exclude: "Cargo.lock" }],
     },
   ],
   [Stack.SQL]: [
@@ -102,10 +102,14 @@ const STACK_REPOS: Partial<Record<Stack, PreCommitRepo[]>> = {
   [Stack.RUST]: [
     {
       repo: "https://github.com/AndrejOrsula/pre-commit-cargo",
+      hooks: [{ id: "cargo-fmt" }],
+    },
+    {
+      repo: "https://github.com/doublify/pre-commit-rust",
       hooks: [
-        { id: "cargo-fmt" },
+        { id: "fmt" },
         {
-          id: "cargo-clippy",
+          id: "clippy",
           args: [
             "--all-targets",
             "--locked",
@@ -151,6 +155,34 @@ const STACK_REPOS: Partial<Record<Stack, PreCommitRepo[]>> = {
 };
 
 /**
+ * Stacks that pull in another stack's hooks alongside their own, e.g. every
+ * rust repo also wants toml formatting and GitHub Actions linting.
+ */
+const IMPLIED_STACKS: Partial<Record<Stack, Stack[]>> = {
+  [Stack.RUST]: [Stack.TOML, Stack.GITHUB_ACTIONS],
+};
+
+function expandStacks(stack: Stack[]): Stack[] {
+  return [...new Set(stack.flatMap((name) => [name, ...(IMPLIED_STACKS[name] ?? [])]))];
+}
+
+/**
+ * Hook ids that pre-commit.ci should skip for a given stack, keyed by why:
+ * rust's `clippy` already runs via GitHub Actions, since pre-commit.ci's
+ * containers don't keep a project's own crate versions in sync.
+ */
+const CI_SKIP: Partial<Record<Stack, string[]>> = {
+  [Stack.RUST]: ["clippy"],
+};
+
+/**
+ * Builds the `ci.skip` hook id list for the given stacks, deduplicated.
+ */
+export function buildCiSkip(stack: Stack[]): string[] {
+  return [...new Set(stack.flatMap((name) => CI_SKIP[name] ?? []))];
+}
+
+/**
  * Merges hooks that share a `repo` url into a single entry (sorted by hook
  * id), assigns each non-local repo a placeholder `rev`, and sorts `local`
  * last.
@@ -194,7 +226,7 @@ export function mergeRepos(entries: PreCommitRepo[]): PreCommitRepo[] {
 export function buildPreCommitRepos(stack: Stack[]): PreCommitRepo[] {
   // every Stack member has an entry in STACK_REPOS today; the fallback just
   // guards against a future stack being added to one without the other
-  const entries = [...UNCONDITIONAL, ...stack.flatMap((name) => STACK_REPOS[name] ?? /* v8 ignore next */ [])];
+  const entries = [...UNCONDITIONAL, ...expandStacks(stack).flatMap((name) => STACK_REPOS[name] ?? /* v8 ignore next */ [])];
   return mergeRepos(entries);
 }
 

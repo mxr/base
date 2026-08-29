@@ -1,4 +1,4 @@
-import { buildPreCommitRepos, mergeRepos, renderPreCommitConfig } from "../src/pre-commit";
+import { buildCiSkip, buildPreCommitRepos, mergeRepos, renderPreCommitConfig } from "../src/pre-commit";
 import { Stack } from "../src/stack";
 
 describe("mergeRepos", () => {
@@ -46,6 +46,35 @@ describe("buildPreCommitRepos", () => {
     const repos = buildPreCommitRepos([Stack.FRONTEND]);
     expect(repos[repos.length - 1].repo).toBe("local");
     expect("rev" in repos[repos.length - 1]).toBe(false);
+  });
+
+  it("pulls in toml and github-actions hooks for a rust stack", () => {
+    const repos = buildPreCommitRepos([Stack.RUST]);
+    expect(repos.map((r) => r.repo)).toEqual(
+      expect.arrayContaining([
+        "https://github.com/macisamuele/language-formatters-pre-commit-hooks",
+        "https://github.com/rhysd/actionlint",
+        "https://github.com/zizmorcore/zizmor-pre-commit",
+      ]),
+    );
+    const formatters = repos.find((r) => r.repo === "https://github.com/macisamuele/language-formatters-pre-commit-hooks");
+    expect(formatters?.hooks.map((h) => h.id)).toEqual(expect.arrayContaining(["pretty-format-toml", "pretty-format-yaml"]));
+  });
+
+  it("excludes Cargo.lock from pretty-format-toml", () => {
+    const repos = buildPreCommitRepos([Stack.TOML]);
+    const formatters = repos.find((r) => r.repo === "https://github.com/macisamuele/language-formatters-pre-commit-hooks");
+    expect(formatters?.hooks.find((h) => h.id === "pretty-format-toml")?.exclude).toBe("Cargo.lock");
+  });
+});
+
+describe("buildCiSkip", () => {
+  it("is empty for a stack with nothing to skip", () => {
+    expect(buildCiSkip([Stack.PYTHON])).toEqual([]);
+  });
+
+  it("skips clippy for a rust stack", () => {
+    expect(buildCiSkip([Stack.RUST])).toEqual(["clippy"]);
   });
 });
 

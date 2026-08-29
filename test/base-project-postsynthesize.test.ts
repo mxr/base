@@ -10,10 +10,8 @@ jest.mock("child_process", () => ({
   execFileSync: (...args: Parameters<typeof realChildProcess.execFileSync>) => execFileSyncMock(...args),
 }));
 
-// biome-ignore-start lint/correctness/noUnusedImports: keeps the real project import after the mocked child_process
 import { BaseProject } from "../src/base-project";
-
-// biome-ignore-end lint/correctness/noUnusedImports: keeps the real project import after the mocked child_process
+import { Stack } from "../src/stack";
 
 function outdir(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), "base-projen-postsynth-"));
@@ -46,6 +44,61 @@ describe("BaseProject.postSynthesize with a mocked git/pre-commit binary", () =>
     expect(fs.existsSync(path.join(dir, ".projen"))).toBe(false);
     expect(execFileSyncMock).toHaveBeenCalledWith("chmod", ["-R", "u+w", dir]);
     expect(execFileSyncMock).toHaveBeenCalledWith("uvx", ["pre-commit", "run", "--all-files"], { cwd: dir, stdio: "inherit" });
+  });
+
+  it("writes a /target/ gitignore for a rust stack, and runs pinact", () => {
+    const dir = outdir();
+    realChildProcess.execFileSync("git", ["init", "-q"], { cwd: dir });
+    const project = new BaseProject({ name: "test", stack: [Stack.RUST], outdir: dir });
+
+    execFileSyncMock.mockImplementation((cmd, args) => {
+      if (cmd === "git") {
+        return realChildProcess.execFileSync(cmd, args as string[], { cwd: dir });
+      }
+      return "";
+    });
+
+    project.synth();
+
+    expect(fs.readFileSync(path.join(dir, ".gitignore"), "utf-8")).toBe("/target/\n");
+    expect(execFileSyncMock).toHaveBeenCalledWith("pinact", ["run", ".github/workflows/main.yml", ".github/workflows/release.yml"], {
+      cwd: dir,
+      stdio: "inherit",
+    });
+  });
+
+  it("skips pinact for a non-rust stack", () => {
+    const dir = outdir();
+    realChildProcess.execFileSync("git", ["init", "-q"], { cwd: dir });
+    const project = new BaseProject({ name: "test", stack: [], outdir: dir });
+
+    execFileSyncMock.mockImplementation((cmd, args) => {
+      if (cmd === "git") {
+        return realChildProcess.execFileSync(cmd, args as string[], { cwd: dir });
+      }
+      return "";
+    });
+
+    project.synth();
+
+    expect(execFileSyncMock).not.toHaveBeenCalledWith("pinact", expect.anything(), expect.anything());
+  });
+
+  it("skips the gitignore for a non-rust stack", () => {
+    const dir = outdir();
+    realChildProcess.execFileSync("git", ["init", "-q"], { cwd: dir });
+    const project = new BaseProject({ name: "test", stack: [], outdir: dir });
+
+    execFileSyncMock.mockImplementation((cmd, args) => {
+      if (cmd === "git") {
+        return realChildProcess.execFileSync(cmd, args as string[], { cwd: dir });
+      }
+      return "";
+    });
+
+    project.synth();
+
+    expect(fs.existsSync(path.join(dir, ".gitignore"))).toBe(false);
   });
 
   it("removes the default README only when it's still the projen placeholder", () => {

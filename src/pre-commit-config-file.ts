@@ -1,6 +1,6 @@
 import { FileBase } from "projen";
 import { BANNER } from "./banner";
-import { renderPreCommitConfig } from "./pre-commit";
+import { buildCiSkip, renderPreCommitConfig } from "./pre-commit";
 import type { IConstruct } from "constructs";
 import type { FileBaseOptions, IResolver } from "projen";
 import type { Stack } from "./stack";
@@ -21,6 +21,8 @@ export class PreCommitConfigFile extends FileBase {
   }
 
   protected synthesizeContent(_resolver: IResolver): string | undefined {
-    return [`# ${BANNER}`, "", renderPreCommitConfig(this.stack)].join("\n");
+    const skip = buildCiSkip(this.stack);
+    const ciLines = skip.length > 0 ? [`ci:`, `  skip: [${skip.join(", ")}] # runs via GHA to avoid keeping deps in-sync here`, ""] : [];
+    return [`# ${BANNER}`, "", ...ciLines, renderPreCommitConfig(this.stack)].join("\n");
   }
 }
