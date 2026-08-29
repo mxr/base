@@ -3,16 +3,24 @@ name: propagate update
 on:
   push:
     tags: [v*]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Dry run (print the diff per repo, skip push/PR)
+        type: boolean
+        default: true
 
 permissions: {}
 
 jobs:
   build:
+    if: github.event_name == 'push'
     uses: ./.github/workflows/build.yml
     permissions:
       contents: read
 
   publish:
+    if: github.event_name == 'push'
     needs: build
     runs-on: ubuntu-24.04
     permissions:
@@ -38,6 +46,7 @@ jobs:
 
   list:
     needs: publish
+    if: always() && (github.event_name != 'push' || needs.publish.result == 'success')
     runs-on: ubuntu-24.04
     outputs:
       repos: ${{ steps.list.outputs.repos }}
@@ -59,13 +68,14 @@ jobs:
         matched='[]'
         for repo in $(gh api /installation/repositories --paginate --jq '.repositories[].name'); do
           if gh api "repos/mxr/$repo/contents/.github/base.yml" > /dev/null 2>&1; then
-            matched="$(jq --arg r "$repo" '. + [$r]' <<< "$matched")"
+            matched="$(jq -c --arg r "$repo" '. + [$r]' <<< "$matched")"
           fi
         done
         echo "repos=$matched" >> "$GITHUB_OUTPUT"
 
   propagate:
     needs: list
+    if: always() && needs.list.result == 'success'
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -101,6 +111,14 @@ jobs:
         # account (only orgs), so a PAT is needed just for the npm registry auth
         GH_PACKAGES_READ_TOKEN: ${{ secrets.GH_PACKAGES_READ_TOKEN }}
         REPO: mxr/${{ matrix.repo }}
-        DRY_RUN: 'false'
+        # a manual run has nothing new to publish, so it always targets the
+        # already-published version in package.json rather than a git ref
+        DRY_RUN: ${{ github.event_name != 'push' && inputs.dry_run || 'false' }}
       # zizmor: ignore[adhoc-packages] deliberately bumps to a specific new base version, not installable from a lockfile
-      run: VERSION="${GITHUB_REF_NAME#v}" .github/scripts/propagate-repo.sh
+      run: |
+        if [ "${{ github.event_name }}" = "push" ]; then
+          version="${GITHUB_REF_NAME#v}"
+        else
+          version="$(jq -r .version package.json)"
+        fi
+        VERSION="$version" .github/scripts/propagate-repo.sh
