@@ -267,7 +267,7 @@ export class BaseProject extends GitHubProject {
           "      method: squash",
           "- name: automatic merge for base updates",
           "  conditions:",
-          "  - author=mxr-base-sync[bot]",
+          "  - author=mxr-base-sync",
           "  actions:",
           "    merge:",
           "      method: squash",
