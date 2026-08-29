@@ -24,10 +24,10 @@ jobs:
     outputs:
       project_files: \${{ steps.filter.outputs.project_files }}
     steps:
-    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+    - uses: actions/checkout@v0.0.0
       with:
         persist-credentials: false
-    - uses: dorny/paths-filter@7b450fff21473bca461d4b92ce414b9d0420d706 # v4.0.2
+    - uses: dorny/paths-filter@v0.0.0
       id: filter
       with:
         filters: |
@@ -42,7 +42,7 @@ jobs:
     if: needs.changes.outputs.project_files == 'true'
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+    - uses: actions/checkout@v0.0.0
       with:
         persist-credentials: false
     - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659 # v1.17.0
@@ -55,13 +55,13 @@ jobs:
     if: needs.changes.outputs.project_files == 'true'
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+    - uses: actions/checkout@v0.0.0
       with:
         persist-credentials: false
     - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659 # v1.17.0
       with:
         components: llvm-tools-preview
-    - uses: taiki-e/install-action@07b4745e0c39a41822af610387492e3e53aa222b # v2.83.4
+    - uses: taiki-e/install-action@v0.0.0
       with:
         tool: cargo-llvm-cov
     - run: cargo llvm-cov --locked --fail-under-lines 100
@@ -110,7 +110,7 @@ jobs:
       contents: write
       id-token: write
     steps:
-    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+    - uses: actions/checkout@v0.0.0
       with:
         persist-credentials: false
     - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659 # v1.17.0
@@ -336,7 +336,7 @@ export class BaseProject extends GitHubProject {
       // pins the GitHub Actions refs in the rust stack's generated workflow
       // files to a full sha with a version comment; scoped to just those
       // files so it never touches workflows this project doesn't manage
-      runIgnoringFailure(["pinact", "run", ".github/workflows/main.yml", ".github/workflows/release.yml"], this.outdir);
+      runIgnoringFailure(["pinact", "run", "-u", ".github/workflows/main.yml", ".github/workflows/release.yml"], this.outdir);
     }
     // seed .pre-commit-config.yaml's own additional_dependencies via
     // sync-typing-deps before the real run below, otherwise ty/mypy fail with
