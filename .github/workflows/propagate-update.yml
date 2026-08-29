@@ -47,16 +47,22 @@ jobs:
       with:
         client-id: ${{ secrets.APP_ID }}
         private-key: ${{ secrets.APP_PRIVATE_KEY }}
-        owner: mxr # zizmor: ignore[github-app] read-only, used only to enumerate installed repos; no write perms granted here
+        owner: mxr # zizmor: ignore[github-app] read-only, used only to enumerate installed repos and check for .github/base.yml; no write perms granted here
         permission-metadata: read
+        permission-contents: read
 
     - id: list
       env:
         GH_TOKEN: ${{ steps.app-token.outputs.token }}
       run: |
         set -euo pipefail
-        # TEMP: restricted to this list for this run, revert to the full installation-repositories query before real rollout
-        echo 'repos=["dotfiles", "tampermonkey-scripts"]' >> "$GITHUB_OUTPUT"
+        matched='[]'
+        for repo in $(gh api /installation/repositories --paginate --jq '.repositories[].name'); do
+          if gh api "repos/mxr/$repo/contents/.github/base.yml" > /dev/null 2>&1; then
+            matched="$(jq --arg r "$repo" '. + [$r]' <<< "$matched")"
+          fi
+        done
+        echo "repos=$matched" >> "$GITHUB_OUTPUT"
 
   propagate:
     needs: list
