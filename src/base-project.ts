@@ -261,7 +261,7 @@ export class BaseProject extends GitHubProject {
           "      method: squash",
           "- name: automatic merge for base updates",
           "  conditions:",
-          "  - author=mxr-base-sync",
+          "  - author=mxr-base-sync[bot]",
           "  actions:",
           "    merge:",
           "      method: squash",
@@ -320,6 +320,19 @@ export class BaseProject extends GitHubProject {
     const readmePath = path.join(this.outdir, "README.md");
     if (fs.existsSync(readmePath) && fs.readFileSync(readmePath, "utf-8").trim() === "# replace this") {
       fs.rmSync(readmePath);
+    }
+
+    // `pre-commit run --all-files` only considers files `git ls-files` knows
+    // about, so a freshly generated or renamed file (e.g. this synth renaming
+    // renovate.json to renovate.jsonc) would silently skip every hook below
+    // until propagate-repo.sh's own `git add -A` runs after synth is done.
+    // Add just the files this project actually manages rather than `-A`:
+    // propagate-repo.sh's scaffolding (package.json, node_modules, etc.) is
+    // still sitting in outdir at this point and .gitignore was just deleted
+    // above, so a blanket `-A` would stage all of it.
+    const managedFiles = this.files.map((file) => file.path).filter((file) => fs.existsSync(path.join(this.outdir, file)));
+    if (managedFiles.length > 0) {
+      execFileSync("git", ["add", "--", ...managedFiles], { cwd: this.outdir });
     }
 
     // resolve the placeholder `v0.0.0-<repo>` revs (see mergeRepos in
