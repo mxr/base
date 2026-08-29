@@ -11,8 +11,8 @@
 #   DRY_RUN                 defaults to true (print diff, exit before push/PR); set to "false" to push/PR for real
 #   LOCAL_TARBALL           if set, VERSION is treated as a path to a local tarball instead of a registry version
 #   GH_PACKAGES_READ_TOKEN  auth token for npm.pkg.github.com; required unless LOCAL_TARBALL set
-#   STACK                    base.yml contents to use instead of the downstream repo's .github/base.yml
-#                            (handy for testing config changes before they're committed downstream)
+#   BASE                    base.yml contents to use instead of the downstream repo's .github/base.yml
+#                           (handy for testing config changes before they're committed downstream)
 #
 # Example: dry-run a local @mxr/base build against mxr/dotfiles
 #   REPO=mxr/dotfiles VERSION="$(pwd)/$(npm pack --silent)" LOCAL_TARBALL=1 GH_TOKEN=$(gh auth token) .github/scripts/propagate-repo.sh
@@ -48,9 +48,9 @@ git -C "$workdir" config user.name "mxr-base-sync[bot]"
 git -C "$workdir" config user.email "306625798+mxr-base-sync[bot]@users.noreply.github.com"
 
 base_yml="$workdir/.github/base.yml"
-if [ -n "${STACK:-}" ]; then
+if [ -n "${BASE:-}" ]; then
   base_yml="$workdir/.base-yml-override.yml"
-  printf '%s\n' "$STACK" > "$base_yml"
+  printf '%s\n' "$BASE" > "$base_yml"
 elif [ ! -f "$base_yml" ]; then
   echo "no .github/base.yml, skipping"
   exit 0
