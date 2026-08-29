@@ -267,7 +267,10 @@ export class BaseProject extends GitHubProject {
           "      method: squash",
           "- name: automatic merge for base updates",
           "  conditions:",
-          "  - author=mxr-base-sync[bot]",
+          // mxr-base-sync is a custom GitHub App; Mergify resolves its
+          // `author` attribute to the GraphQL bot login without the
+          // `[bot]` suffix, unlike well-known apps like renovate/pre-commit-ci.
+          "  - author=mxr-base-sync",
           "  actions:",
           "    merge:",
           "      method: squash",
