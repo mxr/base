@@ -144,6 +144,12 @@ const BIOME_JSON = `{
     "indentWidth": 2,
     "lineWidth": 140
   },
+  "json": {
+    "formatter": {
+      "indentStyle": "space",
+      "indentWidth": 2
+    }
+  },
   "linter": {
     "enabled": true,
     "rules": {
