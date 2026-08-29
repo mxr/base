@@ -5,7 +5,6 @@
 export enum Stack {
   FRONTEND = "frontend",
   GITHUB_ACTIONS = "github-actions",
-  JSON = "json",
   PYTHON = "python",
   RUST = "rust",
   SHELL = "shell",

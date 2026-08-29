@@ -37,13 +37,15 @@ describe("buildPreCommitRepos", () => {
   it("has only the unconditional repos for an empty stack", () => {
     const repos = buildPreCommitRepos([]);
     expect(repos.map((r) => r.repo)).toEqual([
+      "https://github.com/biomejs/pre-commit",
       "https://github.com/macisamuele/language-formatters-pre-commit-hooks",
       "https://github.com/pre-commit/pre-commit-hooks",
+      "local",
     ]);
   });
 
-  it("puts the frontend local repo last, with no rev", () => {
-    const repos = buildPreCommitRepos([Stack.FRONTEND]);
+  it("puts the local repo last, with no rev, regardless of stack", () => {
+    const repos = buildPreCommitRepos([Stack.PYTHON]);
     expect(repos[repos.length - 1].repo).toBe("local");
     expect("rev" in repos[repos.length - 1]).toBe(false);
   });
@@ -90,13 +92,15 @@ describe("renderPreCommitConfig", () => {
 
   it("renders block hooks under their repo at the same indent, sequence items indentless", () => {
     const yaml = renderPreCommitConfig([]);
-    expect(yaml.split("\n").slice(0, 6)).toEqual([
+    expect(yaml.split("\n").slice(0, 8)).toEqual([
       "repos:",
+      "- repo: https://github.com/biomejs/pre-commit",
+      "  rev: v0.0.0",
+      "  hooks:",
+      "  - id: biome-check",
       "- repo: https://github.com/macisamuele/language-formatters-pre-commit-hooks",
       "  rev: v0.0.0",
       "  hooks:",
-      "  - id: pretty-format-yaml",
-      "    args: [--autofix]",
     ]);
   });
 

@@ -1,7 +1,7 @@
 import { execFileSync } from "child_process";
 import * as fs from "fs";
 import * as path from "path";
-import { JsonFile, License, TextFile } from "projen";
+import { License, TextFile } from "projen";
 import { GitHubProject } from "projen/lib/github";
 import { BANNER } from "./banner";
 import { firstCommitYear } from "./git";
@@ -144,11 +144,6 @@ const BIOME_JSON = `{
     "indentWidth": 2,
     "lineWidth": 140
   },
-  "json": {
-    "formatter": {
-      "enabled": false
-    }
-  },
   "linter": {
     "enabled": true,
     "rules": {
@@ -161,9 +156,9 @@ const BIOME_JSON = `{
 
 export interface BaseProjectOptions extends GitHubProjectOptions {
   /**
-   * Which stacks this repo is for. Drives which pre-commit hooks are added,
-   * the LICENSE type (`frontend` gets AGPL-3.0-or-later, everything else
-   * gets MIT), and whether a starter `biome.json` is added.
+   * Which stacks this repo is for. Drives which pre-commit hooks are added
+   * and the LICENSE type (`frontend` gets AGPL-3.0-or-later, everything else
+   * gets MIT).
    */
   readonly stack: Stack[];
 
@@ -183,14 +178,13 @@ export interface BaseProjectOptions extends GitHubProjectOptions {
 }
 
 export interface StackOptions {
-  readonly frontend?: FrontendOptions;
+  readonly biome?: BiomeOptions;
 }
 
-export interface FrontendOptions {
+export interface BiomeOptions {
   /**
-   * Skip writing the starter `biome.json` even for a `frontend` stack, for a
-   * repo that already has its own biome config it doesn't want overwritten.
-   * `frontend`'s other effects (pre-commit hooks, AGPL license) still apply.
+   * Skip writing the starter `biome.json`, for a repo that already has its
+   * own biome config it doesn't want overwritten.
    *
    * @default false
    */
@@ -222,7 +216,7 @@ export class BaseProject extends GitHubProject {
 
     new PreCommitConfigFile(this, { stack: this.stack });
 
-    if (isFrontend && !options.opts?.frontend?.skipBiomeJson) {
+    if (!options.opts?.biome?.skipBiomeJson) {
       new TextFile(this, "biome.json", { lines: BIOME_JSON.split("\n") });
     }
 
@@ -275,28 +269,28 @@ export class BaseProject extends GitHubProject {
       });
     }
 
-    new JsonFile(this, ".github/renovate.json", {
+    const renovateConfig = {
+      $schema: "https://docs.renovatebot.com/renovate-schema.json",
+      commitMessageAction: "weekly",
+      commitMessagePrefix: "[renovate]",
+      extends: ["config:recommended", ":disableDependencyDashboard"],
+      groupSingleUpdates: true,
+      minimumReleaseAge: "7 days",
+      packageRules: [
+        { commitMessageExtra: " ", groupName: "update", matchPackageNames: ["*"] },
+        ...(this.renovateIgnoreMajor.length > 0
+          ? [{ matchPackageNames: this.renovateIgnoreMajor, matchUpdateTypes: ["major"], enabled: false }]
+          : []),
+      ],
+      prBodyTemplate: "{{{table}}}",
+      schedule: ["* 16-17 * * 1"],
+      separateMajorMinor: false,
+      separateMultipleMajor: false,
+    };
+    new TextFile(this, ".github/renovate.jsonc", {
       marker: false,
       committed: true,
-      obj: {
-        $schema: "https://docs.renovatebot.com/renovate-schema.json",
-        commitMessageAction: "weekly",
-        commitMessagePrefix: "[renovate]",
-        extends: ["config:recommended", ":disableDependencyDashboard"],
-        groupSingleUpdates: true,
-        minimumReleaseAge: "7 days",
-        packageRules: [
-          { commitMessageExtra: " ", groupName: "update", matchPackageNames: ["*"] },
-          ...(this.renovateIgnoreMajor.length > 0
-            ? [{ matchPackageNames: this.renovateIgnoreMajor, matchUpdateTypes: ["major"], enabled: false }]
-            : []),
-        ],
-        prBodyTemplate: "{{{table}}}",
-        schedule: ["* 16-17 * * 1"],
-        separateMajorMinor: false,
-        separateMultipleMajor: false,
-        "//": BANNER,
-      },
+      lines: [`// ${BANNER}`, ...JSON.stringify(renovateConfig, null, 2).split("\n")],
     });
   }
 

@@ -6,11 +6,11 @@ import { BaseProject } from "../src/base-project";
 import { Stack } from "../src/stack";
 
 describe("BaseProject", () => {
-  it("uses MIT for a non-frontend stack, and skips biome.json", () => {
+  it("uses MIT for a non-frontend stack, and still adds biome.json", () => {
     const project = new BaseProject({ name: "test", stack: [Stack.PYTHON] });
     const snapshot = Testing.synth(project);
     expect(snapshot.LICENSE).toContain("Permission is hereby granted, free of charge");
-    expect(snapshot["biome.json"]).toBeUndefined();
+    expect(snapshot["biome.json"].$schema).toBe("https://biomejs.dev/schemas/2.5.4/schema.json");
   });
 
   it("uses AGPL-3.0-or-later and adds biome.json for a frontend stack", () => {
@@ -20,8 +20,8 @@ describe("BaseProject", () => {
     expect(snapshot["biome.json"].$schema).toBe("https://biomejs.dev/schemas/2.5.4/schema.json");
   });
 
-  it("skips biome.json for a frontend stack when opts.frontend.skipBiomeJson is set", () => {
-    const project = new BaseProject({ name: "test", stack: [Stack.FRONTEND], opts: { frontend: { skipBiomeJson: true } } });
+  it("skips biome.json when opts.biome.skipBiomeJson is set", () => {
+    const project = new BaseProject({ name: "test", stack: [Stack.FRONTEND], opts: { biome: { skipBiomeJson: true } } });
     const snapshot = Testing.synth(project);
     expect(snapshot.LICENSE).toContain("GNU AFFERO GENERAL PUBLIC LICENSE");
     expect(snapshot["biome.json"]).toBeUndefined();
@@ -32,7 +32,7 @@ describe("BaseProject", () => {
     const snapshot = Testing.synth(project);
     expect(snapshot[".github/mergify.yml"]).toContain("renovate[bot]");
     expect(snapshot[".github/mergify.yml"]).toContain("author=mxr-base-sync");
-    expect(snapshot[".github/renovate.json"]).toMatchObject({ commitMessagePrefix: "[renovate]" });
+    expect(snapshot[".github/renovate.jsonc"]).toMatchObject({ commitMessagePrefix: "[renovate]" });
   });
 
   it("writes rust workflow files only for a rust stack", () => {
@@ -62,7 +62,7 @@ describe("BaseProject", () => {
   it("adds a renovate packageRule disabling major updates for the given packages", () => {
     const project = new BaseProject({ name: "test", stack: [], renovateIgnoreMajor: ["typescript"] });
     const snapshot = Testing.synth(project);
-    expect(snapshot[".github/renovate.json"].packageRules).toContainEqual({
+    expect(snapshot[".github/renovate.jsonc"].packageRules).toContainEqual({
       matchPackageNames: ["typescript"],
       matchUpdateTypes: ["major"],
       enabled: false,

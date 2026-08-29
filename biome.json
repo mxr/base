@@ -18,20 +18,13 @@
     "enabled": true
   },
   "files": {
-    "includes": [
-      "**"
-    ]
+    "includes": ["**"]
   },
   "formatter": {
     "enabled": true,
     "indentStyle": "space",
     "indentWidth": 2,
     "lineWidth": 140
-  },
-  "json": {
-    "formatter": {
-      "enabled": false
-    }
   },
   "linter": {
     "enabled": true,

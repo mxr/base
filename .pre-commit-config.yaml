@@ -14,9 +14,6 @@ repos:
   - id: check-merge-conflict
     args: [--assume-in-merge]
   - id: end-of-file-fixer
-  - id: pretty-format-json
-    args: [--autofix]
-    exclude: package-lock.json
   - id: trailing-whitespace
 - repo: https://github.com/rhysd/actionlint
   rev: 914e7df21a07ef503a81201c76d2b11c789d3fca  # frozen: v1.7.12

@@ -36,6 +36,24 @@ const UNCONDITIONAL: PreCommitRepo[] = [
     repo: "https://github.com/macisamuele/language-formatters-pre-commit-hooks",
     hooks: [{ id: "pretty-format-yaml", args: ["--autofix"] }],
   },
+  {
+    repo: "https://github.com/biomejs/pre-commit",
+    hooks: [{ id: "biome-check" }],
+  },
+  {
+    repo: "local",
+    hooks: [
+      {
+        id: "biome-schema-version",
+        name: "biome schema version",
+        entry:
+          'python3 -c \'import re, pathlib; cfg = pathlib.Path(".pre-commit-config.yaml").read_text(); ver = re.search(r"biomejs/pre-commit.*?frozen: v([0-9.]+)", cfg, re.S)[1]; p = pathlib.Path("biome.json"); p.write_text(re.sub(r"schemas/[^/]+/schema\\.json", f"schemas/{ver}/schema.json", p.read_text()))\'',
+        language: "python",
+        files: "^(biome\\.json|\\.pre-commit-config\\.yaml)$",
+        passFilenames: false,
+      },
+    ],
+  },
 ];
 
 const STACK_REPOS: Partial<Record<Stack, PreCommitRepo[]>> = {
@@ -71,32 +89,6 @@ const STACK_REPOS: Partial<Record<Stack, PreCommitRepo[]>> = {
     {
       repo: "https://github.com/sqlfluff/sqlfluff",
       hooks: [{ id: "sqlfluff-fix", args: ["--dialect", "sqlite"] }],
-    },
-  ],
-  [Stack.JSON]: [
-    {
-      repo: "https://github.com/pre-commit/pre-commit-hooks",
-      hooks: [{ id: "pretty-format-json", args: ["--autofix"], exclude: "package-lock.json" }],
-    },
-  ],
-  [Stack.FRONTEND]: [
-    {
-      repo: "https://github.com/biomejs/pre-commit",
-      hooks: [{ id: "biome-check" }],
-    },
-    {
-      repo: "local",
-      hooks: [
-        {
-          id: "biome-schema-version",
-          name: "biome schema version",
-          entry:
-            'python3 -c \'import re, pathlib; cfg = pathlib.Path(".pre-commit-config.yaml").read_text(); ver = re.search(r"biomejs/pre-commit.*?frozen: v([0-9.]+)", cfg, re.S)[1]; p = pathlib.Path("biome.json"); p.write_text(re.sub(r"schemas/[^/]+/schema\\.json", f"schemas/{ver}/schema.json", p.read_text()))\'',
-          language: "python",
-          files: "^(biome\\.json|\\.pre-commit-config\\.yaml)$",
-          passFilenames: false,
-        },
-      ],
     },
   ],
   [Stack.RUST]: [
