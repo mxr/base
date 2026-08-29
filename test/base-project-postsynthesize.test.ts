@@ -61,7 +61,7 @@ describe("BaseProject.postSynthesize with a mocked git/pre-commit binary", () =>
     project.synth();
 
     expect(fs.readFileSync(path.join(dir, ".gitignore"), "utf-8")).toBe("/target/\n");
-    expect(execFileSyncMock).toHaveBeenCalledWith("pinact", ["run", ".github/workflows/main.yml", ".github/workflows/release.yml"], {
+    expect(execFileSyncMock).toHaveBeenCalledWith("pinact", ["run", "-u", ".github/workflows/main.yml", ".github/workflows/release.yml"], {
       cwd: dir,
       stdio: "inherit",
     });

@@ -90,9 +90,24 @@ jobs:
       with:
         node-version-file: package.json
         package-manager-cache: false
-    - uses: astral-sh/setup-uv@ae62891fec2bb8e7d6c99fc78c9fec3a63790f8d # v10.0.0
+    - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
       with:
         enable-cache: false
+    - name: install pinact
+      # postSynthesize's `pinact run -u` call needs this on PATH; installed
+      # here rather than pinned since it's a build tool, not a workflow dep
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        set -euo pipefail
+        version="$(gh release view --repo suzuki-shunsuke/pinact --json tagName -q .tagName)"
+        dir="$(mktemp -d)"
+        (cd "$dir"
+          curl -sSL -O "https://github.com/suzuki-shunsuke/pinact/releases/download/${version}/pinact_linux_amd64.tar.gz"
+          curl -sSL -o checksums.txt "https://github.com/suzuki-shunsuke/pinact/releases/download/${version}/pinact_${version#v}_checksums.txt"
+          sha256sum --ignore-missing -c checksums.txt
+          tar xzf pinact_linux_amd64.tar.gz pinact)
+        install -m 0755 "$dir/pinact" /usr/local/bin/pinact
     - uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
       id: app-token
       with:
