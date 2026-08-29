@@ -122,15 +122,20 @@ step "synthing via generated .projenrc.js"
 rm -f "$workdir/.npmrc" "$workdir/package.json" "$workdir/package-lock.json" "$workdir/.projenrc.js" "$workdir/.base-yml-override.yml"
 rm -rf "$workdir/node_modules"
 
-# `git diff --quiet` only catches modifications to already-tracked files,
-# not newly-generated untracked ones; status --porcelain catches both
+# synth's own postSynthesize() already ran `git add` mid-way through (see
+# base-project.ts), before its own pre-commit autofix passes ran; those
+# autofixes can converge the worktree back to content that's already
+# identical to HEAD (e.g. a repo whose main already has the fixed-up
+# content from a previously merged base-update PR). So check for real
+# changes off the index after staging everything, not off the worktree
+# beforehand - otherwise `git commit` below fails with nothing to commit
+# even though `git status` looked dirty a moment earlier.
 step "checking for changes"
-if [ -z "$(git -C "$workdir" status --porcelain)" ]; then
+git -C "$workdir" add -A
+if git -C "$workdir" diff --cached --quiet; then
   echo "no changes"
   exit 0
 fi
-
-git -C "$workdir" add -A
 
 if [ "${DRY_RUN:-true}" != "false" ]; then
   git -C "$workdir" diff --cached
