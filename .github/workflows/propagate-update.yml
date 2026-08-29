@@ -102,6 +102,7 @@ jobs:
         repositories: ${{ matrix.repo }}
         permission-contents: write
         permission-pull-requests: write
+        permission-workflows: write
 
     - name: update downstream repo
       env:
