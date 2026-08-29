@@ -95,19 +95,9 @@ jobs:
         enable-cache: false
     - name: install pinact
       # postSynthesize's `pinact run -u` call needs this on PATH; installed
-      # here rather than pinned since it's a build tool, not a workflow dep
-      env:
-        GH_TOKEN: ${{ github.token }}
-      run: |
-        set -euo pipefail
-        version="$(gh release view --repo suzuki-shunsuke/pinact --json tagName -q .tagName)"
-        dir="$(mktemp -d)"
-        (cd "$dir"
-          curl -sSL -O "https://github.com/suzuki-shunsuke/pinact/releases/download/${version}/pinact_linux_amd64.tar.gz"
-          curl -sSL -o checksums.txt "https://github.com/suzuki-shunsuke/pinact/releases/download/${version}/pinact_${version#v}_checksums.txt"
-          sha256sum --ignore-missing -c checksums.txt
-          tar xzf pinact_linux_amd64.tar.gz pinact)
-        install -m 0755 "$dir/pinact" /usr/local/bin/pinact
+      # via the Go toolchain already on the runner rather than pinned, since
+      # it's a build tool, not a workflow dep
+      run: go install github.com/suzuki-shunsuke/pinact/v4/cmd/pinact@latest
     - uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
       id: app-token
       with:
