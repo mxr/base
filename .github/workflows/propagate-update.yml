@@ -50,6 +50,9 @@ jobs:
     outputs:
       repos: ${{ steps.list.outputs.repos }}
     steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
     - uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
       id: app-token
       with:
@@ -70,9 +73,17 @@ jobs:
           if [ "$repo" = "dotfiles" ]; then
             continue
           fi
-          if gh api "repos/mxr/$repo/contents/.github/base.yml" > /dev/null 2>&1; then
-            matched="$(jq -c --arg r "$repo" '. + [$r]' <<< "$matched")"
+          base_yml="$(gh api "repos/mxr/$repo/contents/.github/base.yml" --jq '.content' 2> /dev/null | base64 -d)" || continue
+          # pinact is only needed if the repo's stack adds workflow files (see
+          # src/stack-workflow-files.json, the same map base-project.ts uses
+          # to decide which stacks get a `pinact run` in postSynthesize)
+          repo_stacks="$(yq -o=json '.stack' <<< "$base_yml")"
+          pinact=false
+          if jq -en --argjson stacks "$repo_stacks" --slurpfile map src/stack-workflow-files.json \
+            '$stacks | any(. as $s | $map[0][$s] // [] | length > 0)' > /dev/null; then
+            pinact=true
           fi
+          matched="$(jq -c --arg r "$repo" --argjson p "$pinact" '. + [{"name": $r, "pinact": $p}]' <<< "$matched")"
         done
         echo "repos=$matched" >> "$GITHUB_OUTPUT"
 
@@ -97,7 +108,8 @@ jobs:
     - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
       with:
         enable-cache: false
-    - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+    - if: matrix.repo.pinact
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       # zizmor: ignore[cache-poisoning] no pull_request trigger here, and this
       # only caches pinact's own go build/mod dirs, not published artifacts
       with:
@@ -106,6 +118,7 @@ jobs:
           ~/.cache/go-build
         key: pinact-go-${{ runner.os }}
     - name: install pinact
+      if: matrix.repo.pinact
       # postSynthesize's `pinact run -u` call needs this on PATH; installed
       # via the Go toolchain already on the runner rather than pinned, since
       # it's a build tool, not a workflow dep
@@ -118,7 +131,7 @@ jobs:
         client-id: ${{ secrets.APP_ID }}
         private-key: ${{ secrets.APP_PRIVATE_KEY }}
         owner: mxr
-        repositories: ${{ matrix.repo }}
+        repositories: ${{ matrix.repo.name }}
         permission-contents: write
         permission-pull-requests: write
         permission-workflows: write
@@ -129,7 +142,7 @@ jobs:
         # GitHub App installation tokens can't read packages owned by a personal
         # account (only orgs), so a PAT is needed just for the npm registry auth
         GH_PACKAGES_READ_TOKEN: ${{ secrets.GH_PACKAGES_READ_TOKEN }}
-        REPO: mxr/${{ matrix.repo }}
+        REPO: mxr/${{ matrix.repo.name }}
         # a manual run has nothing new to publish, so it always targets the
         # already-published version in package.json rather than a git ref
         DRY_RUN: ${{ github.event_name != 'push' && inputs.dry_run || 'false' }}

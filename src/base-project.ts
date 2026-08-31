@@ -7,6 +7,7 @@ import { BANNER } from "./banner";
 import { firstCommitYear } from "./git";
 import { PreCommitConfigFile } from "./pre-commit-config-file";
 import { Stack } from "./stack";
+import stackWorkflowFiles from "./stack-workflow-files.json";
 import type { GitHubProjectOptions } from "projen/lib/github";
 
 const RUST_MAIN_WORKFLOW = `name: main
@@ -128,6 +129,16 @@ jobs:
       run: gh release create "$GITHUB_REF_NAME" --verify-tag --generate-notes
 `;
 
+// single source of truth for which workflow files each stack adds, shared
+// with propagate-update.yml's `list` job so it can decide whether a repo
+// needs pinact installed without hardcoding a stack name in the workflow
+const STACK_WORKFLOW_FILES: Partial<Record<Stack, string[]>> = stackWorkflowFiles;
+
+const WORKFLOW_FILE_CONTENT: Record<string, string> = {
+  ".github/workflows/main.yml": RUST_MAIN_WORKFLOW,
+  ".github/workflows/release.yml": RUST_RELEASE_WORKFLOW,
+};
+
 const BIOME_JSON = `{
   "$schema": "https://biomejs.dev/schemas/2.5.4/schema.json",
   "assist": {
@@ -219,16 +230,11 @@ export class BaseProject extends GitHubProject {
       new TextFile(this, "biome.json", { lines: BIOME_JSON.split("\n") });
     }
 
-    if (this.stack.includes(Stack.RUST)) {
-      new TextFile(this, ".github/workflows/main.yml", {
+    for (const file of this.stack.flatMap((s) => STACK_WORKFLOW_FILES[s] ?? [])) {
+      new TextFile(this, file, {
         marker: false,
         committed: true,
-        lines: [`# ${BANNER}`, "", ...RUST_MAIN_WORKFLOW.trimEnd().split("\n")],
-      });
-      new TextFile(this, ".github/workflows/release.yml", {
-        marker: false,
-        committed: true,
-        lines: [`# ${BANNER}`, "", ...RUST_RELEASE_WORKFLOW.trimEnd().split("\n")],
+        lines: [`# ${BANNER}`, "", ...WORKFLOW_FILE_CONTENT[file].trimEnd().split("\n")],
       });
     }
 
@@ -338,11 +344,12 @@ export class BaseProject extends GitHubProject {
     // pre-commit.ts) to real pinned revs first, so no hook ever gets its env
     // set up against a rev that was never a real ref
     runIgnoringFailure(["uvx", "pre-commit", "autoupdate", "--freeze"], this.outdir);
-    if (this.stack.includes(Stack.RUST)) {
-      // pins the GitHub Actions refs in the rust stack's generated workflow
-      // files to a full sha with a version comment; scoped to just those
-      // files so it never touches workflows this project doesn't manage
-      runIgnoringFailure(["pinact", "run", "-u", ".github/workflows/main.yml", ".github/workflows/release.yml"], this.outdir);
+    const workflowFiles = this.stack.flatMap((s) => STACK_WORKFLOW_FILES[s] ?? []);
+    if (workflowFiles.length > 0) {
+      // pins the GitHub Actions refs in the stack's generated workflow files
+      // to a full sha with a version comment; scoped to just those files so
+      // it never touches workflows this project doesn't manage
+      runIgnoringFailure(["pinact", "run", "-u", ...workflowFiles], this.outdir);
     }
     // seed .pre-commit-config.yaml's own additional_dependencies via
     // sync-typing-deps before the real run below, otherwise ty/mypy fail with
