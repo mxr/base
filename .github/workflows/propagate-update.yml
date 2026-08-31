@@ -66,6 +66,10 @@ jobs:
         set -euo pipefail
         matched='[]'
         for repo in $(gh api /installation/repositories --paginate --jq '.repositories[].name'); do
+          # dotfiles excluded, see https://github.com/mergifyio/mergify/issues/5178
+          if [ "$repo" = "dotfiles" ]; then
+            continue
+          fi
           if gh api "repos/mxr/$repo/contents/.github/base.yml" > /dev/null 2>&1; then
             matched="$(jq -c --arg r "$repo" '. + [$r]' <<< "$matched")"
           fi
