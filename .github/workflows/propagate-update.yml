@@ -97,6 +97,14 @@ jobs:
     - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
       with:
         enable-cache: false
+    - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      # zizmor: ignore[cache-poisoning] no pull_request trigger here, and this
+      # only caches pinact's own go build/mod dirs, not published artifacts
+      with:
+        path: |
+          ~/go/pkg/mod
+          ~/.cache/go-build
+        key: pinact-go-${{ runner.os }}
     - name: install pinact
       # postSynthesize's `pinact run -u` call needs this on PATH; installed
       # via the Go toolchain already on the runner rather than pinned, since
