@@ -38,6 +38,7 @@ describe("buildPreCommitRepos", () => {
     const repos = buildPreCommitRepos([]);
     expect(repos.map((r) => r.repo)).toEqual([
       "https://github.com/biomejs/pre-commit",
+      "https://github.com/hukkin/mdformat",
       "https://github.com/macisamuele/language-formatters-pre-commit-hooks",
       "https://github.com/pre-commit/pre-commit-hooks",
       "local",
@@ -98,7 +99,7 @@ describe("renderPreCommitConfig", () => {
       "  rev: v0.0.0",
       "  hooks:",
       "  - id: biome-check",
-      "- repo: https://github.com/macisamuele/language-formatters-pre-commit-hooks",
+      "- repo: https://github.com/hukkin/mdformat",
       "  rev: v0.0.0",
       "  hooks:",
     ]);

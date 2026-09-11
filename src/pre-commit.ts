@@ -41,6 +41,10 @@ const UNCONDITIONAL: PreCommitRepo[] = [
     hooks: [{ id: "biome-check" }],
   },
   {
+    repo: "https://github.com/hukkin/mdformat",
+    hooks: [{ id: "mdformat", args: ["--number", "--wrap", "120"], additionalDependencies: ["mdformat-gfm"] }],
+  },
+  {
     repo: "local",
     hooks: [
       {
