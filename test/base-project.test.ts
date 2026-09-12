@@ -38,12 +38,6 @@ describe("BaseProject", () => {
     expect(snapshot[".github/renovate.jsonc"]).toMatchObject({ commitMessagePrefix: "[renovate]" });
   });
 
-  it("keeps mxr-base-sync[bot] as the mergify author for the dotfiles repo", () => {
-    const project = new BaseProject({ name: "dotfiles", stack: [] });
-    const snapshot = Testing.synth(project);
-    expect(snapshot[".github/mergify.yml"]).toContain("author=mxr-base-sync[bot]");
-  });
-
   it("writes rust workflow files only for a rust stack", () => {
     const rust = Testing.synth(new BaseProject({ name: "test", stack: [Stack.RUST] }));
     expect(rust[".github/workflows/main.yml"]).toContain("cargo clippy");

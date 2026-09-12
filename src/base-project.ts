@@ -611,7 +611,7 @@ export class BaseProject extends GitHubProject {
           "      method: squash",
           "- name: automatic merge for base updates",
           "  conditions:",
-          `  - author=${this.name === "dotfiles" ? "mxr-base-sync[bot]" : "mxr-base-copier-sync[bot]"}`,
+          "  - author=mxr-base-copier-sync[bot]",
           "  actions:",
           "    merge:",
           "      method: squash",
