@@ -39,7 +39,7 @@ describe("BaseProject.postSynthesize with a mocked git/pre-commit binary", () =>
 
     project.synth();
 
-    expect(fs.existsSync(path.join(dir, ".gitignore"))).toBe(false);
+    expect(fs.existsSync(path.join(dir, ".gitignore"))).toBe(true);
     expect(fs.existsSync(path.join(dir, ".gitattributes"))).toBe(false);
     expect(fs.existsSync(path.join(dir, ".projen"))).toBe(false);
     expect(execFileSyncMock).toHaveBeenCalledWith("chmod", ["-R", "u+w", dir]);
@@ -84,7 +84,7 @@ describe("BaseProject.postSynthesize with a mocked git/pre-commit binary", () =>
     expect(execFileSyncMock).not.toHaveBeenCalledWith("pinact", expect.anything(), expect.anything());
   });
 
-  it("skips the gitignore for a non-rust stack", () => {
+  it("keeps projen's default gitignore for a non-rust stack", () => {
     const dir = outdir();
     realChildProcess.execFileSync("git", ["init", "-q"], { cwd: dir });
     const project = new BaseProject({ name: "test", stack: [], outdir: dir });
@@ -98,7 +98,7 @@ describe("BaseProject.postSynthesize with a mocked git/pre-commit binary", () =>
 
     project.synth();
 
-    expect(fs.existsSync(path.join(dir, ".gitignore"))).toBe(false);
+    expect(fs.readFileSync(path.join(dir, ".gitignore"), "utf-8")).not.toBe("/target/\n");
   });
 
   it("removes the default README only when it's still the projen placeholder", () => {

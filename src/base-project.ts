@@ -153,6 +153,74 @@ const BIOME_JSON = `{
 }
 `;
 
+const FRONTEND_BIOME_JSON = `{
+  "$schema": "https://biomejs.dev/schemas/2.5.4/schema.json",
+  "assist": {
+    "actions": {
+      "source": {
+        "organizeImports": {
+          "level": "on",
+          "options": {
+            "groups": [
+              {
+                "type": false
+              }
+            ]
+          }
+        }
+      }
+    },
+    "enabled": true
+  },
+  "css": {
+    "parser": {
+      "tailwindDirectives": true
+    }
+  },
+  "files": {
+    "includes": [
+      "**",
+      "!!**/.next",
+      "!!**/build",
+      "!!**/coverage",
+      "!!**/out",
+      "!**/next-env.d.ts",
+      "!**/package-lock.json"
+    ]
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 140
+  },
+  "json": {
+    "formatter": {
+      "enabled": false
+    }
+  },
+  "linter": {
+    "domains": {
+      "next": "recommended",
+      "react": "recommended",
+      "test": "recommended"
+    },
+    "enabled": true,
+    "rules": {
+      "preset": "recommended",
+      "style": {
+        "useImportType": {
+          "level": "on",
+          "options": {
+            "style": "separatedType"
+          }
+        }
+      }
+    }
+  }
+}
+`;
+
 export interface BaseProjectOptions extends GitHubProjectOptions {
   /**
    * Which stacks this repo is for. Drives which pre-commit hooks are added
@@ -215,8 +283,23 @@ export class BaseProject extends GitHubProject {
 
     new PreCommitConfigFile(this, { stack: this.stack });
 
+    if (isFrontend) {
+      this.gitignore.exclude(
+        "/.next/",
+        "/out/",
+        "/coverage",
+        ".DS_Store",
+        "*.pem",
+        "npm-debug.log*",
+        ".env*",
+        ".vercel",
+        "*.tsbuildinfo",
+        "next-env.d.ts",
+      );
+    }
+
     if (!options.opts?.biome?.skipBiomeJson) {
-      new TextFile(this, "biome.json", { lines: BIOME_JSON.split("\n") });
+      new TextFile(this, "biome.json", { lines: (isFrontend ? FRONTEND_BIOME_JSON : BIOME_JSON).split("\n") });
     }
 
     if (this.stack.includes(Stack.RUST)) {
@@ -310,10 +393,10 @@ export class BaseProject extends GitHubProject {
     // BaseProject only manages a handful of files; strip projen's own
     // default scaffolding that it insists on creating regardless of options,
     // since downstream repos aren't full projen-managed projects
-    fs.rmSync(path.join(this.outdir, ".gitignore"), { force: true });
     fs.rmSync(path.join(this.outdir, ".gitattributes"), { force: true });
     fs.rmSync(path.join(this.outdir, ".projen"), { recursive: true, force: true });
     if (this.stack.includes(Stack.RUST)) {
+      fs.rmSync(path.join(this.outdir, ".gitignore"), { force: true });
       fs.writeFileSync(path.join(this.outdir, ".gitignore"), "/target/\n");
     }
     const readmePath = path.join(this.outdir, "README.md");

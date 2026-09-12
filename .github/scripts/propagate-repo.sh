@@ -89,6 +89,12 @@ else
   base_dep="${VERSION}"
 fi
 
+# the downstream repo may already have its own package.json/package-lock.json
+# (e.g. a Next.js app); stash them so the scaffold below doesn't clobber them,
+# and restore them once synth is done scaffolding is torn back out
+[ -f "$workdir/package.json" ] && mv "$workdir/package.json" "$workdir/.package.json.orig"
+[ -f "$workdir/package-lock.json" ] && mv "$workdir/package-lock.json" "$workdir/.package-lock.json.orig"
+
 cat > "$workdir/package.json" <<EOF
 {
   "name": "${name}-base-sync",
@@ -118,9 +124,16 @@ step "synthing via generated .projenrc.js"
 (cd "$workdir" && node .projenrc.js)
 
 # scaffolding was only ever a means to synth; strip it back out so only
-# .github/base.yml plus the generated files get committed
+# .github/base.yml plus the generated files get committed, restoring
+# whatever package.json/package-lock.json the downstream repo already had
 rm -f "$workdir/.npmrc" "$workdir/package.json" "$workdir/package-lock.json" "$workdir/.projenrc.js" "$workdir/.base-yml-override.yml"
 rm -rf "$workdir/node_modules"
+if [ -f "$workdir/.package.json.orig" ]; then
+  mv "$workdir/.package.json.orig" "$workdir/package.json"
+fi
+if [ -f "$workdir/.package-lock.json.orig" ]; then
+  mv "$workdir/.package-lock.json.orig" "$workdir/package-lock.json"
+fi
 
 # synth's own postSynthesize() already ran `git add` mid-way through (see
 # base-project.ts), before its own pre-commit autofix passes ran; those

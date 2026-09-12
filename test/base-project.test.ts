@@ -13,11 +13,21 @@ describe("BaseProject", () => {
     expect(snapshot["biome.json"].$schema).toBe("https://biomejs.dev/schemas/2.5.4/schema.json");
   });
 
-  it("uses AGPL-3.0-or-later and adds biome.json for a frontend stack", () => {
+  it("uses AGPL-3.0-or-later and adds a frontend-specific biome.json for a frontend stack", () => {
     const project = new BaseProject({ name: "test", stack: [Stack.FRONTEND] });
     const snapshot = Testing.synth(project);
     expect(snapshot.LICENSE).toContain("GNU AFFERO GENERAL PUBLIC LICENSE");
     expect(snapshot["biome.json"].$schema).toBe("https://biomejs.dev/schemas/2.5.4/schema.json");
+    expect(snapshot["biome.json"].css.parser.tailwindDirectives).toBe(true);
+    expect(snapshot["biome.json"].linter.rules.style.useImportType.options.style).toBe("separatedType");
+  });
+
+  it("excludes Next.js build/env artifacts from .gitignore for a frontend stack", () => {
+    const project = new BaseProject({ name: "test", stack: [Stack.FRONTEND] });
+    const snapshot = Testing.synth(project);
+    expect(snapshot[".gitignore"]).toContain("/.next/");
+    expect(snapshot[".gitignore"]).toContain(".env*");
+    expect(snapshot[".gitignore"]).toContain("next-env.d.ts");
   });
 
   it("skips biome.json when opts.biome.skipBiomeJson is set", () => {
