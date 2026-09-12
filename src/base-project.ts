@@ -514,9 +514,10 @@ export class BaseProject extends GitHubProject {
 
     // FileBase's own marker wording is fixed and points at a .projenrc.js
     // that doesn't exist in downstream repos (see banner.ts); .gitignore is
-    // projen's own built-in component with no option to swap that wording,
-    // so drop the marker line entirely instead of shipping the wrong banner
-    (this.gitignore as unknown as { shouldAddMarker: boolean }).shouldAddMarker = false;
+    // projen's own built-in component with no option to swap that wording via
+    // its constructor, so shadow the inherited `marker` getter on this
+    // instance to ship the custom banner instead
+    Object.defineProperty(this.gitignore, "marker", { configurable: true, get: () => BANNER });
 
     new License(this, {
       spdx: isFrontend ? "AGPL-3.0-or-later" : "MIT",
@@ -666,7 +667,7 @@ export class BaseProject extends GitHubProject {
     fs.rmSync(path.join(this.outdir, ".projen"), { recursive: true, force: true });
     if (this.stack.includes(Stack.RUST)) {
       fs.rmSync(path.join(this.outdir, ".gitignore"), { force: true });
-      fs.writeFileSync(path.join(this.outdir, ".gitignore"), "/target/\n");
+      fs.writeFileSync(path.join(this.outdir, ".gitignore"), `# ${BANNER}\n/target/\n`);
     }
     const readmePath = path.join(this.outdir, "README.md");
     if (fs.existsSync(readmePath) && fs.readFileSync(readmePath, "utf-8").trim() === "# replace this") {

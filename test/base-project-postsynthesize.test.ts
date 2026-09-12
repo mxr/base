@@ -10,6 +10,7 @@ jest.mock("child_process", () => ({
   execFileSync: (...args: Parameters<typeof realChildProcess.execFileSync>) => execFileSyncMock(...args),
 }));
 
+import { BANNER } from "../src/banner";
 import { BaseProject } from "../src/base-project";
 import { Stack } from "../src/stack";
 
@@ -60,7 +61,7 @@ describe("BaseProject.postSynthesize with a mocked git/pre-commit binary", () =>
 
     project.synth();
 
-    expect(fs.readFileSync(path.join(dir, ".gitignore"), "utf-8")).toBe("/target/\n");
+    expect(fs.readFileSync(path.join(dir, ".gitignore"), "utf-8")).toBe(`# ${BANNER}\n/target/\n`);
     expect(execFileSyncMock).toHaveBeenCalledWith("pinact", ["run", "-u", ".github/workflows/main.yml", ".github/workflows/release.yml"], {
       cwd: dir,
       stdio: "inherit",
@@ -140,7 +141,9 @@ describe("BaseProject.postSynthesize with a mocked git/pre-commit binary", () =>
 
     project.synth();
 
-    expect(fs.readFileSync(path.join(dir, ".gitignore"), "utf-8")).not.toBe("/target/\n");
+    const gitignore = fs.readFileSync(path.join(dir, ".gitignore"), "utf-8");
+    expect(gitignore).not.toBe("/target/\n");
+    expect(gitignore).toContain(`# ${BANNER}`);
   });
 
   it("removes the default README only when it's still the projen placeholder", () => {
