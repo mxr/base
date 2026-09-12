@@ -28,14 +28,6 @@ describe("BaseProject", () => {
     expect(snapshot["biome.json"]).toBeUndefined();
   });
 
-  it("excludes Next.js build/env artifacts from .gitignore for a frontend stack", () => {
-    const project = new BaseProject({ name: "test", stack: [Stack.FRONTEND] });
-    const snapshot = Testing.synth(project);
-    expect(snapshot[".gitignore"]).toContain("/.next/");
-    expect(snapshot[".gitignore"]).toContain(".env*");
-    expect(snapshot[".gitignore"]).toContain("next-env.d.ts");
-  });
-
   it("writes the mergify and renovate config", () => {
     const project = new BaseProject({ name: "test", stack: [] });
     const snapshot = Testing.synth(project);
@@ -82,7 +74,6 @@ describe("BaseProject", () => {
     expect(snapshot["vercel.json"]).toBeUndefined();
     expect(snapshot[".github/workflows/main.yml"]).toBeUndefined();
     expect(snapshot[".github/workflows/release.yml"]).toBeUndefined();
-    expect(snapshot[".gitignore"]).not.toContain("/.next/");
   });
 
   it("writes frontend workflow files with a Vercel deploy for a frontend stack", () => {

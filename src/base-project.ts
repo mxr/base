@@ -527,20 +527,9 @@ export class BaseProject extends GitHubProject {
 
     new PreCommitConfigFile(this, { stack: this.stack });
 
-    if (isNextJs) {
-      this.gitignore.exclude(
-        "/.next/",
-        "/out/",
-        "/coverage",
-        ".DS_Store",
-        "*.pem",
-        "npm-debug.log*",
-        ".env*",
-        ".vercel",
-        "*.tsbuildinfo",
-        "next-env.d.ts",
-      );
-    }
+    // Next.js and Rust .gitignore handling both live in postSynthesize,
+    // since Rust needs to fully replace projen's default gitignore rather
+    // than add to it.
 
     if (!isFrontend || isNextJs) {
       new TextFile(this, "biome.json", { lines: (isNextJs ? FRONTEND_BIOME_JSON : BIOME_JSON).split("\n") });
@@ -669,9 +658,28 @@ export class BaseProject extends GitHubProject {
     // since downstream repos aren't full projen-managed projects
     fs.rmSync(path.join(this.outdir, ".gitattributes"), { force: true });
     fs.rmSync(path.join(this.outdir, ".projen"), { recursive: true, force: true });
+    const gitignorePath = path.join(this.outdir, ".gitignore");
     if (this.stack.includes(Stack.RUST)) {
-      fs.rmSync(path.join(this.outdir, ".gitignore"), { force: true });
-      fs.writeFileSync(path.join(this.outdir, ".gitignore"), `# ${BANNER}\n/target/\n`);
+      fs.rmSync(gitignorePath, { force: true });
+      fs.writeFileSync(gitignorePath, `# ${BANNER}\n/target/\n`);
+    } else if (this.isNextJs) {
+      fs.chmodSync(gitignorePath, 0o644);
+      fs.appendFileSync(
+        gitignorePath,
+        [
+          "/.next/",
+          "/out/",
+          "/coverage",
+          ".DS_Store",
+          "*.pem",
+          "npm-debug.log*",
+          ".env*",
+          ".vercel",
+          "*.tsbuildinfo",
+          "next-env.d.ts",
+          "",
+        ].join("\n"),
+      );
     }
     const readmePath = path.join(this.outdir, "README.md");
     if (fs.existsSync(readmePath) && fs.readFileSync(readmePath, "utf-8").trim() === "# replace this") {

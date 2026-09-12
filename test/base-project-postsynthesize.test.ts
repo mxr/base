@@ -68,7 +68,7 @@ describe("BaseProject.postSynthesize with a mocked git/pre-commit binary", () =>
     });
   });
 
-  it("runs pinact for a frontend stack", () => {
+  it("runs pinact for a frontend stack, and excludes Next.js build/env artifacts from .gitignore", () => {
     const dir = outdir();
     realChildProcess.execFileSync("git", ["init", "-q"], { cwd: dir });
     const project = new BaseProject({ name: "test", stack: [Stack.FRONTEND], outdir: dir });
@@ -86,6 +86,10 @@ describe("BaseProject.postSynthesize with a mocked git/pre-commit binary", () =>
       cwd: dir,
       stdio: "inherit",
     });
+    const gitignore = fs.readFileSync(path.join(dir, ".gitignore"), "utf-8");
+    expect(gitignore).toContain("/.next/");
+    expect(gitignore).toContain(".env*");
+    expect(gitignore).toContain("next-env.d.ts");
   });
 
   it("skips pinact for a non-rust, non-frontend stack", () => {
