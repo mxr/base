@@ -330,11 +330,6 @@ const FRONTEND_BIOME_JSON = `{
     "indentWidth": 2,
     "lineWidth": 140
   },
-  "json": {
-    "formatter": {
-      "enabled": false
-    }
-  },
   "linter": {
     "domains": {
       "next": "recommended",
