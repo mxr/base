@@ -496,6 +496,7 @@ export interface FrontendOptions {
  */
 export class BaseProject extends GitHubProject {
   public readonly stack: Stack[];
+  private readonly isNextJs: boolean;
   private readonly renovateIgnoreMajor: string[];
   private readonly renovateDisable: string[];
 
@@ -508,6 +509,14 @@ export class BaseProject extends GitHubProject {
       .filter(([, enabled]) => !enabled)
       .map(([name]) => name);
     const isFrontend = this.stack.includes(Stack.FRONTEND);
+    const isNextJs = isFrontend && (options.opts?.frontend?.nextJs ?? true);
+    this.isNextJs = isNextJs;
+
+    // FileBase's own marker wording is fixed and points at a .projenrc.js
+    // that doesn't exist in downstream repos (see banner.ts); .gitignore is
+    // projen's own built-in component with no option to swap that wording,
+    // so drop the marker line entirely instead of shipping the wrong banner
+    (this.gitignore as unknown as { shouldAddMarker: boolean }).shouldAddMarker = false;
 
     new License(this, {
       spdx: isFrontend ? "AGPL-3.0-or-later" : "MIT",
@@ -517,7 +526,7 @@ export class BaseProject extends GitHubProject {
 
     new PreCommitConfigFile(this, { stack: this.stack });
 
-    if (isFrontend) {
+    if (isNextJs) {
       this.gitignore.exclude(
         "/.next/",
         "/out/",
@@ -547,7 +556,7 @@ export class BaseProject extends GitHubProject {
       });
     }
 
-    if (isFrontend) {
+    if (isNextJs) {
       new TextFile(this, ".github/workflows/main.yml", {
         marker: false,
         committed: true,
@@ -558,23 +567,20 @@ export class BaseProject extends GitHubProject {
         committed: true,
         lines: [`# ${BANNER}`, "", ...FRONTEND_RELEASE_WORKFLOW.trimEnd().split("\n")],
       });
-
-      if (options.opts?.frontend?.nextJs ?? true) {
-        new TextFile(this, "tsconfig.json", { lines: FRONTEND_TSCONFIG_JSON.trimEnd().split("\n") });
-        new TextFile(this, "vitest.config.mts", {
-          marker: false,
-          lines: [`// ${BANNER}`, "", ...FRONTEND_VITEST_CONFIG.trimEnd().split("\n")],
-        });
-        new TextFile(this, "postcss.config.mjs", {
-          marker: false,
-          lines: [`// ${BANNER}`, "", ...FRONTEND_POSTCSS_CONFIG.trimEnd().split("\n")],
-        });
-        new TextFile(this, "next.config.ts", {
-          marker: false,
-          lines: [`// ${BANNER}`, "", ...FRONTEND_NEXT_CONFIG.trimEnd().split("\n")],
-        });
-        new TextFile(this, "vercel.json", { lines: FRONTEND_VERCEL_JSON.trimEnd().split("\n") });
-      }
+      new TextFile(this, "tsconfig.json", { lines: FRONTEND_TSCONFIG_JSON.trimEnd().split("\n") });
+      new TextFile(this, "vitest.config.mts", {
+        marker: false,
+        lines: [`// ${BANNER}`, "", ...FRONTEND_VITEST_CONFIG.trimEnd().split("\n")],
+      });
+      new TextFile(this, "postcss.config.mjs", {
+        marker: false,
+        lines: [`// ${BANNER}`, "", ...FRONTEND_POSTCSS_CONFIG.trimEnd().split("\n")],
+      });
+      new TextFile(this, "next.config.ts", {
+        marker: false,
+        lines: [`// ${BANNER}`, "", ...FRONTEND_NEXT_CONFIG.trimEnd().split("\n")],
+      });
+      new TextFile(this, "vercel.json", { lines: FRONTEND_VERCEL_JSON.trimEnd().split("\n") });
     }
 
     if (this.github) {
@@ -684,7 +690,7 @@ export class BaseProject extends GitHubProject {
     // pre-commit.ts) to real pinned revs first, so no hook ever gets its env
     // set up against a rev that was never a real ref
     runIgnoringFailure(["uvx", "pre-commit", "autoupdate", "--freeze"], this.outdir);
-    if (this.stack.includes(Stack.RUST) || this.stack.includes(Stack.FRONTEND)) {
+    if (this.stack.includes(Stack.RUST) || this.isNextJs) {
       // pins the GitHub Actions refs in the generated workflow files to a
       // full sha with a version comment; scoped to just those files so it
       // never touches workflows this project doesn't manage

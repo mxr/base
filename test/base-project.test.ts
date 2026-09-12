@@ -80,6 +80,9 @@ describe("BaseProject", () => {
     expect(snapshot["postcss.config.mjs"]).toBeUndefined();
     expect(snapshot["next.config.ts"]).toBeUndefined();
     expect(snapshot["vercel.json"]).toBeUndefined();
+    expect(snapshot[".github/workflows/main.yml"]).toBeUndefined();
+    expect(snapshot[".github/workflows/release.yml"]).toBeUndefined();
+    expect(snapshot[".gitignore"]).not.toContain("/.next/");
   });
 
   it("writes frontend workflow files with a Vercel deploy for a frontend stack", () => {
