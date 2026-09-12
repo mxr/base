@@ -128,6 +128,142 @@ jobs:
       run: gh release create "$GITHUB_REF_NAME" --verify-tag --generate-notes
 `;
 
+const FRONTEND_MAIN_WORKFLOW = `name: main
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions: {}
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      project_files: \${{ steps.filter.outputs.project_files }}
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v0.0.0
+      with:
+        persist-credentials: false
+
+    - uses: dorny/paths-filter@v0.0.0
+      id: filter
+      with:
+        filters: |
+          project_files:
+            - .github/workflows/**
+            - app/**
+            - lib/**
+            - tests/**
+            - scripts/**
+            - '**/*.css'
+            - '**/*.js'
+            - '**/*.jsx'
+            - '**/*.mjs'
+            - '**/*.mts'
+            - '**/*.ts'
+            - '**/*.tsx'
+            - '**/*.json'
+            - package.json
+            - package-lock.json
+
+  main-real:
+    needs: [changes]
+    if: needs.changes.outputs.project_files == 'true'
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v0.0.0
+      with:
+        persist-credentials: false
+
+    - name: Setup Node
+      uses: actions/setup-node@v0.0.0
+      with:
+        node-version-file: package.json
+        cache: npm
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Run tests with coverage
+      run: npm run test:coverage
+
+    - name: Upload coverage report
+      uses: actions/upload-artifact@v0.0.0
+      with:
+        name: coverage-report
+        path: coverage
+
+  main:
+    needs: [changes, main-real]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+    - env:
+        PROJECT_FILES: \${{ needs.changes.outputs.project_files }}
+        TEST_REAL_RESULT: \${{ needs.main-real.result }}
+      run: |
+        if [ "$PROJECT_FILES" != "true" ]; then
+          exit 0
+        fi
+        if [ "$TEST_REAL_RESULT" != "success" ]; then
+          exit 1
+        fi
+`;
+
+const FRONTEND_RELEASE_WORKFLOW = `name: release
+
+on:
+  push:
+    tags:
+    - '**'
+
+permissions: {}
+
+concurrency:
+  group: release-\${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    uses: mxr/workflows/.github/workflows/github-release.yml@v0.0.0
+    permissions:
+      contents: write
+
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      VERCEL_ORG_ID: \${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: \${{ secrets.VERCEL_PROJECT_ID }}
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v0.0.0
+      with:
+        persist-credentials: false
+
+    - name: Setup Node
+      uses: actions/setup-node@v0.0.0
+      with:
+        node-version-file: package.json
+        package-manager-cache: false
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Pull Vercel environment
+      run: npx vercel pull --yes --environment=production --token=\${{ secrets.VERCEL_TOKEN }}
+
+    - name: Build
+      run: npx vercel build --prod --token=\${{ secrets.VERCEL_TOKEN }}
+
+    - name: Deploy
+      run: npx vercel deploy --prebuilt --prod --token=\${{ secrets.VERCEL_TOKEN }}
+`;
+
 const BIOME_JSON = `{
   "$schema": "https://biomejs.dev/schemas/2.5.4/schema.json",
   "assist": {
@@ -326,6 +462,19 @@ export class BaseProject extends GitHubProject {
       });
     }
 
+    if (isFrontend) {
+      new TextFile(this, ".github/workflows/main.yml", {
+        marker: false,
+        committed: true,
+        lines: [`# ${BANNER}`, "", ...FRONTEND_MAIN_WORKFLOW.trimEnd().split("\n")],
+      });
+      new TextFile(this, ".github/workflows/release.yml", {
+        marker: false,
+        committed: true,
+        lines: [`# ${BANNER}`, "", ...FRONTEND_RELEASE_WORKFLOW.trimEnd().split("\n")],
+      });
+    }
+
     if (this.github) {
       // projen's own Mergify component hardcodes its output to root
       // `.mergify.yml`; write the same shape it would to `.github/mergify.yml`
@@ -433,10 +582,10 @@ export class BaseProject extends GitHubProject {
     // pre-commit.ts) to real pinned revs first, so no hook ever gets its env
     // set up against a rev that was never a real ref
     runIgnoringFailure(["uvx", "pre-commit", "autoupdate", "--freeze"], this.outdir);
-    if (this.stack.includes(Stack.RUST)) {
-      // pins the GitHub Actions refs in the rust stack's generated workflow
-      // files to a full sha with a version comment; scoped to just those
-      // files so it never touches workflows this project doesn't manage
+    if (this.stack.includes(Stack.RUST) || this.stack.includes(Stack.FRONTEND)) {
+      // pins the GitHub Actions refs in the generated workflow files to a
+      // full sha with a version comment; scoped to just those files so it
+      // never touches workflows this project doesn't manage
       runIgnoringFailure(["pinact", "run", "-u", ".github/workflows/main.yml", ".github/workflows/release.yml"], this.outdir);
     }
     // seed .pre-commit-config.yaml's own additional_dependencies via

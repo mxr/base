@@ -67,7 +67,27 @@ describe("BaseProject.postSynthesize with a mocked git/pre-commit binary", () =>
     });
   });
 
-  it("skips pinact for a non-rust stack", () => {
+  it("runs pinact for a frontend stack", () => {
+    const dir = outdir();
+    realChildProcess.execFileSync("git", ["init", "-q"], { cwd: dir });
+    const project = new BaseProject({ name: "test", stack: [Stack.FRONTEND], outdir: dir });
+
+    execFileSyncMock.mockImplementation((cmd, args) => {
+      if (cmd === "git") {
+        return realChildProcess.execFileSync(cmd, args as string[], { cwd: dir });
+      }
+      return "";
+    });
+
+    project.synth();
+
+    expect(execFileSyncMock).toHaveBeenCalledWith("pinact", ["run", "-u", ".github/workflows/main.yml", ".github/workflows/release.yml"], {
+      cwd: dir,
+      stdio: "inherit",
+    });
+  });
+
+  it("skips pinact for a non-rust, non-frontend stack", () => {
     const dir = outdir();
     realChildProcess.execFileSync("git", ["init", "-q"], { cwd: dir });
     const project = new BaseProject({ name: "test", stack: [], outdir: dir });

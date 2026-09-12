@@ -155,6 +155,7 @@ const STACK_REPOS: Partial<Record<Stack, PreCommitRepo[]>> = {
  * rust repo also wants toml formatting and GitHub Actions linting.
  */
 const IMPLIED_STACKS: Partial<Record<Stack, Stack[]>> = {
+  [Stack.FRONTEND]: [Stack.GITHUB_ACTIONS],
   [Stack.RUST]: [Stack.TOML, Stack.GITHUB_ACTIONS],
 };
 

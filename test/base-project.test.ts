@@ -61,6 +61,20 @@ describe("BaseProject", () => {
     expect(nonRust[".github/workflows/release.yml"]).toBeUndefined();
   });
 
+  it("writes frontend workflow files with a Vercel deploy for a frontend stack", () => {
+    const project = new BaseProject({ name: "test", stack: [Stack.FRONTEND] });
+    const snapshot = Testing.synth(project);
+    expect(snapshot[".github/workflows/main.yml"]).toContain("npm run test:coverage");
+    expect(snapshot[".github/workflows/release.yml"]).toContain("npx vercel deploy --prebuilt --prod");
+  });
+
+  it("includes actionlint and zizmor pre-commit hooks for a frontend stack", () => {
+    const project = new BaseProject({ name: "test", stack: [Stack.FRONTEND] });
+    const snapshot = Testing.synth(project);
+    expect(snapshot[".pre-commit-config.yaml"]).toContain("actionlint");
+    expect(snapshot[".pre-commit-config.yaml"]).toContain("zizmor");
+  });
+
   it("writes a pre-commit config", () => {
     const project = new BaseProject({ name: "test", stack: [] });
     const snapshot = Testing.synth(project);
