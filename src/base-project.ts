@@ -542,7 +542,9 @@ export class BaseProject extends GitHubProject {
       );
     }
 
-    new TextFile(this, "biome.json", { lines: (isFrontend ? FRONTEND_BIOME_JSON : BIOME_JSON).split("\n") });
+    if (!isFrontend || isNextJs) {
+      new TextFile(this, "biome.json", { lines: (isNextJs ? FRONTEND_BIOME_JSON : BIOME_JSON).split("\n") });
+    }
 
     if (this.stack.includes(Stack.RUST)) {
       new TextFile(this, ".github/workflows/main.yml", {

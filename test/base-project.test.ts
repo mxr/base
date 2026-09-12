@@ -22,6 +22,12 @@ describe("BaseProject", () => {
     expect(snapshot["biome.json"].linter.rules.style.useImportType.options.style).toBe("separatedType");
   });
 
+  it("does not manage biome.json for a frontend stack with nextJs disabled", () => {
+    const project = new BaseProject({ name: "test", stack: [Stack.FRONTEND], opts: { frontend: { nextJs: false } } });
+    const snapshot = Testing.synth(project);
+    expect(snapshot["biome.json"]).toBeUndefined();
+  });
+
   it("excludes Next.js build/env artifacts from .gitignore for a frontend stack", () => {
     const project = new BaseProject({ name: "test", stack: [Stack.FRONTEND] });
     const snapshot = Testing.synth(project);
