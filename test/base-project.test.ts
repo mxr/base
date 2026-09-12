@@ -84,6 +84,15 @@ describe("BaseProject", () => {
       enabled: false,
     });
   });
+
+  it("adds a renovate packageRule disabling the given packages entirely", () => {
+    const project = new BaseProject({ name: "test", stack: [], renovateDisable: ["tar"] });
+    const snapshot = Testing.synth(project);
+    expect(snapshot[".github/renovate.jsonc"].packageRules).toContainEqual({
+      matchPackageNames: ["tar"],
+      enabled: false,
+    });
+  });
 });
 
 describe("BaseProject.postSynthesize", () => {

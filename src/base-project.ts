@@ -239,6 +239,15 @@ export interface BaseProjectOptions extends GitHubProjectOptions {
   readonly renovateIgnoreMajor?: string[];
 
   /**
+   * Package names to disable entirely in Renovate (e.g. `["tar"]` for a
+   * frontend repo whose `@vercel/fun` transitively pins a deprecated `tar`
+   * that npm's own override can't safely be auto-bumped past).
+   *
+   * @default [] - no packages disabled
+   */
+  readonly renovateDisable?: string[];
+
+  /**
    * Per-stack options.
    */
   readonly opts?: StackOptions;
@@ -267,12 +276,14 @@ export interface BiomeOptions {
 export class BaseProject extends GitHubProject {
   public readonly stack: Stack[];
   private readonly renovateIgnoreMajor: string[];
+  private readonly renovateDisable: string[];
 
   constructor(options: BaseProjectOptions) {
     super({ ...options, githubOptions: { pullRequestLint: false, ...options.githubOptions } });
 
     this.stack = options.stack;
     this.renovateIgnoreMajor = options.renovateIgnoreMajor ?? [];
+    this.renovateDisable = options.renovateDisable ?? [];
     const isFrontend = this.stack.includes(Stack.FRONTEND);
 
     new License(this, {
@@ -359,6 +370,7 @@ export class BaseProject extends GitHubProject {
       groupSingleUpdates: true,
       minimumReleaseAge: "7 days",
       packageRules: [
+        ...(this.renovateDisable.length > 0 ? [{ matchPackageNames: this.renovateDisable, enabled: false }] : []),
         { commitMessageExtra: " ", groupName: "update", matchPackageNames: ["*"] },
         ...(this.renovateIgnoreMajor.length > 0
           ? [{ matchPackageNames: this.renovateIgnoreMajor, matchUpdateTypes: ["major"], enabled: false }]
