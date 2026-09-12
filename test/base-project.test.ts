@@ -61,6 +61,34 @@ describe("BaseProject", () => {
     expect(nonRust[".github/workflows/release.yml"]).toBeUndefined();
   });
 
+  it("writes shared frontend config files for a frontend stack", () => {
+    const project = new BaseProject({ name: "test", stack: [Stack.FRONTEND] });
+    const snapshot = Testing.synth(project);
+    expect(snapshot["tsconfig.json"].compilerOptions.jsx).toBe("react-jsx");
+    expect(snapshot["vitest.config.mts"]).toContain("defineConfig");
+    expect(snapshot["postcss.config.mjs"]).toContain("@tailwindcss/postcss");
+    expect(snapshot["next.config.ts"]).toContain("useTypeScriptCli");
+    expect(snapshot["vercel.json"]).toMatchObject({ git: { deploymentEnabled: { main: false } } });
+
+    const nonFrontend = Testing.synth(new BaseProject({ name: "test", stack: [] }));
+    expect(nonFrontend["tsconfig.json"]).toBeUndefined();
+    expect(nonFrontend["vercel.json"]).toBeUndefined();
+  });
+
+  it("skips shared frontend config files when opts.frontend.nextJs is false", () => {
+    const project = new BaseProject({
+      name: "test",
+      stack: [Stack.FRONTEND],
+      opts: { frontend: { nextJs: false } },
+    });
+    const snapshot = Testing.synth(project);
+    expect(snapshot["tsconfig.json"]).toBeUndefined();
+    expect(snapshot["vitest.config.mts"]).toBeUndefined();
+    expect(snapshot["postcss.config.mjs"]).toBeUndefined();
+    expect(snapshot["next.config.ts"]).toBeUndefined();
+    expect(snapshot["vercel.json"]).toBeUndefined();
+  });
+
   it("writes frontend workflow files with a Vercel deploy for a frontend stack", () => {
     const project = new BaseProject({ name: "test", stack: [Stack.FRONTEND] });
     const snapshot = Testing.synth(project);

@@ -352,6 +352,92 @@ const FRONTEND_BIOME_JSON = `{
 }
 `;
 
+const FRONTEND_TSCONFIG_JSON = `{
+  "compilerOptions": {
+    "allowJs": true,
+    "esModuleInterop": true,
+    "incremental": true,
+    "isolatedModules": true,
+    "jsx": "react-jsx",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "noEmit": true,
+    "paths": {
+      "@/*": ["./*"]
+    },
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "target": "ES2017"
+  },
+  "exclude": ["node_modules"],
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", ".next/dev/types/**/*.ts"]
+}
+`;
+
+const FRONTEND_VITEST_CONFIG = `import { defineConfig } from "vitest/config";
+
+export default defineConfig({
+  css: {
+    postcss: {
+      plugins: [],
+    },
+  },
+  test: {
+    environment: "node",
+    include: ["lib/**/*.test.ts", "tests/**/*.test.ts"],
+    coverage: {
+      provider: "v8",
+      reporter: ["text", "html"],
+      reportsDirectory: "coverage",
+      include: ["lib/**/*.ts"],
+      exclude: ["**/*.d.ts"],
+      thresholds: {
+        lines: 98,
+        functions: 100,
+        statements: 98,
+        branches: 85,
+      },
+    },
+  },
+});
+`;
+
+const FRONTEND_POSTCSS_CONFIG = `const config = {
+  plugins: ["@tailwindcss/postcss"],
+};
+
+export default config;
+`;
+
+const FRONTEND_NEXT_CONFIG = `import type { NextConfig } from "next";
+
+const nextConfig: NextConfig = {
+  experimental: {
+    // TypeScript 7 dropped the JS API Next.js normally uses for type checking,
+    // so run the local tsc CLI instead. https://github.com/vercel/next.js/pull/95639
+    useTypeScriptCli: true,
+  },
+};
+
+export default nextConfig;
+`;
+
+const FRONTEND_VERCEL_JSON = `{
+  "git": {
+    "deploymentEnabled": {
+      "main": false
+    }
+  }
+}
+`;
+
 export interface BaseProjectOptions extends GitHubProjectOptions {
   /**
    * Which stacks this repo is for. Drives which pre-commit hooks are added
@@ -386,6 +472,7 @@ export interface BaseProjectOptions extends GitHubProjectOptions {
 
 export interface StackOptions {
   readonly biome?: BiomeOptions;
+  readonly frontend?: FrontendOptions;
 }
 
 export interface BiomeOptions {
@@ -396,6 +483,19 @@ export interface BiomeOptions {
    * @default false
    */
   readonly skipBiomeJson?: boolean;
+}
+
+export interface FrontendOptions {
+  /**
+   * Whether this frontend repo is a Next.js app deployed to Vercel. Controls
+   * whether the shared `tsconfig.json`, `vitest.config.mts`,
+   * `postcss.config.mjs`, `next.config.ts`, and `vercel.json` starters get
+   * written; set to `false` for a frontend repo that isn't a Next.js app
+   * (e.g. a userscript).
+   *
+   * @default true
+   */
+  readonly nextJs?: boolean;
 }
 
 /**
@@ -468,6 +568,23 @@ export class BaseProject extends GitHubProject {
         committed: true,
         lines: [`# ${BANNER}`, "", ...FRONTEND_RELEASE_WORKFLOW.trimEnd().split("\n")],
       });
+
+      if (options.opts?.frontend?.nextJs ?? true) {
+        new TextFile(this, "tsconfig.json", { lines: FRONTEND_TSCONFIG_JSON.trimEnd().split("\n") });
+        new TextFile(this, "vitest.config.mts", {
+          marker: false,
+          lines: [`// ${BANNER}`, "", ...FRONTEND_VITEST_CONFIG.trimEnd().split("\n")],
+        });
+        new TextFile(this, "postcss.config.mjs", {
+          marker: false,
+          lines: [`// ${BANNER}`, "", ...FRONTEND_POSTCSS_CONFIG.trimEnd().split("\n")],
+        });
+        new TextFile(this, "next.config.ts", {
+          marker: false,
+          lines: [`// ${BANNER}`, "", ...FRONTEND_NEXT_CONFIG.trimEnd().split("\n")],
+        });
+        new TextFile(this, "vercel.json", { lines: FRONTEND_VERCEL_JSON.trimEnd().split("\n") });
+      }
     }
 
     if (this.github) {
