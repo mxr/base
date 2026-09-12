@@ -30,13 +30,6 @@ describe("BaseProject", () => {
     expect(snapshot[".gitignore"]).toContain("next-env.d.ts");
   });
 
-  it("skips biome.json when opts.biome.skipBiomeJson is set", () => {
-    const project = new BaseProject({ name: "test", stack: [Stack.FRONTEND], opts: { biome: { skipBiomeJson: true } } });
-    const snapshot = Testing.synth(project);
-    expect(snapshot.LICENSE).toContain("GNU AFFERO GENERAL PUBLIC LICENSE");
-    expect(snapshot["biome.json"]).toBeUndefined();
-  });
-
   it("writes the mergify and renovate config", () => {
     const project = new BaseProject({ name: "test", stack: [] });
     const snapshot = Testing.synth(project);
@@ -128,7 +121,7 @@ describe("BaseProject", () => {
   });
 
   it("adds a renovate packageRule disabling the given packages entirely", () => {
-    const project = new BaseProject({ name: "test", stack: [], renovateDisable: ["tar"] });
+    const project = new BaseProject({ name: "test", stack: [], opts: { renovate: { tar: false } } });
     const snapshot = Testing.synth(project);
     expect(snapshot[".github/renovate.jsonc"].packageRules).toContainEqual({
       matchPackageNames: ["tar"],

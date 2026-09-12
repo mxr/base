@@ -456,33 +456,23 @@ export interface BaseProjectOptions extends GitHubProjectOptions {
   readonly renovateIgnoreMajor?: string[];
 
   /**
-   * Package names to disable entirely in Renovate (e.g. `["tar"]` for a
-   * frontend repo whose `@vercel/fun` transitively pins a deprecated `tar`
-   * that npm's own override can't safely be auto-bumped past).
-   *
-   * @default [] - no packages disabled
-   */
-  readonly renovateDisable?: string[];
-
-  /**
    * Per-stack options.
    */
   readonly opts?: StackOptions;
 }
 
 export interface StackOptions {
-  readonly biome?: BiomeOptions;
   readonly frontend?: FrontendOptions;
-}
 
-export interface BiomeOptions {
   /**
-   * Skip writing the starter `biome.json`, for a repo that already has its
-   * own biome config it doesn't want overwritten.
+   * Per-package Renovate enablement, keyed by package name; set a package to
+   * `false` to disable it in Renovate entirely (e.g. `tar: false` for a
+   * frontend repo whose `@vercel/fun` transitively pins a deprecated `tar`
+   * that npm's own override can't safely be auto-bumped past).
    *
-   * @default false
+   * @default {} - every package left to Renovate's default behavior
    */
-  readonly skipBiomeJson?: boolean;
+  readonly renovate?: { [packageName: string]: boolean };
 }
 
 export interface FrontendOptions {
@@ -514,7 +504,9 @@ export class BaseProject extends GitHubProject {
 
     this.stack = options.stack;
     this.renovateIgnoreMajor = options.renovateIgnoreMajor ?? [];
-    this.renovateDisable = options.renovateDisable ?? [];
+    this.renovateDisable = Object.entries(options.opts?.renovate ?? {})
+      .filter(([, enabled]) => !enabled)
+      .map(([name]) => name);
     const isFrontend = this.stack.includes(Stack.FRONTEND);
 
     new License(this, {
@@ -540,9 +532,7 @@ export class BaseProject extends GitHubProject {
       );
     }
 
-    if (!options.opts?.biome?.skipBiomeJson) {
-      new TextFile(this, "biome.json", { lines: (isFrontend ? FRONTEND_BIOME_JSON : BIOME_JSON).split("\n") });
-    }
+    new TextFile(this, "biome.json", { lines: (isFrontend ? FRONTEND_BIOME_JSON : BIOME_JSON).split("\n") });
 
     if (this.stack.includes(Stack.RUST)) {
       new TextFile(this, ".github/workflows/main.yml", {
