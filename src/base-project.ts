@@ -16,8 +16,8 @@ function readResource(name: string): string {
 export interface BaseProjectOptions extends GitHubProjectOptions {
   /**
    * Which stacks this repo is for. Drives which pre-commit hooks are added
-   * and the LICENSE type (`frontend` gets AGPL-3.0-or-later, everything else
-   * gets MIT).
+   * and the LICENSE type (`frontend`/`javascript` get AGPL-3.0-or-later,
+   * everything else gets MIT).
    */
   readonly stack: Stack[];
 
@@ -37,30 +37,13 @@ export interface BaseProjectOptions extends GitHubProjectOptions {
 }
 
 export interface StackOptions {
-  readonly frontend?: FrontendOptions;
-
   /**
    * Per-package Renovate enablement, keyed by package name; set a package to
-   * `false` to disable it in Renovate entirely (e.g. `tar: false` for a
-   * frontend repo whose `@vercel/fun` transitively pins a deprecated `tar`
-   * that npm's own override can't safely be auto-bumped past).
+   * `false` to disable it in Renovate entirely.
    *
    * @default {} - every package left to Renovate's default behavior
    */
   readonly renovate?: { [packageName: string]: boolean };
-}
-
-export interface FrontendOptions {
-  /**
-   * Whether this frontend repo is a Next.js app deployed to Vercel. Controls
-   * whether the shared `tsconfig.json`, `vitest.config.mts`,
-   * `postcss.config.mjs`, `next.config.ts`, and `vercel.json` starters get
-   * written; set to `false` for a frontend repo that isn't a Next.js app
-   * (e.g. a userscript).
-   *
-   * @default true
-   */
-  readonly nextJs?: boolean;
 }
 
 /**
@@ -80,12 +63,17 @@ export class BaseProject extends GitHubProject {
 
     this.stack = options.stack;
     this.renovateIgnoreMajor = options.renovateIgnoreMajor ?? [];
-    this.renovateDisable = Object.entries(options.opts?.renovate ?? {})
+    const isNextJs = this.stack.includes(Stack.FRONTEND);
+    const isFrontendLike = isNextJs || this.stack.includes(Stack.JAVASCRIPT);
+    this.isNextJs = isNextJs;
+    const explicitRenovateDisable = Object.entries(options.opts?.renovate ?? {})
       .filter(([, enabled]) => !enabled)
       .map(([name]) => name);
-    const isFrontend = this.stack.includes(Stack.FRONTEND);
-    const isNextJs = isFrontend && (options.opts?.frontend?.nextJs ?? true);
-    this.isNextJs = isNextJs;
+    // @vercel/fun (used by the Vercel deploy workflow) transitively pins a
+    // deprecated `tar` that npm's own override can't safely be auto-bumped
+    // past, so disable it in Renovate for every Next.js repo rather than
+    // making each one opt in via `opts.renovate.tar: false`
+    this.renovateDisable = [...new Set([...explicitRenovateDisable, ...(isNextJs ? ["tar"] : [])])];
 
     // FileBase's own marker wording is fixed and points at a .projenrc.js
     // that doesn't exist in downstream repos (see banner.ts); .gitignore is
@@ -95,14 +83,14 @@ export class BaseProject extends GitHubProject {
     Object.defineProperty(this.gitignore, "marker", { configurable: true, get: () => BANNER });
 
     new License(this, {
-      spdx: isFrontend ? "AGPL-3.0-or-later" : "MIT",
+      spdx: isFrontendLike ? "AGPL-3.0-or-later" : "MIT",
       copyrightOwner: "Max R",
       copyrightPeriod: String(firstCommitYear(this.outdir)),
     });
 
     new PreCommitConfigFile(this, { stack: this.stack, isNextJs });
 
-    if (!isFrontend || isNextJs) {
+    if (!isFrontendLike || isNextJs) {
       new TextFile(this, "biome.json", {
         lines: readResource(isNextJs ? "frontend/biome.json" : "default/biome.json").split("\n"),
       });
@@ -235,10 +223,10 @@ export class BaseProject extends GitHubProject {
     if (this.stack.includes(Stack.RUST)) {
       fs.rmSync(gitignorePath, { force: true });
       fs.writeFileSync(gitignorePath, `# ${BANNER}\n/target/\n`);
-    } else if (this.stack.includes(Stack.FRONTEND) && !this.isNextJs) {
-      // a userscript-style frontend repo (e.g. a Tampermonkey script) has
-      // nothing Next.js-specific to ignore, so don't manage a .gitignore at
-      // all rather than shipping projen's generic default
+    } else if (this.stack.includes(Stack.JAVASCRIPT)) {
+      // a javascript-stack repo (e.g. a Tampermonkey script) has nothing
+      // Next.js-specific to ignore, so don't manage a .gitignore at all
+      // rather than shipping projen's generic default
       fs.rmSync(gitignorePath, { force: true });
     } else if (this.isNextJs) {
       fs.chmodSync(gitignorePath, 0o644);

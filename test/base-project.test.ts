@@ -22,9 +22,10 @@ describe("BaseProject", () => {
     expect(snapshot["biome.json"].linter.rules.style.useImportType.options.style).toBe("separatedType");
   });
 
-  it("does not manage biome.json for a frontend stack with nextJs disabled", () => {
-    const project = new BaseProject({ name: "test", stack: [Stack.FRONTEND], opts: { frontend: { nextJs: false } } });
+  it("uses AGPL-3.0-or-later for a javascript stack, but does not manage biome.json", () => {
+    const project = new BaseProject({ name: "test", stack: [Stack.JAVASCRIPT] });
     const snapshot = Testing.synth(project);
+    expect(snapshot.LICENSE).toContain("GNU AFFERO GENERAL PUBLIC LICENSE");
     expect(snapshot["biome.json"]).toBeUndefined();
   });
 
@@ -60,12 +61,8 @@ describe("BaseProject", () => {
     expect(nonFrontend["vercel.json"]).toBeUndefined();
   });
 
-  it("skips shared frontend config files when opts.frontend.nextJs is false", () => {
-    const project = new BaseProject({
-      name: "test",
-      stack: [Stack.FRONTEND],
-      opts: { frontend: { nextJs: false } },
-    });
+  it("skips shared frontend config files for a javascript stack", () => {
+    const project = new BaseProject({ name: "test", stack: [Stack.JAVASCRIPT] });
     const snapshot = Testing.synth(project);
     expect(snapshot["tsconfig.json"]).toBeUndefined();
     expect(snapshot["vitest.config.mts"]).toBeUndefined();
@@ -115,12 +112,20 @@ describe("BaseProject", () => {
   });
 
   it("adds a renovate packageRule disabling the given packages entirely", () => {
-    const project = new BaseProject({ name: "test", stack: [], opts: { renovate: { tar: false } } });
+    const project = new BaseProject({ name: "test", stack: [], opts: { renovate: { eslint: false } } });
     const snapshot = Testing.synth(project);
     expect(snapshot[".github/renovate.jsonc"].packageRules).toContainEqual({
-      matchPackageNames: ["tar"],
+      matchPackageNames: ["eslint"],
       enabled: false,
     });
+  });
+
+  it("auto-disables tar in renovate for a frontend stack, but not a javascript stack", () => {
+    const frontend = Testing.synth(new BaseProject({ name: "test", stack: [Stack.FRONTEND] }));
+    expect(frontend[".github/renovate.jsonc"].packageRules).toContainEqual({ matchPackageNames: ["tar"], enabled: false });
+
+    const javascript = Testing.synth(new BaseProject({ name: "test", stack: [Stack.JAVASCRIPT] }));
+    expect(javascript[".github/renovate.jsonc"].packageRules).not.toContainEqual(expect.objectContaining({ matchPackageNames: ["tar"] }));
   });
 });
 

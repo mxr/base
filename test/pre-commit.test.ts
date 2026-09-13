@@ -84,6 +84,18 @@ describe("buildPreCommitRepos", () => {
     const repos = buildPreCommitRepos([Stack.FRONTEND], false);
     expect(repos.map((r) => r.repo)).not.toContain("https://github.com/lorenzwalthert/gitignore-tidy");
   });
+
+  it("pulls in github-actions hooks for a javascript stack", () => {
+    const repos = buildPreCommitRepos([Stack.JAVASCRIPT], false);
+    expect(repos.map((r) => r.repo)).toEqual(
+      expect.arrayContaining(["https://github.com/rhysd/actionlint", "https://github.com/zizmorcore/zizmor-pre-commit"]),
+    );
+  });
+
+  it("excludes gitignore-tidy for a javascript stack", () => {
+    const repos = buildPreCommitRepos([Stack.JAVASCRIPT], false);
+    expect(repos.map((r) => r.repo)).not.toContain("https://github.com/lorenzwalthert/gitignore-tidy");
+  });
 });
 
 describe("buildCiSkip", () => {

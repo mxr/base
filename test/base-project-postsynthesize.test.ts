@@ -109,15 +109,10 @@ describe("BaseProject.postSynthesize with a mocked git/pre-commit binary", () =>
     expect(execFileSyncMock).not.toHaveBeenCalledWith("pinact", expect.anything(), expect.anything());
   });
 
-  it("skips pinact for a frontend stack with opts.frontend.nextJs false", () => {
+  it("skips pinact for a javascript stack", () => {
     const dir = outdir();
     realChildProcess.execFileSync("git", ["init", "-q"], { cwd: dir });
-    const project = new BaseProject({
-      name: "test",
-      stack: [Stack.FRONTEND],
-      opts: { frontend: { nextJs: false } },
-      outdir: dir,
-    });
+    const project = new BaseProject({ name: "test", stack: [Stack.JAVASCRIPT], outdir: dir });
 
     execFileSyncMock.mockImplementation((cmd, args) => {
       if (cmd === "git") {
@@ -131,15 +126,10 @@ describe("BaseProject.postSynthesize with a mocked git/pre-commit binary", () =>
     expect(execFileSyncMock).not.toHaveBeenCalledWith("pinact", expect.anything(), expect.anything());
   });
 
-  it("does not manage a .gitignore for a frontend stack with opts.frontend.nextJs false", () => {
+  it("does not manage a .gitignore for a javascript stack", () => {
     const dir = outdir();
     realChildProcess.execFileSync("git", ["init", "-q"], { cwd: dir });
-    const project = new BaseProject({
-      name: "test",
-      stack: [Stack.FRONTEND],
-      opts: { frontend: { nextJs: false } },
-      outdir: dir,
-    });
+    const project = new BaseProject({ name: "test", stack: [Stack.JAVASCRIPT], outdir: dir });
 
     execFileSyncMock.mockImplementation((cmd, args) => {
       if (cmd === "git") {
