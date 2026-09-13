@@ -18,7 +18,7 @@
     "enabled": true
   },
   "files": {
-    "includes": ["**"]
+    "includes": ["**", "!**/src/resources"]
   },
   "formatter": {
     "enabled": true,

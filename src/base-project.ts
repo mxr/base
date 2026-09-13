@@ -104,7 +104,7 @@ export class BaseProject extends GitHubProject {
 
     if (!isFrontend || isNextJs) {
       new TextFile(this, "biome.json", {
-        lines: readResource(isNextJs ? "frontend/biome-config.json" : "default/biome-config.json").split("\n"),
+        lines: readResource(isNextJs ? "frontend/biome.json" : "default/biome.json").split("\n"),
       });
     }
 
