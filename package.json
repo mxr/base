@@ -105,7 +105,7 @@
     "url": "https://github.com/mxr/base.git"
   },
   "scripts": {
-    "build": "jsii --silence-warnings=reserved-word --fail-on-warnings",
+    "build": "jsii --silence-warnings=reserved-word --fail-on-warnings && cp -r src/resources lib/resources",
     "compat": "jsii-diff npm:$(node -p \"require('./package.json').name\") -k --ignore-file .compatignore || (echo \"\\nUNEXPECTED BREAKING CHANGES: add keys such as 'removed:constructs.Node.of' to .compatignore to skip.\\n\" && exit 1)",
     "package": "jsii-pacmak -v --target js",
     "prepack": "npm run build 1>&2",

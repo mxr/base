@@ -26,6 +26,6 @@
     "target": "ES2022",
     "types": ["jest", "node"]
   },
-  "exclude": ["node_modules"],
+  "exclude": ["node_modules", "src/resources"],
   "include": ["src/**/*.ts"]
 }

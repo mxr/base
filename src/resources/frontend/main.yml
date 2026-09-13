@@ -1,0 +1,84 @@
+name: main
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions: {}
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      project_files: ${{ steps.filter.outputs.project_files }}
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v0.0.0
+      with:
+        persist-credentials: false
+
+    - uses: dorny/paths-filter@v0.0.0
+      id: filter
+      with:
+        filters: |
+          project_files:
+            - .github/workflows/**
+            - app/**
+            - lib/**
+            - tests/**
+            - scripts/**
+            - '**/*.css'
+            - '**/*.js'
+            - '**/*.jsx'
+            - '**/*.mjs'
+            - '**/*.mts'
+            - '**/*.ts'
+            - '**/*.tsx'
+            - '**/*.json'
+            - package.json
+            - package-lock.json
+
+  main-real:
+    needs: [changes]
+    if: needs.changes.outputs.project_files == 'true'
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v0.0.0
+      with:
+        persist-credentials: false
+
+    - name: Setup Node
+      uses: actions/setup-node@v0.0.0
+      with:
+        node-version-file: package.json
+        cache: npm
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Run tests with coverage
+      run: npm run test:coverage
+
+    - name: Upload coverage report
+      uses: actions/upload-artifact@v0.0.0
+      with:
+        name: coverage-report
+        path: coverage
+
+  main:
+    needs: [changes, main-real]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+    - env:
+        PROJECT_FILES: ${{ needs.changes.outputs.project_files }}
+        TEST_REAL_RESULT: ${{ needs.main-real.result }}
+      run: |
+        if [ "$PROJECT_FILES" != "true" ]; then
+          exit 0
+        fi
+        if [ "$TEST_REAL_RESULT" != "success" ]; then
+          exit 1
+        fi
