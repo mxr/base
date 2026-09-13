@@ -62,7 +62,7 @@ const UNCONDITIONAL: PreCommitRepo[] = [
 
 const GITIGNORE_TIDY_REPO: PreCommitRepo = {
   repo: "https://github.com/lorenzwalthert/gitignore-tidy",
-  hooks: [{ id: "gitignore-tidy" }],
+  hooks: [{ id: "tidy-gitignore" }],
 };
 
 const STACK_REPOS: Partial<Record<Stack, PreCommitRepo[]>> = {
