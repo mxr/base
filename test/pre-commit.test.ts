@@ -35,7 +35,7 @@ describe("mergeRepos", () => {
 
 describe("buildPreCommitRepos", () => {
   it("has only the unconditional repos for an empty stack", () => {
-    const repos = buildPreCommitRepos([]);
+    const repos = buildPreCommitRepos([], false);
     expect(repos.map((r) => r.repo)).toEqual([
       "https://github.com/biomejs/pre-commit",
       "https://github.com/hukkin/mdformat",
@@ -46,13 +46,13 @@ describe("buildPreCommitRepos", () => {
   });
 
   it("puts the local repo last, with no rev, regardless of stack", () => {
-    const repos = buildPreCommitRepos([Stack.PYTHON]);
+    const repos = buildPreCommitRepos([Stack.PYTHON], false);
     expect(repos[repos.length - 1].repo).toBe("local");
     expect("rev" in repos[repos.length - 1]).toBe(false);
   });
 
   it("pulls in toml and github-actions hooks for a rust stack", () => {
-    const repos = buildPreCommitRepos([Stack.RUST]);
+    const repos = buildPreCommitRepos([Stack.RUST], false);
     expect(repos.map((r) => r.repo)).toEqual(
       expect.arrayContaining([
         "https://github.com/macisamuele/language-formatters-pre-commit-hooks",
@@ -65,9 +65,24 @@ describe("buildPreCommitRepos", () => {
   });
 
   it("excludes Cargo.lock from pretty-format-toml", () => {
-    const repos = buildPreCommitRepos([Stack.TOML]);
+    const repos = buildPreCommitRepos([Stack.TOML], false);
     const formatters = repos.find((r) => r.repo === "https://github.com/macisamuele/language-formatters-pre-commit-hooks");
     expect(formatters?.hooks.find((h) => h.id === "pretty-format-toml")?.exclude).toBe("Cargo.lock");
+  });
+
+  it("includes gitignore-tidy for a rust stack", () => {
+    const repos = buildPreCommitRepos([Stack.RUST], false);
+    expect(repos.map((r) => r.repo)).toContain("https://github.com/lorenzwalthert/gitignore-tidy");
+  });
+
+  it("includes gitignore-tidy for a frontend stack with nextJs true", () => {
+    const repos = buildPreCommitRepos([Stack.FRONTEND], true);
+    expect(repos.map((r) => r.repo)).toContain("https://github.com/lorenzwalthert/gitignore-tidy");
+  });
+
+  it("excludes gitignore-tidy for a frontend stack with nextJs false", () => {
+    const repos = buildPreCommitRepos([Stack.FRONTEND], false);
+    expect(repos.map((r) => r.repo)).not.toContain("https://github.com/lorenzwalthert/gitignore-tidy");
   });
 });
 
@@ -83,7 +98,7 @@ describe("buildCiSkip", () => {
 
 describe("renderPreCommitConfig", () => {
   it("inlines short scalar lists but not long or non-scalar ones", () => {
-    const yaml = renderPreCommitConfig([Stack.PYTHON, Stack.GITHUB_ACTIONS]);
+    const yaml = renderPreCommitConfig([Stack.PYTHON, Stack.GITHUB_ACTIONS], false);
     expect(yaml).toContain("args: [--fix]");
     // additional_dependencies for actionlint is a single long url, still scalar-list-inlined
     expect(yaml).toContain("additional_dependencies: [github.com/wasilibs/go-shellcheck/cmd/shellcheck@latest]");
@@ -92,7 +107,7 @@ describe("renderPreCommitConfig", () => {
   });
 
   it("renders block hooks under their repo at the same indent, sequence items indentless", () => {
-    const yaml = renderPreCommitConfig([]);
+    const yaml = renderPreCommitConfig([], false);
     expect(yaml.split("\n").slice(0, 8)).toEqual([
       "repos:",
       "- repo: https://github.com/biomejs/pre-commit",
@@ -106,11 +121,11 @@ describe("renderPreCommitConfig", () => {
   });
 
   it("ends with a trailing newline", () => {
-    expect(renderPreCommitConfig([])).toMatch(/\n$/);
+    expect(renderPreCommitConfig([], false)).toMatch(/\n$/);
   });
 
   it("renders long scalar lists as an indentless block sequence", () => {
-    const yaml = renderPreCommitConfig([Stack.RUST]);
+    const yaml = renderPreCommitConfig([Stack.RUST], false);
     expect(yaml).toContain("    args:\n    - --all-targets\n    - --locked");
   });
 });

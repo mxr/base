@@ -100,7 +100,7 @@ export class BaseProject extends GitHubProject {
       copyrightPeriod: String(firstCommitYear(this.outdir)),
     });
 
-    new PreCommitConfigFile(this, { stack: this.stack });
+    new PreCommitConfigFile(this, { stack: this.stack, isNextJs });
 
     if (!isFrontend || isNextJs) {
       new TextFile(this, "biome.json", {
@@ -235,6 +235,11 @@ export class BaseProject extends GitHubProject {
     if (this.stack.includes(Stack.RUST)) {
       fs.rmSync(gitignorePath, { force: true });
       fs.writeFileSync(gitignorePath, `# ${BANNER}\n/target/\n`);
+    } else if (this.stack.includes(Stack.FRONTEND) && !this.isNextJs) {
+      // a userscript-style frontend repo (e.g. a Tampermonkey script) has
+      // nothing Next.js-specific to ignore, so don't manage a .gitignore at
+      // all rather than shipping projen's generic default
+      fs.rmSync(gitignorePath, { force: true });
     } else if (this.isNextJs) {
       fs.chmodSync(gitignorePath, 0o644);
       fs.appendFileSync(

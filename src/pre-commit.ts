@@ -60,13 +60,13 @@ const UNCONDITIONAL: PreCommitRepo[] = [
   },
 ];
 
+const GITIGNORE_TIDY_REPO: PreCommitRepo = {
+  repo: "https://github.com/lorenzwalthert/gitignore-tidy",
+  hooks: [{ id: "gitignore-tidy" }],
+};
+
 const STACK_REPOS: Partial<Record<Stack, PreCommitRepo[]>> = {
-  [Stack.FRONTEND]: [
-    {
-      repo: "https://github.com/lorenzwalthert/gitignore-tidy",
-      hooks: [{ id: "gitignore-tidy" }],
-    },
-  ],
+  [Stack.FRONTEND]: [],
   [Stack.PYTHON]: [
     {
       repo: "https://github.com/astral-sh/ruff-pre-commit",
@@ -102,10 +102,7 @@ const STACK_REPOS: Partial<Record<Stack, PreCommitRepo[]>> = {
     },
   ],
   [Stack.RUST]: [
-    {
-      repo: "https://github.com/lorenzwalthert/gitignore-tidy",
-      hooks: [{ id: "gitignore-tidy" }],
-    },
+    GITIGNORE_TIDY_REPO,
     {
       repo: "https://github.com/AndrejOrsula/pre-commit-cargo",
       hooks: [{ id: "cargo-fmt" }],
@@ -230,10 +227,14 @@ export function mergeRepos(entries: PreCommitRepo[]): PreCommitRepo[] {
  * Builds the merged, sorted `.pre-commit-config.yaml` `repos` list for the
  * given stacks.
  */
-export function buildPreCommitRepos(stack: Stack[]): PreCommitRepo[] {
+export function buildPreCommitRepos(stack: Stack[], isNextJs: boolean): PreCommitRepo[] {
   // every Stack member has an entry in STACK_REPOS today; the fallback just
   // guards against a future stack being added to one without the other
-  const entries = [...UNCONDITIONAL, ...expandStacks(stack).flatMap((name) => STACK_REPOS[name] ?? /* v8 ignore next */ [])];
+  const entries = [
+    ...UNCONDITIONAL,
+    ...expandStacks(stack).flatMap((name) => STACK_REPOS[name] ?? /* v8 ignore next */ []),
+    ...(isNextJs ? [GITIGNORE_TIDY_REPO] : []),
+  ];
   return mergeRepos(entries);
 }
 
@@ -254,8 +255,8 @@ function toSnakeCaseKeys(value: unknown): unknown {
  * inlining short scalar lists (e.g. `args: [--fix]`) and leaving longer or
  * non-scalar ones as block lists.
  */
-export function renderPreCommitConfig(stack: Stack[]): string {
-  const repos = toSnakeCaseKeys(buildPreCommitRepos(stack));
+export function renderPreCommitConfig(stack: Stack[], isNextJs: boolean): string {
+  const repos = toSnakeCaseKeys(buildPreCommitRepos(stack, isNextJs));
   const doc = new Document({ repos });
 
   visit(doc, {
