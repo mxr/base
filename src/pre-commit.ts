@@ -229,13 +229,13 @@ export function mergeRepos(entries: PreCommitRepo[]): PreCommitRepo[] {
  * Builds the merged, sorted `.pre-commit-config.yaml` `repos` list for the
  * given stacks.
  */
-export function buildPreCommitRepos(stack: Stack[], isNextJs: boolean): PreCommitRepo[] {
+export function buildPreCommitRepos(stack: Stack[]): PreCommitRepo[] {
   // every Stack member has an entry in STACK_REPOS today; the fallback just
   // guards against a future stack being added to one without the other
   const entries = [
     ...UNCONDITIONAL,
     ...expandStacks(stack).flatMap((name) => STACK_REPOS[name] ?? /* v8 ignore next */ []),
-    ...(isNextJs ? [GITIGNORE_TIDY_REPO] : []),
+    ...(stack.includes(Stack.FRONTEND) ? [GITIGNORE_TIDY_REPO] : []),
   ];
   return mergeRepos(entries);
 }
@@ -257,8 +257,8 @@ function toSnakeCaseKeys(value: unknown): unknown {
  * inlining short scalar lists (e.g. `args: [--fix]`) and leaving longer or
  * non-scalar ones as block lists.
  */
-export function renderPreCommitConfig(stack: Stack[], isNextJs: boolean): string {
-  const repos = toSnakeCaseKeys(buildPreCommitRepos(stack, isNextJs));
+export function renderPreCommitConfig(stack: Stack[]): string {
+  const repos = toSnakeCaseKeys(buildPreCommitRepos(stack));
   const doc = new Document({ repos });
 
   visit(doc, {

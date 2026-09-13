@@ -54,7 +54,6 @@ export interface StackOptions {
  */
 export class BaseProject extends GitHubProject {
   public readonly stack: Stack[];
-  private readonly isNextJs: boolean;
   private readonly renovateIgnoreMajor: string[];
   private readonly renovateDisable: string[];
 
@@ -63,9 +62,8 @@ export class BaseProject extends GitHubProject {
 
     this.stack = options.stack;
     this.renovateIgnoreMajor = options.renovateIgnoreMajor ?? [];
-    const isNextJs = this.stack.includes(Stack.FRONTEND);
-    const isFrontendLike = isNextJs || this.stack.includes(Stack.JAVASCRIPT);
-    this.isNextJs = isNextJs;
+    const isFrontend = this.stack.includes(Stack.FRONTEND);
+    const isFrontendLike = isFrontend || this.stack.includes(Stack.JAVASCRIPT);
     const explicitRenovateDisable = Object.entries(options.opts?.renovate ?? {})
       .filter(([, enabled]) => !enabled)
       .map(([name]) => name);
@@ -73,7 +71,7 @@ export class BaseProject extends GitHubProject {
     // deprecated `tar` that npm's own override can't safely be auto-bumped
     // past, so disable it in Renovate for every Next.js repo rather than
     // making each one opt in via `opts.renovate.tar: false`
-    this.renovateDisable = [...new Set([...explicitRenovateDisable, ...(isNextJs ? ["tar"] : [])])];
+    this.renovateDisable = [...new Set([...explicitRenovateDisable, ...(isFrontend ? ["tar"] : [])])];
 
     // FileBase's own marker wording is fixed and points at a .projenrc.js
     // that doesn't exist in downstream repos (see banner.ts); .gitignore is
@@ -88,11 +86,11 @@ export class BaseProject extends GitHubProject {
       copyrightPeriod: String(firstCommitYear(this.outdir)),
     });
 
-    new PreCommitConfigFile(this, { stack: this.stack, isNextJs });
+    new PreCommitConfigFile(this, { stack: this.stack });
 
-    if (!isFrontendLike || isNextJs) {
+    if (!isFrontendLike || isFrontend) {
       new TextFile(this, "biome.json", {
-        lines: readResource(isNextJs ? "frontend/biome.json" : "default/biome.json").split("\n"),
+        lines: readResource(isFrontend ? "frontend/biome.json" : "default/biome.json").split("\n"),
       });
     }
 
@@ -109,7 +107,7 @@ export class BaseProject extends GitHubProject {
       });
     }
 
-    if (isNextJs) {
+    if (isFrontend) {
       new TextFile(this, ".github/workflows/main.yml", {
         marker: false,
         committed: true,
@@ -228,7 +226,7 @@ export class BaseProject extends GitHubProject {
       // Next.js-specific to ignore, so don't manage a .gitignore at all
       // rather than shipping projen's generic default
       fs.rmSync(gitignorePath, { force: true });
-    } else if (this.isNextJs) {
+    } else if (this.stack.includes(Stack.FRONTEND)) {
       fs.chmodSync(gitignorePath, 0o644);
       fs.appendFileSync(
         gitignorePath,
@@ -273,7 +271,7 @@ export class BaseProject extends GitHubProject {
     // pre-commit.ts) to real pinned revs first, so no hook ever gets its env
     // set up against a rev that was never a real ref
     runIgnoringFailure(["uvx", "pre-commit", "autoupdate", "--freeze"], this.outdir);
-    if (this.stack.includes(Stack.RUST) || this.isNextJs) {
+    if (this.stack.includes(Stack.RUST) || this.stack.includes(Stack.FRONTEND)) {
       // pins the GitHub Actions refs in the generated workflow files to a
       // full sha with a version comment; scoped to just those files so it
       // never touches workflows this project doesn't manage
