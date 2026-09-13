@@ -61,6 +61,12 @@ const UNCONDITIONAL: PreCommitRepo[] = [
 ];
 
 const STACK_REPOS: Partial<Record<Stack, PreCommitRepo[]>> = {
+  [Stack.FRONTEND]: [
+    {
+      repo: "https://github.com/lorenzwalthert/gitignore-tidy",
+      hooks: [{ id: "gitignore-tidy" }],
+    },
+  ],
   [Stack.PYTHON]: [
     {
       repo: "https://github.com/astral-sh/ruff-pre-commit",
@@ -96,6 +102,10 @@ const STACK_REPOS: Partial<Record<Stack, PreCommitRepo[]>> = {
     },
   ],
   [Stack.RUST]: [
+    {
+      repo: "https://github.com/lorenzwalthert/gitignore-tidy",
+      hooks: [{ id: "gitignore-tidy" }],
+    },
     {
       repo: "https://github.com/AndrejOrsula/pre-commit-cargo",
       hooks: [{ id: "cargo-fmt" }],
