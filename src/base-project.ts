@@ -246,6 +246,10 @@ export class BaseProject extends GitHubProject {
           "",
         ].join("\n"),
       );
+    } else {
+      // no stack here needs anything ignored (e.g. a shell-only repo), so
+      // don't ship projen's generic default .gitignore either
+      fs.rmSync(gitignorePath, { force: true });
     }
     const readmePath = path.join(this.outdir, "README.md");
     if (fs.existsSync(readmePath) && fs.readFileSync(readmePath, "utf-8").trim() === "# replace this") {
