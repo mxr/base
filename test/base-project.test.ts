@@ -101,25 +101,6 @@ describe("BaseProject", () => {
     expect(nonRust[".pre-commit-config.yaml"]).not.toContain("ci:");
   });
 
-  it("adds a renovate packageRule disabling major updates for the given packages", () => {
-    const project = new BaseProject({ name: "test", stack: [], renovateIgnoreMajor: ["typescript"] });
-    const snapshot = Testing.synth(project);
-    expect(snapshot[".github/renovate.jsonc"].packageRules).toContainEqual({
-      matchPackageNames: ["typescript"],
-      matchUpdateTypes: ["major"],
-      enabled: false,
-    });
-  });
-
-  it("adds a renovate packageRule disabling the given packages entirely", () => {
-    const project = new BaseProject({ name: "test", stack: [], opts: { renovate: { eslint: false } } });
-    const snapshot = Testing.synth(project);
-    expect(snapshot[".github/renovate.jsonc"].packageRules).toContainEqual({
-      matchPackageNames: ["eslint"],
-      enabled: false,
-    });
-  });
-
   it("auto-disables tar in renovate for a frontend stack, but not a javascript stack", () => {
     const frontend = Testing.synth(new BaseProject({ name: "test", stack: [Stack.FRONTEND] }));
     expect(frontend[".github/renovate.jsonc"].packageRules).toContainEqual({ matchPackageNames: ["tar"], enabled: false });

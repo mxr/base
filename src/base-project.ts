@@ -20,30 +20,6 @@ export interface BaseProjectOptions extends GitHubProjectOptions {
    * everything else gets MIT).
    */
   readonly stack: Stack[];
-
-  /**
-   * Package names to exclude from Renovate major-version updates (e.g.
-   * `["typescript"]` for a jsii project, since jsii pins its own typescript
-   * compiler version and a major bump breaks its compile step).
-   *
-   * @default [] - no packages excluded
-   */
-  readonly renovateIgnoreMajor?: string[];
-
-  /**
-   * Per-stack options.
-   */
-  readonly opts?: StackOptions;
-}
-
-export interface StackOptions {
-  /**
-   * Per-package Renovate enablement, keyed by package name; set a package to
-   * `false` to disable it in Renovate entirely.
-   *
-   * @default {} - every package left to Renovate's default behavior
-   */
-  readonly renovate?: { [packageName: string]: boolean };
 }
 
 /**
@@ -54,24 +30,18 @@ export interface StackOptions {
  */
 export class BaseProject extends GitHubProject {
   public readonly stack: Stack[];
-  private readonly renovateIgnoreMajor: string[];
   private readonly renovateDisable: string[];
 
   constructor(options: BaseProjectOptions) {
     super({ ...options, githubOptions: { pullRequestLint: false, ...options.githubOptions } });
 
     this.stack = options.stack;
-    this.renovateIgnoreMajor = options.renovateIgnoreMajor ?? [];
     const isFrontend = this.stack.includes(Stack.FRONTEND);
     const isFrontendLike = isFrontend || this.stack.includes(Stack.JAVASCRIPT);
-    const explicitRenovateDisable = Object.entries(options.opts?.renovate ?? {})
-      .filter(([, enabled]) => !enabled)
-      .map(([name]) => name);
     // @vercel/fun (used by the Vercel deploy workflow) transitively pins a
     // deprecated `tar` that npm's own override can't safely be auto-bumped
-    // past, so disable it in Renovate for every Next.js repo rather than
-    // making each one opt in via `opts.renovate.tar: false`
-    this.renovateDisable = [...new Set([...explicitRenovateDisable, ...(isFrontend ? ["tar"] : [])])];
+    // past, so disable it in Renovate for every Next.js repo
+    this.renovateDisable = isFrontend ? ["tar"] : [];
 
     // FileBase's own marker wording is fixed and points at a .projenrc.js
     // that doesn't exist in downstream repos (see banner.ts); .gitignore is
@@ -182,9 +152,6 @@ export class BaseProject extends GitHubProject {
       packageRules: [
         ...(this.renovateDisable.length > 0 ? [{ matchPackageNames: this.renovateDisable, enabled: false }] : []),
         { commitMessageExtra: " ", groupName: "update", matchPackageNames: ["*"] },
-        ...(this.renovateIgnoreMajor.length > 0
-          ? [{ matchPackageNames: this.renovateIgnoreMajor, matchUpdateTypes: ["major"], enabled: false }]
-          : []),
       ],
       prBodyTemplate: "{{{table}}}",
       schedule: ["* 16-17 * * 1"],
