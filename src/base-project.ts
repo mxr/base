@@ -527,10 +527,6 @@ export class BaseProject extends GitHubProject {
 
     new PreCommitConfigFile(this, { stack: this.stack });
 
-    // Next.js and Rust .gitignore handling both live in postSynthesize,
-    // since Rust needs to fully replace projen's default gitignore rather
-    // than add to it.
-
     if (!isFrontend || isNextJs) {
       new TextFile(this, "biome.json", { lines: (isNextJs ? FRONTEND_BIOME_JSON : BIOME_JSON).split("\n") });
     }
