@@ -37,7 +37,7 @@ export class BaseProject extends GitHubProject {
 
     this.stack = options.stack;
     const isFrontend = this.stack.includes(Stack.FRONTEND);
-    const isFrontendLike = isFrontend || this.stack.includes(Stack.JAVASCRIPT);
+    const isJavascript = this.stack.includes(Stack.JAVASCRIPT);
     // @vercel/fun (used by the Vercel deploy workflow) transitively pins a
     // deprecated `tar` that npm's own override can't safely be auto-bumped
     // past, so disable it in Renovate for every Next.js repo
@@ -51,14 +51,14 @@ export class BaseProject extends GitHubProject {
     Object.defineProperty(this.gitignore, "marker", { configurable: true, get: () => BANNER });
 
     new License(this, {
-      spdx: isFrontendLike ? "AGPL-3.0-or-later" : "MIT",
+      spdx: isFrontend || isJavascript ? "AGPL-3.0-or-later" : "MIT",
       copyrightOwner: "Max R",
       copyrightPeriod: String(firstCommitYear(this.outdir)),
     });
 
     new PreCommitConfigFile(this, { stack: this.stack });
 
-    if (!isFrontendLike || isFrontend) {
+    if (!isJavascript) {
       new TextFile(this, "biome.json", {
         lines: readResource(isFrontend ? "frontend/biome.json" : "default/biome.json").split("\n"),
       });
