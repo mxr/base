@@ -1,4 +1,4 @@
-import { execFileSync } from "child_process";
+import { execFileSync } from "node:child_process";
 
 /**
  * Returns the year of the repo's first commit, so the LICENSE year reflects
@@ -7,12 +7,12 @@ import { execFileSync } from "child_process";
  */
 export function firstCommitYear(outdir: string): number {
   try {
-    const root = execFileSync("git", ["-C", outdir, "rev-list", "--max-parents=0", "HEAD"], {
+    const [root] = execFileSync("git", ["-C", outdir, "rev-list", "--max-parents=0", "HEAD"], {
       encoding: "utf-8",
       stdio: ["ignore", "pipe", "ignore"],
     })
       .trim()
-      .split("\n")[0];
+      .split("\n");
 
     /* v8 ignore next 3 - defensive: rev-list only succeeds when a root commit exists */
     if (!root) {

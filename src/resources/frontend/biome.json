@@ -39,7 +39,7 @@
     },
     "enabled": true,
     "rules": {
-      "preset": "recommended",
+      "preset": "all",
       "style": {
         "useImportType": {
           "level": "on",

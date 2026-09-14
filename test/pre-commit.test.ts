@@ -1,5 +1,5 @@
-import { buildCiSkip, buildPreCommitRepos, mergeRepos, renderPreCommitConfig } from "../src/pre-commit";
-import { Stack } from "../src/stack";
+import { buildCiSkip, buildPreCommitRepos, mergeRepos, renderPreCommitConfig } from "../src/pre-commit.ts";
+import { Stack } from "../src/stack.ts";
 
 describe("mergeRepos", () => {
   it("merges hooks for the same repo", () => {
@@ -46,13 +46,13 @@ describe("buildPreCommitRepos", () => {
   });
 
   it("puts the local repo last, with no rev, regardless of stack", () => {
-    const repos = buildPreCommitRepos([Stack.PYTHON]);
-    expect(repos[repos.length - 1].repo).toBe("local");
-    expect("rev" in repos[repos.length - 1]).toBe(false);
+    const repos = buildPreCommitRepos([Stack.python]);
+    expect(repos.at(-1).repo).toBe("local");
+    expect("rev" in repos.at(-1)).toBe(false);
   });
 
   it("pulls in toml and github-actions hooks for a rust stack", () => {
-    const repos = buildPreCommitRepos([Stack.RUST]);
+    const repos = buildPreCommitRepos([Stack.rust]);
     expect(repos.map((r) => r.repo)).toEqual(
       expect.arrayContaining([
         "https://github.com/macisamuele/language-formatters-pre-commit-hooks",
@@ -65,47 +65,49 @@ describe("buildPreCommitRepos", () => {
   });
 
   it("excludes Cargo.lock from pretty-format-toml", () => {
-    const repos = buildPreCommitRepos([Stack.TOML]);
+    const repos = buildPreCommitRepos([Stack.toml]);
     const formatters = repos.find((r) => r.repo === "https://github.com/macisamuele/language-formatters-pre-commit-hooks");
     expect(formatters?.hooks.find((h) => h.id === "pretty-format-toml")?.exclude).toBe("Cargo.lock");
   });
 
   it("includes gitignore-tidy for a rust stack", () => {
-    const repos = buildPreCommitRepos([Stack.RUST]);
+    const repos = buildPreCommitRepos([Stack.rust]);
     expect(repos.map((r) => r.repo)).toContain("https://github.com/lorenzwalthert/gitignore-tidy");
   });
 
   it("includes gitignore-tidy for a frontend stack", () => {
-    const repos = buildPreCommitRepos([Stack.FRONTEND]);
+    const repos = buildPreCommitRepos([Stack.frontend]);
     expect(repos.map((r) => r.repo)).toContain("https://github.com/lorenzwalthert/gitignore-tidy");
   });
 
   it("pulls in github-actions hooks for a javascript stack", () => {
-    const repos = buildPreCommitRepos([Stack.JAVASCRIPT]);
+    const repos = buildPreCommitRepos([Stack.javascript]);
     expect(repos.map((r) => r.repo)).toEqual(
       expect.arrayContaining(["https://github.com/rhysd/actionlint", "https://github.com/zizmorcore/zizmor-pre-commit"]),
     );
   });
 
   it("excludes gitignore-tidy for a javascript stack", () => {
-    const repos = buildPreCommitRepos([Stack.JAVASCRIPT]);
+    const repos = buildPreCommitRepos([Stack.javascript]);
     expect(repos.map((r) => r.repo)).not.toContain("https://github.com/lorenzwalthert/gitignore-tidy");
   });
 });
 
 describe("buildCiSkip", () => {
   it("is empty for a stack with nothing to skip", () => {
-    expect(buildCiSkip([Stack.PYTHON])).toEqual([]);
+    expect(buildCiSkip([Stack.python])).toEqual([]);
   });
 
   it("skips clippy for a rust stack", () => {
-    expect(buildCiSkip([Stack.RUST])).toEqual(["clippy"]);
+    expect(buildCiSkip([Stack.rust])).toEqual(["clippy"]);
   });
 });
 
+const TRAILING_NEWLINE = /\n$/;
+
 describe("renderPreCommitConfig", () => {
   it("inlines short scalar lists but not long or non-scalar ones", () => {
-    const yaml = renderPreCommitConfig([Stack.PYTHON, Stack.GITHUB_ACTIONS]);
+    const yaml = renderPreCommitConfig([Stack.python, Stack.githubActions]);
     expect(yaml).toContain("args: [--fix]");
     // additional_dependencies for actionlint is a single long url, still scalar-list-inlined
     expect(yaml).toContain("additional_dependencies: [github.com/wasilibs/go-shellcheck/cmd/shellcheck@latest]");
@@ -128,11 +130,11 @@ describe("renderPreCommitConfig", () => {
   });
 
   it("ends with a trailing newline", () => {
-    expect(renderPreCommitConfig([])).toMatch(/\n$/);
+    expect(renderPreCommitConfig([])).toMatch(TRAILING_NEWLINE);
   });
 
   it("renders long scalar lists as an indentless block sequence", () => {
-    const yaml = renderPreCommitConfig([Stack.RUST]);
+    const yaml = renderPreCommitConfig([Stack.rust]);
     expect(yaml).toContain("    args:\n    - --all-targets\n    - --locked");
   });
 });

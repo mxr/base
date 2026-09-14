@@ -1,11 +1,12 @@
-import { execFileSync } from "child_process";
-import * as fs from "fs";
-import * as os from "os";
-import * as path from "path";
-import { firstCommitYear } from "../src/git";
+import { execFileSync } from "node:child_process";
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import process from "node:process";
+import { firstCommitYear } from "../src/git.ts";
 
 function tmpDir(): string {
-  return fs.mkdtempSync(path.join(os.tmpdir(), "base-projen-git-"));
+  return mkdtempSync(join(tmpdir(), "base-projen-git-"));
 }
 
 function commit(dir: string, message: string, date: string): void {

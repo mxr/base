@@ -1,9 +1,9 @@
 import { FileBase } from "projen";
-import { BANNER } from "./banner";
-import { buildCiSkip, renderPreCommitConfig } from "./pre-commit";
+import { BANNER } from "./banner.ts";
+import { buildCiSkip, renderPreCommitConfig } from "./pre-commit.ts";
 import type { IConstruct } from "constructs";
 import type { FileBaseOptions, IResolver } from "projen";
-import type { Stack } from "./stack";
+import type { Stack } from "./stack.ts";
 
 export interface PreCommitConfigFileOptions extends FileBaseOptions {
   readonly stack: Stack[];
@@ -22,7 +22,10 @@ export class PreCommitConfigFile extends FileBase {
 
   protected synthesizeContent(_resolver: IResolver): string | undefined {
     const skip = buildCiSkip(this.stack);
-    const ciLines = skip.length > 0 ? [`ci:`, `  skip: [${skip.join(", ")}] # runs via GHA to avoid keeping deps in-sync here`, ""] : [];
+    let ciLines: string[] = [];
+    if (skip.length > 0) {
+      ciLines = ["ci:", `  skip: [${skip.join(", ")}] # runs via GHA to avoid keeping deps in-sync here`, ""];
+    }
     return [`# ${BANNER}`, "", ...ciLines, renderPreCommitConfig(this.stack)].join("\n");
   }
 }

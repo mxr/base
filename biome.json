@@ -20,6 +20,9 @@
   "files": {
     "includes": ["**", "!**/src/resources"]
   },
+  "javascript": {
+    "globals": ["jest"]
+  },
   "formatter": {
     "enabled": true,
     "indentStyle": "space",
@@ -27,9 +30,20 @@
     "lineWidth": 140
   },
   "linter": {
+    "domains": {
+      "test": "recommended"
+    },
     "enabled": true,
     "rules": {
-      "preset": "recommended",
+      "preset": "all",
+      "correctness": {
+        "noNodejsModules": "off",
+        "noUnusedInstantiation": "off"
+      },
+      "performance": {
+        "noBarrelFile": "off",
+        "noReExportAll": "off"
+      },
       "style": {
         "useImportType": {
           "level": "on",
@@ -40,6 +54,23 @@
       }
     }
   },
+  "overrides": [
+    {
+      "includes": ["test/**"],
+      "linter": {
+        "rules": {
+          "security": {
+            "noSecrets": "off"
+          },
+          "style": {
+            "noMagicNumbers": "off",
+            "noProcessEnv": "off",
+            "useNamingConvention": "off"
+          }
+        }
+      }
+    }
+  ],
   "vcs": {
     "clientKind": "git",
     "enabled": true,

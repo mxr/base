@@ -1,31 +1,7 @@
 import { Document, isScalar, Scalar, visit } from "yaml";
-import { Stack } from "./stack";
+import { Stack } from "./stack.ts";
 
 const INLINE_LIST_MAX_WIDTH = 60;
-
-/**
- * Field names are camelCase here but rendered as snake_case keys in
- * `.pre-commit-config.yaml` (pre-commit's own convention), e.g.
- * `additionalDependencies` -> `additional_dependencies`. See {@link toSnakeCaseKeys}.
- */
-export interface PreCommitHook {
-  readonly id: string;
-  readonly args?: string[];
-  readonly exclude?: string;
-  readonly types?: string[];
-  readonly excludeTypes?: string[];
-  readonly additionalDependencies?: string[];
-  readonly name?: string;
-  readonly entry?: string;
-  readonly language?: string;
-  readonly files?: string;
-  readonly passFilenames?: boolean;
-}
-
-export interface PreCommitRepo {
-  readonly repo: string;
-  readonly hooks: PreCommitHook[];
-}
 
 const UNCONDITIONAL: PreCommitRepo[] = [
   {
@@ -66,9 +42,9 @@ const GITIGNORE_TIDY_REPO: PreCommitRepo = {
 };
 
 const STACK_REPOS: Partial<Record<Stack, PreCommitRepo[]>> = {
-  [Stack.FRONTEND]: [],
-  [Stack.JAVASCRIPT]: [],
-  [Stack.PYTHON]: [
+  [Stack.frontend]: [],
+  [Stack.javascript]: [],
+  [Stack.python]: [
     {
       repo: "https://github.com/astral-sh/ruff-pre-commit",
       hooks: [{ id: "ruff-check", args: ["--fix"] }, { id: "ruff-format" }],
@@ -90,19 +66,19 @@ const STACK_REPOS: Partial<Record<Stack, PreCommitRepo[]>> = {
       hooks: [{ id: "debug-statements" }],
     },
   ],
-  [Stack.TOML]: [
+  [Stack.toml]: [
     {
       repo: "https://github.com/macisamuele/language-formatters-pre-commit-hooks",
       hooks: [{ id: "pretty-format-toml", args: ["--autofix", "--trailing-commas"], exclude: "Cargo.lock" }],
     },
   ],
-  [Stack.SQL]: [
+  [Stack.sql]: [
     {
       repo: "https://github.com/sqlfluff/sqlfluff",
       hooks: [{ id: "sqlfluff-fix", args: ["--dialect", "sqlite"] }],
     },
   ],
-  [Stack.RUST]: [
+  [Stack.rust]: [
     GITIGNORE_TIDY_REPO,
     {
       repo: "https://github.com/AndrejOrsula/pre-commit-cargo",
@@ -131,7 +107,7 @@ const STACK_REPOS: Partial<Record<Stack, PreCommitRepo[]>> = {
       ],
     },
   ],
-  [Stack.SHELL]: [
+  [Stack.shell]: [
     {
       repo: "https://github.com/mxr/mirrors-shfmt",
       hooks: [{ id: "shfmt" }],
@@ -141,7 +117,7 @@ const STACK_REPOS: Partial<Record<Stack, PreCommitRepo[]>> = {
       hooks: [{ id: "shellcheck" }],
     },
   ],
-  [Stack.GITHUB_ACTIONS]: [
+  [Stack.githubActions]: [
     {
       repo: "https://github.com/zizmorcore/zizmor-pre-commit",
       hooks: [{ id: "zizmor", args: ["--no-progress", "--fix"] }],
@@ -163,9 +139,9 @@ const STACK_REPOS: Partial<Record<Stack, PreCommitRepo[]>> = {
  * rust repo also wants toml formatting and GitHub Actions linting.
  */
 const IMPLIED_STACKS: Partial<Record<Stack, Stack[]>> = {
-  [Stack.FRONTEND]: [Stack.GITHUB_ACTIONS],
-  [Stack.JAVASCRIPT]: [Stack.GITHUB_ACTIONS],
-  [Stack.RUST]: [Stack.TOML, Stack.GITHUB_ACTIONS],
+  [Stack.frontend]: [Stack.githubActions],
+  [Stack.javascript]: [Stack.githubActions],
+  [Stack.rust]: [Stack.toml, Stack.githubActions],
 };
 
 function expandStacks(stack: Stack[]): Stack[] {
@@ -178,8 +154,44 @@ function expandStacks(stack: Stack[]): Stack[] {
  * containers don't keep a project's own crate versions in sync.
  */
 const CI_SKIP: Partial<Record<Stack, string[]>> = {
-  [Stack.RUST]: ["clippy"],
+  [Stack.rust]: ["clippy"],
 };
+
+function toSnakeCaseKeys(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(toSnakeCaseKeys);
+  }
+  if (value !== null && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([k, v]) => [k.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`), toSnakeCaseKeys(v)]),
+    );
+  }
+  return value;
+}
+
+/**
+ * Field names are camelCase here but rendered as snake_case keys in
+ * `.pre-commit-config.yaml` (pre-commit's own convention), e.g.
+ * `additionalDependencies` -> `additional_dependencies`. See {@link toSnakeCaseKeys}.
+ */
+export interface PreCommitHook {
+  readonly id: string;
+  readonly args?: string[];
+  readonly exclude?: string;
+  readonly types?: string[];
+  readonly excludeTypes?: string[];
+  readonly additionalDependencies?: string[];
+  readonly name?: string;
+  readonly entry?: string;
+  readonly language?: string;
+  readonly files?: string;
+  readonly passFilenames?: boolean;
+}
+
+export interface PreCommitRepo {
+  readonly repo: string;
+  readonly hooks: PreCommitHook[];
+}
 
 /**
  * Builds the `ci.skip` hook id list for the given stacks, deduplicated.
@@ -210,16 +222,20 @@ export function mergeRepos(entries: PreCommitRepo[]): PreCommitRepo[] {
 
   const repos: (PreCommitRepo & { rev?: string })[] = [];
   for (const [repo, hooks] of hooksByRepo) {
-    repos.push({
-      repo,
-      ...(repo === "local" ? {} : { rev: "v0.0.0" }),
-      hooks: [...hooks].sort((a, b) => a.id.localeCompare(b.id)),
-    });
+    const sortedHooks = [...hooks].sort((a, b) => a.id.localeCompare(b.id));
+    if (repo === "local") {
+      repos.push({ repo, hooks: sortedHooks });
+    } else {
+      repos.push({ repo, rev: "v0.0.0", hooks: sortedHooks });
+    }
   }
 
   return repos.sort((a, b) => {
     if ((a.repo === "local") !== (b.repo === "local")) {
-      return a.repo === "local" ? 1 : -1;
+      if (a.repo === "local") {
+        return 1;
+      }
+      return -1;
     }
     return a.repo.localeCompare(b.repo);
   });
@@ -232,24 +248,11 @@ export function mergeRepos(entries: PreCommitRepo[]): PreCommitRepo[] {
 export function buildPreCommitRepos(stack: Stack[]): PreCommitRepo[] {
   // every Stack member has an entry in STACK_REPOS today; the fallback just
   // guards against a future stack being added to one without the other
-  const entries = [
-    ...UNCONDITIONAL,
-    ...expandStacks(stack).flatMap((name) => STACK_REPOS[name] ?? /* v8 ignore next */ []),
-    ...(stack.includes(Stack.FRONTEND) ? [GITIGNORE_TIDY_REPO] : []),
-  ];
+  const entries = [...UNCONDITIONAL, ...expandStacks(stack).flatMap((name) => STACK_REPOS[name] ?? /* v8 ignore next */ [])];
+  if (stack.includes(Stack.frontend)) {
+    entries.push(GITIGNORE_TIDY_REPO);
+  }
   return mergeRepos(entries);
-}
-
-function toSnakeCaseKeys(value: unknown): unknown {
-  if (Array.isArray(value)) {
-    return value.map(toSnakeCaseKeys);
-  }
-  if (value !== null && typeof value === "object") {
-    return Object.fromEntries(
-      Object.entries(value).map(([k, v]) => [k.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`), toSnakeCaseKeys(v)]),
-    );
-  }
-  return value;
 }
 
 /**
@@ -262,13 +265,20 @@ export function renderPreCommitConfig(stack: Stack[]): string {
   const doc = new Document({ repos });
 
   visit(doc, {
+    // biome-ignore lint/style/useNamingConvention: yaml's visit() dispatches by these exact node-type names
     Seq(_, node) {
-      const values = node.items.map((item) => (isScalar(item) ? item.value : item));
+      const values = node.items.map((item) => {
+        if (isScalar(item)) {
+          return item.value;
+        }
+        return item;
+      });
       const isScalarList = values.every((value) => ["string", "number", "boolean"].includes(typeof value));
       if (isScalarList && values.map(String).join(", ").length <= INLINE_LIST_MAX_WIDTH) {
         node.flow = true;
       }
     },
+    // biome-ignore lint/style/useNamingConvention: yaml's visit() dispatches by these exact node-type names
     Pair(_, pair) {
       if (isScalar(pair.key) && pair.key.value === "entry" && isScalar(pair.value) && typeof pair.value.value === "string") {
         pair.value.type = Scalar.BLOCK_LITERAL;
