@@ -15,7 +15,9 @@ permissions: {}
 jobs:
   build:
     if: github.event_name == 'push'
-    uses: ./.github/workflows/build.yml
+    # actionlint doesn't parse the $/ self-repository syntax zizmor wants yet:
+    # https://github.com/rhysd/actionlint/issues/711
+    uses: ./.github/workflows/build.yml # zizmor: ignore[self-repository]
     permissions:
       contents: read
 
