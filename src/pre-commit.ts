@@ -66,7 +66,7 @@ const GITIGNORE_TIDY_REPO: PreCommitRepo = {
 };
 
 const STACK_REPOS: Partial<Record<Stack, PreCommitRepo[]>> = {
-  [Stack.FRONTEND]: [],
+  [Stack.FRONTEND]: [GITIGNORE_TIDY_REPO],
   [Stack.JAVASCRIPT]: [],
   [Stack.PYTHON]: [
     {
@@ -232,11 +232,7 @@ export function mergeRepos(entries: PreCommitRepo[]): PreCommitRepo[] {
 export function buildPreCommitRepos(stack: Stack[]): PreCommitRepo[] {
   // every Stack member has an entry in STACK_REPOS today; the fallback just
   // guards against a future stack being added to one without the other
-  const entries = [
-    ...UNCONDITIONAL,
-    ...expandStacks(stack).flatMap((name) => STACK_REPOS[name] ?? /* v8 ignore next */ []),
-    ...(stack.includes(Stack.FRONTEND) ? [GITIGNORE_TIDY_REPO] : []),
-  ];
+  const entries = [...UNCONDITIONAL, ...expandStacks(stack).flatMap((name) => STACK_REPOS[name] ?? /* v8 ignore next */ [])];
   return mergeRepos(entries);
 }
 
