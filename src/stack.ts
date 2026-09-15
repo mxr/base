@@ -9,6 +9,7 @@
 export enum Stack {
   FRONTEND = "frontend",
   GITHUB_ACTIONS = "github-actions",
+  GITIGNORE = "gitignore",
   JAVASCRIPT = "javascript",
   PYTHON = "python",
   RUST = "rust",

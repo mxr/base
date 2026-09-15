@@ -66,7 +66,8 @@ const GITIGNORE_TIDY_REPO: PreCommitRepo = {
 };
 
 const STACK_REPOS: Partial<Record<Stack, PreCommitRepo[]>> = {
-  [Stack.FRONTEND]: [GITIGNORE_TIDY_REPO],
+  [Stack.FRONTEND]: [],
+  [Stack.GITIGNORE]: [GITIGNORE_TIDY_REPO],
   [Stack.JAVASCRIPT]: [],
   [Stack.PYTHON]: [
     {
@@ -103,7 +104,6 @@ const STACK_REPOS: Partial<Record<Stack, PreCommitRepo[]>> = {
     },
   ],
   [Stack.RUST]: [
-    GITIGNORE_TIDY_REPO,
     {
       repo: "https://github.com/AndrejOrsula/pre-commit-cargo",
       hooks: [{ id: "cargo-fmt" }],
@@ -163,9 +163,9 @@ const STACK_REPOS: Partial<Record<Stack, PreCommitRepo[]>> = {
  * rust repo also wants toml formatting and GitHub Actions linting.
  */
 const IMPLIED_STACKS: Partial<Record<Stack, Stack[]>> = {
-  [Stack.FRONTEND]: [Stack.GITHUB_ACTIONS],
+  [Stack.FRONTEND]: [Stack.GITHUB_ACTIONS, Stack.GITIGNORE],
   [Stack.JAVASCRIPT]: [Stack.GITHUB_ACTIONS],
-  [Stack.RUST]: [Stack.TOML, Stack.GITHUB_ACTIONS],
+  [Stack.RUST]: [Stack.TOML, Stack.GITHUB_ACTIONS, Stack.GITIGNORE],
 };
 
 function expandStacks(stack: Stack[]): Stack[] {
