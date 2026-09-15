@@ -34,7 +34,7 @@ describe("mergeRepos", () => {
 });
 
 describe("buildPreCommitRepos", () => {
-  it("has only the unconditional repos for an empty stack", () => {
+  it("has only the default repos for an empty stack", () => {
     const repos = buildPreCommitRepos([]);
     expect(repos.map((r) => r.repo)).toEqual([
       "https://github.com/biomejs/pre-commit",

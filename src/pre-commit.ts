@@ -27,7 +27,7 @@ export interface PreCommitRepo {
   readonly hooks: PreCommitHook[];
 }
 
-const UNCONDITIONAL: PreCommitRepo[] = [
+const DEFAULT: PreCommitRepo[] = [
   {
     repo: "https://github.com/pre-commit/pre-commit-hooks",
     hooks: [{ id: "check-merge-conflict", args: ["--assume-in-merge"] }, { id: "end-of-file-fixer" }, { id: "trailing-whitespace" }],
@@ -232,7 +232,7 @@ export function mergeRepos(entries: PreCommitRepo[]): PreCommitRepo[] {
 export function buildPreCommitRepos(stack: Stack[]): PreCommitRepo[] {
   // every Stack member has an entry in STACK_REPOS today; the fallback just
   // guards against a future stack being added to one without the other
-  const entries = [...UNCONDITIONAL, ...expandStacks(stack).flatMap((name) => STACK_REPOS[name] ?? /* v8 ignore next */ [])];
+  const entries = [...DEFAULT, ...expandStacks(stack).flatMap((name) => STACK_REPOS[name] ?? /* v8 ignore next */ [])];
   return mergeRepos(entries);
 }
 
