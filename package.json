@@ -25,7 +25,7 @@
     "jsii-diff": "^1.139.0",
     "jsii-pacmak": "^1.139.0",
     "jsii-rosetta": "~6.0.0",
-    "projen": "0.101.31",
+    "projen": "0.103.22",
     "ts-jest": "^29.4.12",
     "typescript": "^6.0.3"
   },
@@ -36,7 +36,7 @@
     }
   },
   "engines": {
-    "node": "24.19.0"
+    "node": "24.21.0"
   },
   "jest": {
     "clearMocks": true,
@@ -95,7 +95,7 @@
   },
   "peerDependencies": {
     "constructs": "^10.8.1",
-    "projen": "^0.101.31"
+    "projen": "^0.101.31 || ^0.103.0"
   },
   "publishConfig": {
     "registry": "https://npm.pkg.github.com/"
