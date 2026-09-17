@@ -87,6 +87,13 @@ describe("buildPreCommitRepos", () => {
     );
   });
 
+  it("pulls in github-actions hooks for a mirror stack", () => {
+    const repos = buildPreCommitRepos([Stack.MIRROR]);
+    expect(repos.map((r) => r.repo)).toEqual(
+      expect.arrayContaining(["https://github.com/rhysd/actionlint", "https://github.com/zizmorcore/zizmor-pre-commit"]),
+    );
+  });
+
   it("excludes gitignore-tidy for a javascript stack", () => {
     const repos = buildPreCommitRepos([Stack.JAVASCRIPT]);
     expect(repos.map((r) => r.repo)).not.toContain("https://github.com/lorenzwalthert/gitignore-tidy");

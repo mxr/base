@@ -66,6 +66,7 @@ git -C "$workdir" checkout -b "$branch"
 # to live in the repo between syncs
 name="$(basename "$REPO")"
 stack_json="$(yq -o=json '.stack' "$base_yml")"
+opt_json="$(yq -o=json '.opt // {}' "$base_yml")"
 
 cat > "$workdir/.projenrc.js" <<EOF
 const { BaseProject } = require("@mxr/base");
@@ -73,6 +74,7 @@ const { BaseProject } = require("@mxr/base");
 new BaseProject({
   name: "${name}",
   stack: ${stack_json},
+  opt: ${opt_json},
 }).synth();
 EOF
 

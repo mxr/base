@@ -11,6 +11,7 @@ export enum Stack {
   GITHUB_ACTIONS = "github-actions",
   GITIGNORE = "gitignore",
   JAVASCRIPT = "javascript",
+  MIRROR = "mirror",
   PYTHON = "python",
   RUST = "rust",
   SHELL = "shell",

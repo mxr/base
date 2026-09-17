@@ -13,6 +13,32 @@ function readResource(name: string): string {
   return fs.readFileSync(path.join(__dirname, "resources", name), "utf-8");
 }
 
+export interface MirrorPreCommitMirrorMakerOptions {
+  /**
+   * The `pre-commit-mirror` invocation, e.g.
+   * `pre-commit-mirror . --language python --package-name ty --id ty --entry 'ty check' --types python`.
+   * Rendered verbatim into the workflow's `run: |` block.
+   */
+  readonly command: string;
+
+  /**
+   * A pre-commit-mirror-maker commit sha to pin `pip install` to. Omit to
+   * install the latest release unpinned.
+   */
+  readonly version?: string;
+}
+
+export interface MirrorOptions {
+  readonly preCommitMirrorMaker: MirrorPreCommitMirrorMakerOptions;
+}
+
+export interface BaseProjectOpt {
+  /**
+   * Options for `Stack.MIRROR`. Required when that stack is present.
+   */
+  readonly mirror?: MirrorOptions;
+}
+
 export interface BaseProjectOptions extends GitHubProjectOptions {
   /**
    * Which stacks this repo is for. Drives which pre-commit hooks are added
@@ -20,6 +46,12 @@ export interface BaseProjectOptions extends GitHubProjectOptions {
    * everything else gets MIT).
    */
   readonly stack: Stack[];
+
+  /**
+   * Per-stack options, keyed by stack name. Only stacks that need extra
+   * configuration to render their files have an entry here.
+   */
+  readonly opt?: BaseProjectOpt;
 }
 
 /**
@@ -74,6 +106,35 @@ export class BaseProject extends GitHubProject {
         marker: false,
         committed: true,
         lines: [`# ${BANNER}`, "", ...readResource("rust/release.yml").trimEnd().split("\n")],
+      });
+    }
+
+    if (this.stack.includes(Stack.MIRROR)) {
+      const mirror = options.opt?.mirror;
+      if (!mirror) {
+        throw new Error("Stack.MIRROR requires opt.mirror.preCommitMirrorMaker to be set");
+      }
+      const { command, version } = mirror.preCommitMirrorMaker;
+      const install = version
+        ? `pip install git+https://github.com/pre-commit/pre-commit-mirror-maker@${version}`
+        : "pip install pre-commit-mirror-maker";
+      const commandLines = command
+        .trim()
+        .split("\n")
+        .map((line, i) => (i === 0 ? line.trim() : `          ${line.trim()}`))
+        .join("\n");
+      new TextFile(this, ".github/workflows/main.yml", {
+        marker: false,
+        committed: true,
+        lines: [
+          `# ${BANNER}`,
+          "",
+          ...readResource("mirror/main.yml")
+            .replace("'{{INSTALL}}'", () => install)
+            .replace("{{COMMAND}}", () => commandLines)
+            .trimEnd()
+            .split("\n"),
+        ],
       });
     }
 
@@ -238,7 +299,7 @@ export class BaseProject extends GitHubProject {
     // pre-commit.ts) to real pinned revs first, so no hook ever gets its env
     // set up against a rev that was never a real ref
     runIgnoringFailure(["uvx", "pre-commit", "autoupdate", "--freeze"], this.outdir);
-    if (this.stack.includes(Stack.RUST) || this.stack.includes(Stack.FRONTEND)) {
+    if (this.stack.includes(Stack.RUST) || this.stack.includes(Stack.FRONTEND) || this.stack.includes(Stack.MIRROR)) {
       // pins the GitHub Actions refs in the generated workflow files to a
       // full sha with a version comment; scoped to just those files so it
       // never touches workflows this project doesn't manage

@@ -110,6 +110,79 @@ describe("BaseProject", () => {
   });
 });
 
+describe("BaseProject mirror stack", () => {
+  const preCommitMirrorMaker = {
+    command: "pre-commit-mirror . --language python --package-name ty --id ty --entry 'ty check' --types python",
+  };
+
+  it("throws without opt.mirror.preCommitMirrorMaker", () => {
+    expect(() => new BaseProject({ name: "test", stack: [Stack.MIRROR] })).toThrow(
+      "Stack.MIRROR requires opt.mirror.preCommitMirrorMaker to be set",
+    );
+  });
+
+  it("renders the workflow with an unpinned install when no version is given", () => {
+    const project = new BaseProject({ name: "test", stack: [Stack.MIRROR], opt: { mirror: { preCommitMirrorMaker } } });
+    const snapshot = Testing.synth(project);
+    expect(snapshot[".github/workflows/main.yml"]).toContain("pip install pre-commit-mirror-maker");
+    expect(snapshot[".github/workflows/main.yml"]).toContain("pre-commit-mirror . --language python");
+    expect(snapshot[".github/workflows/main.yml"]).toContain("python-version: '3.14'");
+  });
+
+  it("indents continuation lines of a multi-line command", () => {
+    const project = new BaseProject({
+      name: "test",
+      stack: [Stack.MIRROR],
+      opt: {
+        mirror: {
+          preCommitMirrorMaker: {
+            command: "pre-commit-mirror . \\\n--language python \\\n--id ty",
+          },
+        },
+      },
+    });
+    const snapshot = Testing.synth(project);
+    expect(snapshot[".github/workflows/main.yml"]).toContain(
+      "        pre-commit-mirror . \\\n          --language python \\\n          --id ty",
+    );
+  });
+
+  it("does not treat $-patterns in the command as replacement specials", () => {
+    const project = new BaseProject({
+      name: "test",
+      stack: [Stack.MIRROR],
+      opt: {
+        mirror: {
+          preCommitMirrorMaker: {
+            command: "pre-commit-mirror . --files-regex '(^|/)(openapi|.*[.](json|ya?ml))$'",
+          },
+        },
+      },
+    });
+    const snapshot = Testing.synth(project);
+    expect(snapshot[".github/workflows/main.yml"]).toContain("pre-commit-mirror . --files-regex '(^|/)(openapi|.*[.](json|ya?ml))$'");
+  });
+
+  it("pins the install to a version when given", () => {
+    const project = new BaseProject({
+      name: "test",
+      stack: [Stack.MIRROR],
+      opt: { mirror: { preCommitMirrorMaker: { ...preCommitMirrorMaker, version: "abc123" } } },
+    });
+    const snapshot = Testing.synth(project);
+    expect(snapshot[".github/workflows/main.yml"]).toContain(
+      "pip install git+https://github.com/pre-commit/pre-commit-mirror-maker@abc123",
+    );
+  });
+
+  it("includes actionlint and zizmor pre-commit hooks for a mirror stack", () => {
+    const project = new BaseProject({ name: "test", stack: [Stack.MIRROR], opt: { mirror: { preCommitMirrorMaker } } });
+    const snapshot = Testing.synth(project);
+    expect(snapshot[".pre-commit-config.yaml"]).toContain("actionlint");
+    expect(snapshot[".pre-commit-config.yaml"]).toContain("zizmor");
+  });
+});
+
 describe("BaseProject.postSynthesize", () => {
   it("skips pre-commit and cleanup entirely outside a git repo", () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "base-projen-postsynth-"));
