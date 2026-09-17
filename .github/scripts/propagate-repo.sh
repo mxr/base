@@ -165,7 +165,7 @@ if [ "${DRY_RUN:-true}" != "false" ]; then
   exit 0
 fi
 
-git -C "$workdir" commit -m "[base] update to ${tag}"
+git -C "$workdir" commit -m "[base] apply ${tag}"
 
 step "pushing ${branch}"
 # force-with-lease over any existing branch of the same name, since we
@@ -181,7 +181,7 @@ fi
 step "creating/updating PR"
 existing_pr="$(gh pr list --repo "${REPO}" --head "$branch" --json number -q '.[0].number' || true)"
 if [ -n "$existing_pr" ]; then
-  gh pr edit "$existing_pr" --repo "${REPO}" --title "[base] update to ${tag}"
+  gh pr edit "$existing_pr" --repo "${REPO}" --title "[base] apply ${tag}"
 else
   (cd "$workdir" && gh pr create --repo "${REPO}" --fill --head "$branch")
 fi
