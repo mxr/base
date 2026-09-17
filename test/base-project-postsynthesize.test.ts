@@ -92,6 +92,54 @@ describe("BaseProject.postSynthesize with a mocked git/pre-commit binary", () =>
     expect(gitignore).toContain("next-env.d.ts");
   });
 
+  it("runs pinact for a mirror stack with preCommitMirrorMaker", () => {
+    const dir = outdir();
+    realChildProcess.execFileSync("git", ["init", "-q"], { cwd: dir });
+    const project = new BaseProject({
+      name: "test",
+      stack: [Stack.MIRROR],
+      outdir: dir,
+      opt: {
+        mirror: {
+          preCommitMirrorMaker: {
+            command: "pre-commit-mirror . --language python --package-name ty --id ty --entry 'ty check' --types python",
+          },
+        },
+      },
+    });
+
+    execFileSyncMock.mockImplementation((cmd, args) => {
+      if (cmd === "git") {
+        return realChildProcess.execFileSync(cmd, args as string[], { cwd: dir });
+      }
+      return "";
+    });
+
+    project.synth();
+
+    expect(execFileSyncMock).toHaveBeenCalledWith("pinact", ["run", "-u", ".github/workflows/main.yml", ".github/workflows/release.yml"], {
+      cwd: dir,
+      stdio: "inherit",
+    });
+  });
+
+  it("skips pinact for a mirror stack with a custom mirror", () => {
+    const dir = outdir();
+    realChildProcess.execFileSync("git", ["init", "-q"], { cwd: dir });
+    const project = new BaseProject({ name: "test", stack: [Stack.MIRROR], outdir: dir, opt: { mirror: { custom: {} } } });
+
+    execFileSyncMock.mockImplementation((cmd, args) => {
+      if (cmd === "git") {
+        return realChildProcess.execFileSync(cmd, args as string[], { cwd: dir });
+      }
+      return "";
+    });
+
+    project.synth();
+
+    expect(execFileSyncMock).not.toHaveBeenCalledWith("pinact", expect.anything(), expect.anything());
+  });
+
   it("skips pinact for a non-rust, non-frontend stack", () => {
     const dir = outdir();
     realChildProcess.execFileSync("git", ["init", "-q"], { cwd: dir });

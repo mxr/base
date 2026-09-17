@@ -92,6 +92,7 @@ export class BaseProject extends GitHubProject {
   public readonly stack: Stack[];
   private readonly renovateDisable: string[];
   private readonly pythonMinVersion?: string;
+  private readonly hasPreCommitMirrorMaker: boolean;
 
   constructor(options: BaseProjectOptions) {
     super({ ...options, githubOptions: { pullRequestLint: false, ...options.githubOptions } });
@@ -142,12 +143,14 @@ export class BaseProject extends GitHubProject {
       });
     }
 
+    this.hasPreCommitMirrorMaker = false;
     if (this.stack.includes(Stack.MIRROR)) {
       const mirror = options.opt?.mirror;
       if (!mirror?.preCommitMirrorMaker && !mirror?.custom) {
         throw new Error("Stack.MIRROR requires opt.mirror.preCommitMirrorMaker or opt.mirror.custom to be set");
       }
       if (mirror.preCommitMirrorMaker) {
+        this.hasPreCommitMirrorMaker = true;
         const { command, version } = mirror.preCommitMirrorMaker;
         const install = version
           ? `pip install git+https://github.com/pre-commit/pre-commit-mirror-maker@${version}`
@@ -342,7 +345,7 @@ export class BaseProject extends GitHubProject {
     // pre-commit.ts) to real pinned revs first, so no hook ever gets its env
     // set up against a rev that was never a real ref
     runIgnoringFailure(preCommit("autoupdate", "--freeze"), this.outdir);
-    if (this.stack.includes(Stack.RUST) || this.stack.includes(Stack.FRONTEND) || this.stack.includes(Stack.MIRROR)) {
+    if (this.stack.includes(Stack.RUST) || this.stack.includes(Stack.FRONTEND) || this.hasPreCommitMirrorMaker) {
       // pins the GitHub Actions refs in the generated workflow files to a
       // full sha with a version comment; scoped to just those files so it
       // never touches workflows this project doesn't manage
