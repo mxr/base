@@ -66,7 +66,19 @@ git -C "$workdir" checkout -b "$branch"
 # to live in the repo between syncs
 name="$(basename "$REPO")"
 stack_json="$(yq -o=json '.stack' "$base_yml")"
-opt_json="$(yq -o=json '.opt // {}' "$base_yml")"
+# base.yml's opt keys are kebab-case (matching stack names like
+# github-actions), but BaseProject's TS options are camelCase (jsii forbids
+# non-camelCase property names), so convert object keys on the way through
+opt_json="$(
+  yq -o=json '.opt // {}' "$base_yml" | jq '
+    def to_camel: split("-") as $p | $p[0] + ($p[1:] | map((.[0:1] | ascii_upcase) + .[1:]) | join(""));
+    def camelize:
+      if type == "object" then with_entries(.key |= to_camel | .value |= camelize)
+      elif type == "array" then map(camelize)
+      else . end;
+    camelize
+  '
+)"
 
 cat > "$workdir/.projenrc.js" <<EOF
 const { BaseProject } = require("@mxr/base");
