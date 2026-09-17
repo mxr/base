@@ -91,6 +91,7 @@ export interface BaseProjectOptions extends GitHubProjectOptions {
 export class BaseProject extends GitHubProject {
   public readonly stack: Stack[];
   private readonly renovateDisable: string[];
+  private readonly pythonMinVersion?: string;
 
   constructor(options: BaseProjectOptions) {
     super({ ...options, githubOptions: { pullRequestLint: false, ...options.githubOptions } });
@@ -119,7 +120,8 @@ export class BaseProject extends GitHubProject {
     if (this.stack.includes(Stack.PYTHON) && !options.opt?.python) {
       throw new Error("Stack.PYTHON requires opt.python.minVersion to be set");
     }
-    new PreCommitConfigFile(this, { stack: this.stack, pythonMinVersion: options.opt?.python?.minVersion });
+    this.pythonMinVersion = options.opt?.python?.minVersion;
+    new PreCommitConfigFile(this, { stack: this.stack, pythonMinVersion: this.pythonMinVersion });
 
     if (!isJavascript) {
       new TextFile(this, "biome.json", {
@@ -328,10 +330,18 @@ export class BaseProject extends GitHubProject {
       execFileSync("git", ["add", "--", ...managedFiles], { cwd: this.outdir });
     }
 
+    // default_language_version.python (from opt.python.minVersion) needs a
+    // matching interpreter on PATH, e.g. `python3.11`, or hook venv creation
+    // crashes - a crash runIgnoringFailure swallows, silently skipping every
+    // hook. Run pre-commit itself under that version (uv fetches it if
+    // missing) so it reuses its own interpreter instead of searching PATH.
+    const preCommit = (...args: string[]): string[] =>
+      this.pythonMinVersion ? ["uvx", "--python", this.pythonMinVersion, "pre-commit", ...args] : ["uvx", "pre-commit", ...args];
+
     // resolve the placeholder `v0.0.0-<repo>` revs (see mergeRepos in
     // pre-commit.ts) to real pinned revs first, so no hook ever gets its env
     // set up against a rev that was never a real ref
-    runIgnoringFailure(["uvx", "pre-commit", "autoupdate", "--freeze"], this.outdir);
+    runIgnoringFailure(preCommit("autoupdate", "--freeze"), this.outdir);
     if (this.stack.includes(Stack.RUST) || this.stack.includes(Stack.FRONTEND) || this.stack.includes(Stack.MIRROR)) {
       // pins the GitHub Actions refs in the generated workflow files to a
       // full sha with a version comment; scoped to just those files so it
@@ -342,13 +352,13 @@ export class BaseProject extends GitHubProject {
     // sync-typing-deps before the real run below, otherwise ty/mypy fail with
     // no deps on a fresh render since they'd otherwise run before
     // sync-typing-deps ever touches the file
-    runIgnoringFailure(["uvx", "pre-commit", "run", "--files", ".pre-commit-config.yaml"], this.outdir);
+    runIgnoringFailure(preCommit("run", "--files", ".pre-commit-config.yaml"), this.outdir);
     // first pass may still fail on files that formatters just fixed; a repo
     // that's still broken on the second pass should still get its PR opened
     // so remaining issues can be resolved as part of the base update, rather
     // than synth aborting and dropping the update entirely
-    runIgnoringFailure(["uvx", "pre-commit", "run", "--all-files"], this.outdir);
-    runIgnoringFailure(["uvx", "pre-commit", "run", "--all-files"], this.outdir);
+    runIgnoringFailure(preCommit("run", "--all-files"), this.outdir);
+    runIgnoringFailure(preCommit("run", "--all-files"), this.outdir);
   }
 }
 
