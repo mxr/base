@@ -80,6 +80,10 @@ const STACK_REPOS: Partial<Record<Stack, PreCommitRepo[]>> = {
       hooks: [{ id: "mypy" }],
     },
     {
+      repo: "https://github.com/mxr/mirrors-pyright",
+      hooks: [{ id: "pyright" }],
+    },
+    {
       repo: "https://github.com/mxr/mirrors-ty",
       hooks: [{ id: "ty" }],
     },
@@ -89,13 +93,13 @@ const STACK_REPOS: Partial<Record<Stack, PreCommitRepo[]>> = {
     },
     {
       repo: "https://github.com/pre-commit/pre-commit-hooks",
-      hooks: [{ id: "debug-statements" }],
+      hooks: [{ id: "check-docstring-first" }, { id: "debug-statements" }],
     },
   ],
   [Stack.TOML]: [
     {
       repo: "https://github.com/macisamuele/language-formatters-pre-commit-hooks",
-      hooks: [{ id: "pretty-format-toml", args: ["--autofix", "--trailing-commas"], exclude: "Cargo.lock" }],
+      hooks: [{ id: "pretty-format-toml", args: ["--autofix", "--trailing-commas"] }],
     },
   ],
   [Stack.SQL]: [
@@ -167,6 +171,7 @@ const IMPLIED_STACKS: Partial<Record<Stack, Stack[]>> = {
   [Stack.FRONTEND]: [Stack.GITHUB_ACTIONS, Stack.GITIGNORE],
   [Stack.JAVASCRIPT]: [Stack.GITHUB_ACTIONS],
   [Stack.MIRROR]: [Stack.GITHUB_ACTIONS],
+  [Stack.PYTHON]: [Stack.TOML],
   [Stack.RUST]: [Stack.TOML, Stack.GITHUB_ACTIONS, Stack.GITIGNORE],
 };
 
@@ -235,7 +240,18 @@ export function buildPreCommitRepos(stack: Stack[]): PreCommitRepo[] {
   // every Stack member has an entry in STACK_REPOS today; the fallback just
   // guards against a future stack being added to one without the other
   const entries = [...DEFAULT, ...expandStacks(stack).flatMap((name) => STACK_REPOS[name] ?? /* v8 ignore next */ [])];
-  return mergeRepos(entries);
+  const repos = mergeRepos(entries);
+  if (!stack.includes(Stack.RUST)) {
+    return repos;
+  }
+  // Cargo.lock is a generated lockfile even though it's toml-formatted, so
+  // only skip it for repos that actually have one (i.e. rust stack repos) -
+  // other toml-stack repos (e.g. python) may have their own file named
+  // Cargo.lock that pretty-format-toml should still touch
+  return repos.map((repo) => ({
+    ...repo,
+    hooks: repo.hooks.map((hook) => (hook.id === "pretty-format-toml" ? { ...hook, exclude: "Cargo.lock" } : hook)),
+  }));
 }
 
 function toSnakeCaseKeys(value: unknown): unknown {
@@ -254,10 +270,17 @@ function toSnakeCaseKeys(value: unknown): unknown {
  * Renders the `.pre-commit-config.yaml` contents for the given stacks,
  * inlining short scalar lists (e.g. `args: [--fix]`) and leaving longer or
  * non-scalar ones as block lists.
+ *
+ * `pythonMinVersion` (e.g. `"3.11"`) sets the file's top-level
+ * `default_language_version.python`, so individual Python hooks (mypy, ty,
+ * etc.) don't need their own per-hook `language_version`.
  */
-export function renderPreCommitConfig(stack: Stack[]): string {
+export function renderPreCommitConfig(stack: Stack[], pythonMinVersion?: string): string {
   const repos = toSnakeCaseKeys(buildPreCommitRepos(stack));
-  const doc = new Document({ repos });
+  const doc = new Document({
+    ...(pythonMinVersion ? { default_language_version: { python: `python${pythonMinVersion}` } } : {}),
+    repos,
+  });
 
   visit(doc, {
     Seq(_, node) {

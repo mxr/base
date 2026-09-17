@@ -7,10 +7,20 @@ import { Stack } from "../src/stack";
 
 describe("BaseProject", () => {
   it("uses MIT for a non-frontend stack, and still adds biome.json", () => {
-    const project = new BaseProject({ name: "test", stack: [Stack.PYTHON] });
+    const project = new BaseProject({ name: "test", stack: [Stack.PYTHON], opt: { python: { minVersion: "3.11" } } });
     const snapshot = Testing.synth(project);
     expect(snapshot.LICENSE).toContain("Permission is hereby granted, free of charge");
     expect(snapshot["biome.json"].$schema).toBe("https://biomejs.dev/schemas/2.5.4/schema.json");
+  });
+
+  it("throws without opt.python.minVersion for a python stack", () => {
+    expect(() => new BaseProject({ name: "test", stack: [Stack.PYTHON] })).toThrow("Stack.PYTHON requires opt.python.minVersion to be set");
+  });
+
+  it("renders default_language_version.python from opt.python.minVersion", () => {
+    const project = new BaseProject({ name: "test", stack: [Stack.PYTHON], opt: { python: { minVersion: "3.11" } } });
+    const snapshot = Testing.synth(project);
+    expect(snapshot[".pre-commit-config.yaml"]).toContain("default_language_version:\n  python: python3.11\n");
   });
 
   it("uses AGPL-3.0-or-later and adds a frontend-specific biome.json for a frontend stack", () => {
@@ -115,10 +125,19 @@ describe("BaseProject mirror stack", () => {
     command: "pre-commit-mirror . --language python --package-name ty --id ty --entry 'ty check' --types python",
   };
 
-  it("throws without opt.mirror.preCommitMirrorMaker", () => {
+  it("throws without opt.mirror.preCommitMirrorMaker or opt.mirror.custom", () => {
     expect(() => new BaseProject({ name: "test", stack: [Stack.MIRROR] })).toThrow(
-      "Stack.MIRROR requires opt.mirror.preCommitMirrorMaker to be set",
+      "Stack.MIRROR requires opt.mirror.preCommitMirrorMaker or opt.mirror.custom to be set",
     );
+    expect(() => new BaseProject({ name: "test", stack: [Stack.MIRROR], opt: { mirror: {} } })).toThrow(
+      "Stack.MIRROR requires opt.mirror.preCommitMirrorMaker or opt.mirror.custom to be set",
+    );
+  });
+
+  it("leaves .github/workflows/main.yml unmanaged for a custom mirror", () => {
+    const project = new BaseProject({ name: "test", stack: [Stack.MIRROR], opt: { mirror: { custom: {} } } });
+    const snapshot = Testing.synth(project);
+    expect(snapshot[".github/workflows/main.yml"]).toBeUndefined();
   });
 
   it("renders the workflow with an unpinned install when no version is given", () => {

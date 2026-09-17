@@ -51,6 +51,19 @@ describe("buildPreCommitRepos", () => {
     expect("rev" in repos[repos.length - 1]).toBe(false);
   });
 
+  it("includes check-docstring-first and the mirrors-pyright hook for a python stack", () => {
+    const repos = buildPreCommitRepos([Stack.PYTHON]);
+    const hooks = repos.find((r) => r.repo === "https://github.com/pre-commit/pre-commit-hooks");
+    expect(hooks?.hooks.map((h) => h.id)).toEqual(expect.arrayContaining(["check-docstring-first", "debug-statements"]));
+    expect(repos.map((r) => r.repo)).toContain("https://github.com/mxr/mirrors-pyright");
+  });
+
+  it("pulls in toml hooks for a python stack", () => {
+    const repos = buildPreCommitRepos([Stack.PYTHON]);
+    const formatters = repos.find((r) => r.repo === "https://github.com/macisamuele/language-formatters-pre-commit-hooks");
+    expect(formatters?.hooks.map((h) => h.id)).toEqual(expect.arrayContaining(["pretty-format-toml", "pretty-format-yaml"]));
+  });
+
   it("pulls in toml and github-actions hooks for a rust stack", () => {
     const repos = buildPreCommitRepos([Stack.RUST]);
     expect(repos.map((r) => r.repo)).toEqual(
@@ -64,10 +77,14 @@ describe("buildPreCommitRepos", () => {
     expect(formatters?.hooks.map((h) => h.id)).toEqual(expect.arrayContaining(["pretty-format-toml", "pretty-format-yaml"]));
   });
 
-  it("excludes Cargo.lock from pretty-format-toml", () => {
-    const repos = buildPreCommitRepos([Stack.TOML]);
-    const formatters = repos.find((r) => r.repo === "https://github.com/macisamuele/language-formatters-pre-commit-hooks");
-    expect(formatters?.hooks.find((h) => h.id === "pretty-format-toml")?.exclude).toBe("Cargo.lock");
+  it("excludes Cargo.lock from pretty-format-toml only for a rust stack", () => {
+    const rust = buildPreCommitRepos([Stack.RUST]);
+    const rustFormatters = rust.find((r) => r.repo === "https://github.com/macisamuele/language-formatters-pre-commit-hooks");
+    expect(rustFormatters?.hooks.find((h) => h.id === "pretty-format-toml")?.exclude).toBe("Cargo.lock");
+
+    const toml = buildPreCommitRepos([Stack.TOML]);
+    const tomlFormatters = toml.find((r) => r.repo === "https://github.com/macisamuele/language-formatters-pre-commit-hooks");
+    expect(tomlFormatters?.hooks.find((h) => h.id === "pretty-format-toml")?.exclude).toBeUndefined();
   });
 
   it("includes gitignore-tidy for a rust stack", () => {
@@ -141,5 +158,10 @@ describe("renderPreCommitConfig", () => {
   it("renders long scalar lists as an indentless block sequence", () => {
     const yaml = renderPreCommitConfig([Stack.RUST]);
     expect(yaml).toContain("    args:\n    - --all-targets\n    - --locked");
+  });
+
+  it("renders default_language_version.python when given, and omits it otherwise", () => {
+    expect(renderPreCommitConfig([Stack.PYTHON], "3.11")).toMatch(/^default_language_version:\n {2}python: python3\.11\nrepos:/);
+    expect(renderPreCommitConfig([Stack.PYTHON])).not.toContain("default_language_version");
   });
 });

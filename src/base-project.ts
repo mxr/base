@@ -28,8 +28,31 @@ export interface MirrorPreCommitMirrorMakerOptions {
   readonly version?: string;
 }
 
+// biome-ignore lint/suspicious/noEmptyInterface: marker interface with no members, required by jsii (a type alias isn't a supported public API type)
+export interface MirrorCustomOptions {}
+
 export interface MirrorOptions {
-  readonly preCommitMirrorMaker: MirrorPreCommitMirrorMakerOptions;
+  /**
+   * Renders `.github/workflows/main.yml` from the pre-commit-mirror-maker
+   * template. Mutually exclusive with `custom`.
+   */
+  readonly preCommitMirrorMaker?: MirrorPreCommitMirrorMakerOptions;
+
+  /**
+   * Set for a mirror repo whose `.github/workflows/main.yml` is
+   * hand-maintained (e.g. it runs its own test suite rather than
+   * pre-commit-mirror-maker) - BaseProject then leaves that file alone
+   * instead of overwriting it. Mutually exclusive with `preCommitMirrorMaker`.
+   */
+  readonly custom?: MirrorCustomOptions;
+}
+
+export interface PythonOptions {
+  /**
+   * Minimum Python version this repo supports, e.g. `"3.11"`. Rendered as
+   * `.pre-commit-config.yaml`'s top-level `default_language_version.python`.
+   */
+  readonly minVersion: string;
 }
 
 export interface BaseProjectOpt {
@@ -37,6 +60,11 @@ export interface BaseProjectOpt {
    * Options for `Stack.MIRROR`. Required when that stack is present.
    */
   readonly mirror?: MirrorOptions;
+
+  /**
+   * Options for `Stack.PYTHON`. Required when that stack is present.
+   */
+  readonly python?: PythonOptions;
 }
 
 export interface BaseProjectOptions extends GitHubProjectOptions {
@@ -88,7 +116,10 @@ export class BaseProject extends GitHubProject {
       copyrightPeriod: String(firstCommitYear(this.outdir)),
     });
 
-    new PreCommitConfigFile(this, { stack: this.stack });
+    if (this.stack.includes(Stack.PYTHON) && !options.opt?.python) {
+      throw new Error("Stack.PYTHON requires opt.python.minVersion to be set");
+    }
+    new PreCommitConfigFile(this, { stack: this.stack, pythonMinVersion: options.opt?.python?.minVersion });
 
     if (!isJavascript) {
       new TextFile(this, "biome.json", {
@@ -111,31 +142,33 @@ export class BaseProject extends GitHubProject {
 
     if (this.stack.includes(Stack.MIRROR)) {
       const mirror = options.opt?.mirror;
-      if (!mirror) {
-        throw new Error("Stack.MIRROR requires opt.mirror.preCommitMirrorMaker to be set");
+      if (!mirror?.preCommitMirrorMaker && !mirror?.custom) {
+        throw new Error("Stack.MIRROR requires opt.mirror.preCommitMirrorMaker or opt.mirror.custom to be set");
       }
-      const { command, version } = mirror.preCommitMirrorMaker;
-      const install = version
-        ? `pip install git+https://github.com/pre-commit/pre-commit-mirror-maker@${version}`
-        : "pip install pre-commit-mirror-maker";
-      const commandLines = command
-        .trim()
-        .split("\n")
-        .map((line, i) => (i === 0 ? line.trim() : `          ${line.trim()}`))
-        .join("\n");
-      new TextFile(this, ".github/workflows/main.yml", {
-        marker: false,
-        committed: true,
-        lines: [
-          `# ${BANNER}`,
-          "",
-          ...readResource("mirror/main.yml")
-            .replace("'{{INSTALL}}'", () => install)
-            .replace("{{COMMAND}}", () => commandLines)
-            .trimEnd()
-            .split("\n"),
-        ],
-      });
+      if (mirror.preCommitMirrorMaker) {
+        const { command, version } = mirror.preCommitMirrorMaker;
+        const install = version
+          ? `pip install git+https://github.com/pre-commit/pre-commit-mirror-maker@${version}`
+          : "pip install pre-commit-mirror-maker";
+        const commandLines = command
+          .trim()
+          .split("\n")
+          .map((line, i) => (i === 0 ? line.trim() : `          ${line.trim()}`))
+          .join("\n");
+        new TextFile(this, ".github/workflows/main.yml", {
+          marker: false,
+          committed: true,
+          lines: [
+            `# ${BANNER}`,
+            "",
+            ...readResource("mirror/main.yml")
+              .replace("'{{INSTALL}}'", () => install)
+              .replace("{{COMMAND}}", () => commandLines)
+              .trimEnd()
+              .split("\n"),
+          ],
+        });
+      }
     }
 
     if (isFrontend) {
