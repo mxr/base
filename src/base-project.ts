@@ -121,7 +121,10 @@ export class BaseProject extends GitHubProject {
     if (this.stack.includes(Stack.PYTHON) && !options.opt?.python) {
       throw new Error("Stack.PYTHON requires opt.python.minVersion to be set");
     }
+
     this.pythonMinVersion = options.opt?.python?.minVersion;
+    this.hasPreCommitMirrorMaker = this.stack.includes(Stack.MIRROR) && !!options.opt?.mirror?.preCommitMirrorMaker;
+
     new PreCommitConfigFile(this, { stack: this.stack, pythonMinVersion: this.pythonMinVersion });
 
     if (!isJavascript) {
@@ -143,14 +146,12 @@ export class BaseProject extends GitHubProject {
       });
     }
 
-    this.hasPreCommitMirrorMaker = false;
     if (this.stack.includes(Stack.MIRROR)) {
       const mirror = options.opt?.mirror;
       if (!mirror?.preCommitMirrorMaker && !mirror?.custom) {
         throw new Error("Stack.MIRROR requires opt.mirror.preCommitMirrorMaker or opt.mirror.custom to be set");
       }
       if (mirror.preCommitMirrorMaker) {
-        this.hasPreCommitMirrorMaker = true;
         const { command, version } = mirror.preCommitMirrorMaker;
         const install = version
           ? `pip install git+https://github.com/pre-commit/pre-commit-mirror-maker@${version}`
@@ -349,7 +350,18 @@ export class BaseProject extends GitHubProject {
       // pins the GitHub Actions refs in the generated workflow files to a
       // full sha with a version comment; scoped to just those files so it
       // never touches workflows this project doesn't manage
-      runIgnoringFailure(["pinact", "run", "-u", ".github/workflows/main.yml", ".github/workflows/release.yml"], this.outdir);
+      runIgnoringFailure(
+        [
+          "go",
+          "run",
+          "github.com/suzuki-shunsuke/pinact/v4/cmd/pinact@latest",
+          "run",
+          "-u",
+          ".github/workflows/main.yml",
+          ".github/workflows/release.yml",
+        ],
+        this.outdir,
+      );
     }
     // seed .pre-commit-config.yaml's own additional_dependencies via
     // sync-typing-deps before the real run below, otherwise ty/mypy fail with

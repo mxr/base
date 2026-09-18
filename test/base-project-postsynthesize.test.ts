@@ -62,10 +62,18 @@ describe("BaseProject.postSynthesize with a mocked git/pre-commit binary", () =>
     project.synth();
 
     expect(fs.readFileSync(path.join(dir, ".gitignore"), "utf-8")).toBe(`# ${BANNER}\n/target/\n`);
-    expect(execFileSyncMock).toHaveBeenCalledWith("pinact", ["run", "-u", ".github/workflows/main.yml", ".github/workflows/release.yml"], {
-      cwd: dir,
-      stdio: "inherit",
-    });
+    expect(execFileSyncMock).toHaveBeenCalledWith(
+      "go",
+      [
+        "run",
+        "github.com/suzuki-shunsuke/pinact/v4/cmd/pinact@latest",
+        "run",
+        "-u",
+        ".github/workflows/main.yml",
+        ".github/workflows/release.yml",
+      ],
+      { cwd: dir, stdio: "inherit" },
+    );
   });
 
   it("runs pinact for a frontend stack, and excludes Next.js build/env artifacts from .gitignore", () => {
@@ -82,10 +90,18 @@ describe("BaseProject.postSynthesize with a mocked git/pre-commit binary", () =>
 
     project.synth();
 
-    expect(execFileSyncMock).toHaveBeenCalledWith("pinact", ["run", "-u", ".github/workflows/main.yml", ".github/workflows/release.yml"], {
-      cwd: dir,
-      stdio: "inherit",
-    });
+    expect(execFileSyncMock).toHaveBeenCalledWith(
+      "go",
+      [
+        "run",
+        "github.com/suzuki-shunsuke/pinact/v4/cmd/pinact@latest",
+        "run",
+        "-u",
+        ".github/workflows/main.yml",
+        ".github/workflows/release.yml",
+      ],
+      { cwd: dir, stdio: "inherit" },
+    );
     const gitignore = fs.readFileSync(path.join(dir, ".gitignore"), "utf-8");
     expect(gitignore).toContain("/.next/");
     expect(gitignore).toContain(".env*");
@@ -117,10 +133,18 @@ describe("BaseProject.postSynthesize with a mocked git/pre-commit binary", () =>
 
     project.synth();
 
-    expect(execFileSyncMock).toHaveBeenCalledWith("pinact", ["run", "-u", ".github/workflows/main.yml", ".github/workflows/release.yml"], {
-      cwd: dir,
-      stdio: "inherit",
-    });
+    expect(execFileSyncMock).toHaveBeenCalledWith(
+      "go",
+      [
+        "run",
+        "github.com/suzuki-shunsuke/pinact/v4/cmd/pinact@latest",
+        "run",
+        "-u",
+        ".github/workflows/main.yml",
+        ".github/workflows/release.yml",
+      ],
+      { cwd: dir, stdio: "inherit" },
+    );
   });
 
   it("skips pinact for a mirror stack with a custom mirror", () => {
@@ -137,7 +161,7 @@ describe("BaseProject.postSynthesize with a mocked git/pre-commit binary", () =>
 
     project.synth();
 
-    expect(execFileSyncMock).not.toHaveBeenCalledWith("pinact", expect.anything(), expect.anything());
+    expect(execFileSyncMock).not.toHaveBeenCalledWith("go", expect.anything(), expect.anything());
   });
 
   it("skips pinact for a non-rust, non-frontend stack", () => {
@@ -154,7 +178,7 @@ describe("BaseProject.postSynthesize with a mocked git/pre-commit binary", () =>
 
     project.synth();
 
-    expect(execFileSyncMock).not.toHaveBeenCalledWith("pinact", expect.anything(), expect.anything());
+    expect(execFileSyncMock).not.toHaveBeenCalledWith("go", expect.anything(), expect.anything());
   });
 
   it("skips pinact for a javascript stack", () => {
@@ -171,7 +195,7 @@ describe("BaseProject.postSynthesize with a mocked git/pre-commit binary", () =>
 
     project.synth();
 
-    expect(execFileSyncMock).not.toHaveBeenCalledWith("pinact", expect.anything(), expect.anything());
+    expect(execFileSyncMock).not.toHaveBeenCalledWith("go", expect.anything(), expect.anything());
   });
 
   it("does not manage a .gitignore for a javascript stack", () => {
