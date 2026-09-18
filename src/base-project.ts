@@ -342,38 +342,32 @@ export class BaseProject extends GitHubProject {
     const preCommit = (...args: string[]): string[] =>
       this.pythonMinVersion ? ["uvx", "--python", this.pythonMinVersion, "pre-commit", ...args] : ["uvx", "pre-commit", ...args];
 
-    // resolve the placeholder `v0.0.0-<repo>` revs (see mergeRepos in
-    // pre-commit.ts) to real pinned revs first, so no hook ever gets its env
-    // set up against a rev that was never a real ref. seed
-    // .pre-commit-config.yaml's own additional_dependencies via
-    // sync-typing-deps before the real run below, otherwise ty/mypy fail with
-    // no deps on a fresh render since they'd otherwise run before
-    // sync-typing-deps ever touches the file
-    const configSteps = [preCommit("autoupdate", "--freeze"), preCommit("run", "--files", ".pre-commit-config.yaml")];
-    if (this.stack.includes(Stack.RUST) || this.stack.includes(Stack.FRONTEND) || this.hasPreCommitMirrorMaker) {
-      // pins the GitHub Actions refs in the generated workflow files to a
-      // full sha with a version comment; scoped to just those files so it
-      // never touches workflows this project doesn't manage. Independent of
-      // the pre-commit config steps above, so run it concurrently with them
-      // rather than paying for both in sequence.
-      runInParallelIgnoringFailure(
-        [
-          "go",
-          "run",
-          "github.com/suzuki-shunsuke/pinact/v4/cmd/pinact@latest",
-          "run",
-          "-u",
-          ".github/workflows/main.yml",
-          ".github/workflows/release.yml",
-        ],
-        configSteps,
-        this.outdir,
-      );
-    } else {
-      for (const step of configSteps) {
-        runIgnoringFailure(step, this.outdir);
-      }
-    }
+    // pins GitHub Actions refs in generated workflows to a full sha with a
+    // version comment, scoped to just those files. Independent of the
+    // pre-commit config task below, runs alongside it as its own task.
+    const pinactTask: readonly (readonly string[])[] =
+      this.stack.includes(Stack.RUST) || this.stack.includes(Stack.FRONTEND) || this.hasPreCommitMirrorMaker
+        ? [
+            [
+              "go",
+              "run",
+              "github.com/suzuki-shunsuke/pinact/v4/cmd/pinact@latest",
+              "run",
+              "-u",
+              ".github/workflows/main.yml",
+              ".github/workflows/release.yml",
+            ],
+          ]
+        : [];
+    // resolves placeholder `v0.0.0-<repo>` revs (see mergeRepos in
+    // pre-commit.ts) to real pinned revs first, so no hook sets up its env
+    // against a rev that was never a real ref, then seeds
+    // .pre-commit-config.yaml's additional_dependencies via sync-typing-deps
+    // before the full run below, otherwise ty/mypy fail with no deps on a
+    // fresh render since they'd run before sync-typing-deps touches the file.
+    const configTask = [preCommit("autoupdate", "--freeze"), preCommit("run", "--files", ".pre-commit-config.yaml")];
+    runTasksInParallelIgnoringFailure([pinactTask, configTask], this.outdir);
+
     // first pass may still fail on files that formatters just fixed; a repo
     // that's still broken on the second pass should still get its PR opened
     // so remaining issues can be resolved as part of the base update, rather
@@ -408,12 +402,17 @@ function shQuote(arg: string): string {
   return `'${arg.replace(/'/g, `'\\''`)}'`;
 }
 
-// runs `background` concurrently with `foregroundSteps` (executed in order),
-// ignoring failures from either side, and blocks until both are done. Uses a
-// single `sh -c` invocation rather than Node-level concurrency so this stays
-// a synchronous call, matching postSynthesize()'s (unawaited) signature.
-function runInParallelIgnoringFailure(background: readonly string[], foregroundSteps: readonly (readonly string[])[], cwd: string): void {
+// runs each `task` (its steps executed in order) as its own background job,
+// like `asyncio.gather`'d futures, then waits for all of them - all inside a
+// single `sh -c` invocation so this stays a synchronous call, matching
+// postSynthesize()'s (unawaited) signature. Failures are ignored, both a
+// step's own and the overall script's.
+function runTasksInParallelIgnoringFailure(tasks: readonly (readonly (readonly string[])[])[], cwd: string): void {
   const quote = (command: readonly string[]): string => command.map(shQuote).join(" ");
-  const script = [`{ ${quote(background)} ; } &`, ...foregroundSteps.map((step) => `${quote(step)} ;`), "wait"].join("\n");
+  const pids = tasks.map((_, i) => `pid${i}`);
+  const script = [
+    ...tasks.map((task, i) => `{ ${task.length > 0 ? task.map((step) => `${quote(step)} ;`).join(" ") : ": ;"} } & ${pids[i]}=$!`),
+    `wait ${pids.map((pid) => `$${pid}`).join(" ")}`,
+  ].join("\n");
   runIgnoringFailure(["sh", "-c", script], cwd);
 }
