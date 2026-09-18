@@ -344,13 +344,19 @@ export class BaseProject extends GitHubProject {
 
     // resolve the placeholder `v0.0.0-<repo>` revs (see mergeRepos in
     // pre-commit.ts) to real pinned revs first, so no hook ever gets its env
-    // set up against a rev that was never a real ref
-    runIgnoringFailure(preCommit("autoupdate", "--freeze"), this.outdir);
+    // set up against a rev that was never a real ref. seed
+    // .pre-commit-config.yaml's own additional_dependencies via
+    // sync-typing-deps before the real run below, otherwise ty/mypy fail with
+    // no deps on a fresh render since they'd otherwise run before
+    // sync-typing-deps ever touches the file
+    const configSteps = [preCommit("autoupdate", "--freeze"), preCommit("run", "--files", ".pre-commit-config.yaml")];
     if (this.stack.includes(Stack.RUST) || this.stack.includes(Stack.FRONTEND) || this.hasPreCommitMirrorMaker) {
       // pins the GitHub Actions refs in the generated workflow files to a
       // full sha with a version comment; scoped to just those files so it
-      // never touches workflows this project doesn't manage
-      runIgnoringFailure(
+      // never touches workflows this project doesn't manage. Independent of
+      // the pre-commit config steps above, so run it concurrently with them
+      // rather than paying for both in sequence.
+      runInParallelIgnoringFailure(
         [
           "go",
           "run",
@@ -360,20 +366,21 @@ export class BaseProject extends GitHubProject {
           ".github/workflows/main.yml",
           ".github/workflows/release.yml",
         ],
+        configSteps,
         this.outdir,
       );
+    } else {
+      for (const step of configSteps) {
+        runIgnoringFailure(step, this.outdir);
+      }
     }
-    // seed .pre-commit-config.yaml's own additional_dependencies via
-    // sync-typing-deps before the real run below, otherwise ty/mypy fail with
-    // no deps on a fresh render since they'd otherwise run before
-    // sync-typing-deps ever touches the file
-    runIgnoringFailure(preCommit("run", "--files", ".pre-commit-config.yaml"), this.outdir);
     // first pass may still fail on files that formatters just fixed; a repo
     // that's still broken on the second pass should still get its PR opened
     // so remaining issues can be resolved as part of the base update, rather
     // than synth aborting and dropping the update entirely
-    runIgnoringFailure(preCommit("run", "--all-files"), this.outdir);
-    runIgnoringFailure(preCommit("run", "--all-files"), this.outdir);
+    if (!runIgnoringFailure(preCommit("run", "--all-files"), this.outdir)) {
+      runIgnoringFailure(preCommit("run", "--all-files"), this.outdir);
+    }
   }
 }
 
@@ -386,11 +393,27 @@ function isGitRepo(outdir: string): boolean {
   }
 }
 
-function runIgnoringFailure(command: readonly string[], cwd: string): void {
+function runIgnoringFailure(command: readonly string[], cwd: string): boolean {
   try {
     execFileSync(command[0], command.slice(1), { cwd, stdio: "inherit" });
+    return true;
   } catch {
     // best-effort: formatters commonly exit non-zero on the run that fixes
     // the file, so this step's failure is expected rather than fatal
+    return false;
   }
+}
+
+function shQuote(arg: string): string {
+  return `'${arg.replace(/'/g, `'\\''`)}'`;
+}
+
+// runs `background` concurrently with `foregroundSteps` (executed in order),
+// ignoring failures from either side, and blocks until both are done. Uses a
+// single `sh -c` invocation rather than Node-level concurrency so this stays
+// a synchronous call, matching postSynthesize()'s (unawaited) signature.
+function runInParallelIgnoringFailure(background: readonly string[], foregroundSteps: readonly (readonly string[])[], cwd: string): void {
+  const quote = (command: readonly string[]): string => command.map(shQuote).join(" ");
+  const script = [`{ ${quote(background)} ; } &`, ...foregroundSteps.map((step) => `${quote(step)} ;`), "wait"].join("\n");
+  runIgnoringFailure(["sh", "-c", script], cwd);
 }
