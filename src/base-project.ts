@@ -5,6 +5,7 @@ import { License, TextFile } from "projen";
 import { GitHubProject } from "projen/lib/github";
 import { BANNER } from "./banner";
 import { firstCommitYear } from "./git";
+import { readExistingRevs } from "./pre-commit";
 import { PreCommitConfigFile } from "./pre-commit-config-file";
 import { Stack } from "./stack";
 import type { GitHubProjectOptions } from "projen/lib/github";
@@ -93,6 +94,7 @@ export class BaseProject extends GitHubProject {
   private readonly renovateDisable: string[];
   private readonly pythonMinVersion?: string;
   private readonly hasPreCommitMirrorMaker: boolean;
+  private readonly newPreCommitRepoUrls: string[];
 
   constructor(options: BaseProjectOptions) {
     super({ ...options, githubOptions: { pullRequestLint: false, ...options.githubOptions } });
@@ -125,7 +127,22 @@ export class BaseProject extends GitHubProject {
     this.pythonMinVersion = options.opt?.python?.minVersion;
     this.hasPreCommitMirrorMaker = this.stack.includes(Stack.MIRROR) && !!options.opt?.mirror?.preCommitMirrorMaker;
 
-    new PreCommitConfigFile(this, { stack: this.stack, pythonMinVersion: this.pythonMinVersion });
+    // read the downstream repo's current .pre-commit-config.yaml (still on
+    // disk from the pre-synth checkout) before PreCommitConfigFile below
+    // overwrites it, so an already-pinned hook keeps its existing rev instead
+    // of resetting to a placeholder that autoupdate --freeze would re-resolve
+    // on every synth
+    const existingPreCommitConfigPath = path.join(this.outdir, ".pre-commit-config.yaml");
+    const existingRevs = fs.existsSync(existingPreCommitConfigPath)
+      ? readExistingRevs(fs.readFileSync(existingPreCommitConfigPath, "utf-8"))
+      : undefined;
+
+    const preCommitConfigFile = new PreCommitConfigFile(this, {
+      stack: this.stack,
+      pythonMinVersion: this.pythonMinVersion,
+      existingRevs,
+    });
+    this.newPreCommitRepoUrls = preCommitConfigFile.newRepoUrls;
 
     if (!isJavascript) {
       new TextFile(this, "biome.json", {
@@ -334,13 +351,11 @@ export class BaseProject extends GitHubProject {
       execFileSync("git", ["add", "--", ...managedFiles], { cwd: this.outdir });
     }
 
-    // default_language_version.python (from opt.python.minVersion) needs a
-    // matching interpreter on PATH, e.g. `python3.11`, or hook venv creation
-    // crashes - a crash runIgnoringFailure swallows, silently skipping every
-    // hook. Run pre-commit itself under that version (uv fetches it if
-    // missing) so it reuses its own interpreter instead of searching PATH.
-    const preCommit = (...args: string[]): string[] =>
-      this.pythonMinVersion ? ["uvx", "--python", this.pythonMinVersion, "pre-commit", ...args] : ["uvx", "pre-commit", ...args];
+    // propagate-update.yml already installs `pre-commit` (via `uv tool
+    // install pre-commit --python <opt.python.minVersion>`) under the
+    // interpreter this repo needs before synth runs, so
+    // default_language_version.python matches pre-commit's own interpreter
+    // without pinning anything here.
 
     // pins GitHub Actions refs in generated workflows to a full sha with a
     // version comment, scoped to just those files. Independent of the
@@ -359,21 +374,28 @@ export class BaseProject extends GitHubProject {
             ],
           ]
         : [];
-    // resolves placeholder `v0.0.0-<repo>` revs (see mergeRepos in
-    // pre-commit.ts) to real pinned revs first, so no hook sets up its env
-    // against a rev that was never a real ref, then seeds
-    // .pre-commit-config.yaml's additional_dependencies via sync-typing-deps
-    // before the full run below, otherwise ty/mypy fail with no deps on a
-    // fresh render since they'd run before sync-typing-deps touches the file.
-    const configTask = [preCommit("autoupdate", "--freeze"), preCommit("run", "--files", ".pre-commit-config.yaml")];
+    // resolves the placeholder `v0.0.0` rev (see mergeRepos in pre-commit.ts)
+    // on just the newly added repos first, so no hook sets up its env against
+    // a rev that was never a real ref, without also re-bumping every
+    // already-pinned hook on every synth - renovate/pre-commit-ci own that.
+    // Then seeds .pre-commit-config.yaml's additional_dependencies via
+    // sync-typing-deps before the full run below, otherwise ty/mypy fail with
+    // no deps on a fresh render since they'd run before sync-typing-deps
+    // touches the file.
+    const configTask = [
+      ...(this.newPreCommitRepoUrls.length > 0
+        ? [["pre-commit", "autoupdate", "--freeze", ...this.newPreCommitRepoUrls.flatMap((repo) => ["--repo", repo])]]
+        : []),
+      ["pre-commit", "run", "--files", ".pre-commit-config.yaml"],
+    ];
     runTasksInParallelIgnoringFailure([pinactTask, configTask], this.outdir);
 
     // first pass may still fail on files that formatters just fixed; a repo
     // that's still broken on the second pass should still get its PR opened
     // so remaining issues can be resolved as part of the base update, rather
     // than synth aborting and dropping the update entirely
-    if (!runIgnoringFailure(preCommit("run", "--all-files"), this.outdir)) {
-      runIgnoringFailure(preCommit("run", "--all-files"), this.outdir);
+    if (!runIgnoringFailure(["pre-commit", "run", "--all-files"], this.outdir)) {
+      runIgnoringFailure(["pre-commit", "run", "--all-files"], this.outdir);
     }
   }
 }

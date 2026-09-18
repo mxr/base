@@ -24,7 +24,7 @@ step() {
   echo ""
 }
 
-for cmd in git gh jq yq npm; do
+for cmd in git gh jq yq npm pre-commit; do
   command -v "$cmd" > /dev/null || { echo "missing required command: $cmd" >&2; exit 1; }
 done
 

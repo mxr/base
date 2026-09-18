@@ -12,10 +12,19 @@ jest.mock("child_process", () => ({
 
 import { BANNER } from "../src/banner";
 import { BaseProject } from "../src/base-project";
+import { buildPreCommitRepos } from "../src/pre-commit";
 import { Stack } from "../src/stack";
 
 function outdir(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), "base-projen-postsynth-"));
+}
+
+// pinact/pre-commit run as a gather-style `sh -c` script (see
+// runTasksInParallelIgnoringFailure in base-project.ts) rather than as their
+// own direct execFileSync calls, so assert against that script's contents
+function shCallScript(mock: jest.Mock): string {
+  const call = mock.mock.calls.find(([cmd]) => cmd === "sh");
+  return (call?.[1] as string[] | undefined)?.[1] ?? "";
 }
 
 describe("BaseProject.postSynthesize with a mocked git/pre-commit binary", () => {
@@ -44,7 +53,45 @@ describe("BaseProject.postSynthesize with a mocked git/pre-commit binary", () =>
     expect(fs.existsSync(path.join(dir, ".gitattributes"))).toBe(false);
     expect(fs.existsSync(path.join(dir, ".projen"))).toBe(false);
     expect(execFileSyncMock).toHaveBeenCalledWith("chmod", ["-R", "u+w", dir]);
-    expect(execFileSyncMock).toHaveBeenCalledWith("uvx", ["pre-commit", "run", "--all-files"], { cwd: dir, stdio: "inherit" });
+    expect(execFileSyncMock).toHaveBeenCalledWith("pre-commit", ["run", "--all-files"], { cwd: dir, stdio: "inherit" });
+    // no pre-existing .pre-commit-config.yaml, so every default repo counts
+    // as newly added and gets scoped into autoupdate --freeze, run via the
+    // gather-style `sh -c` script (see runTasksInParallelIgnoringFailure)
+    const defaultRepoUrls = buildPreCommitRepos([])
+      .map((r) => r.repo)
+      .filter((repo) => repo !== "local");
+    const shScript = shCallScript(execFileSyncMock);
+    expect(shScript).toContain("autoupdate");
+    for (const repo of defaultRepoUrls) {
+      expect(shScript).toContain(repo);
+    }
+  });
+
+  it("skips autoupdate when every hook already has a pinned rev", () => {
+    const dir = outdir();
+    realChildProcess.execFileSync("git", ["init", "-q"], { cwd: dir });
+
+    const existingRepoUrls = buildPreCommitRepos([])
+      .map((r) => r.repo)
+      .filter((repo) => repo !== "local");
+    fs.writeFileSync(
+      path.join(dir, ".pre-commit-config.yaml"),
+      ["repos:", ...existingRepoUrls.flatMap((repo) => [`- repo: ${repo}`, "  rev: v9.9.9", "  hooks: []"])].join("\n"),
+    );
+
+    const project = new BaseProject({ name: "test", stack: [], outdir: dir });
+
+    execFileSyncMock.mockImplementation((cmd, args) => {
+      if (cmd === "git") {
+        return realChildProcess.execFileSync(cmd, args as string[], { cwd: dir });
+      }
+      return "";
+    });
+
+    project.synth();
+
+    expect(shCallScript(execFileSyncMock)).not.toContain("autoupdate");
+    expect(fs.readFileSync(path.join(dir, ".pre-commit-config.yaml"), "utf-8")).toContain("rev: v9.9.9");
   });
 
   it("writes a /target/ gitignore for a rust stack, and runs pinact", () => {

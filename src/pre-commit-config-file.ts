@@ -1,6 +1,6 @@
 import { FileBase } from "projen";
 import { BANNER } from "./banner";
-import { buildCiSkip, renderPreCommitConfig } from "./pre-commit";
+import { buildCiSkip, newRepoUrls, renderPreCommitConfig } from "./pre-commit";
 import type { IConstruct } from "constructs";
 import type { FileBaseOptions, IResolver } from "projen";
 import type { Stack } from "./stack";
@@ -14,6 +14,14 @@ export interface PreCommitConfigFileOptions extends FileBaseOptions {
    * `Stack.PYTHON`.
    */
   readonly pythonMinVersion?: string;
+
+  /**
+   * `repo` url -> `rev` from the downstream repo's current
+   * `.pre-commit-config.yaml`, so re-synthing keeps an already-pinned hook at
+   * its existing rev instead of resetting it to a placeholder that
+   * `pre-commit autoupdate --freeze` would then re-resolve on every synth.
+   */
+  readonly existingRevs?: ReadonlyMap<string, string>;
 }
 
 /**
@@ -22,16 +30,26 @@ export interface PreCommitConfigFileOptions extends FileBaseOptions {
 export class PreCommitConfigFile extends FileBase {
   private readonly stack: Stack[];
   private readonly pythonMinVersion?: string;
+  private readonly existingRevs?: ReadonlyMap<string, string>;
+
+  /**
+   * Non-local repo urls newly added by this synth (i.e. not present in
+   * `existingRevs`), so the caller can scope `pre-commit autoupdate --freeze`
+   * to just these instead of every repo.
+   */
+  public readonly newRepoUrls: string[];
 
   constructor(scope: IConstruct, options: PreCommitConfigFileOptions) {
     super(scope, ".pre-commit-config.yaml", { ...options, marker: false });
     this.stack = options.stack;
     this.pythonMinVersion = options.pythonMinVersion;
+    this.existingRevs = options.existingRevs;
+    this.newRepoUrls = newRepoUrls(this.stack, this.existingRevs);
   }
 
   protected synthesizeContent(_resolver: IResolver): string | undefined {
     const skip = buildCiSkip(this.stack);
     const ciLines = skip.length > 0 ? [`ci:`, `  skip: [${skip.join(", ")}] # runs via GHA to avoid keeping deps in-sync here`, ""] : [];
-    return [`# ${BANNER}`, "", ...ciLines, renderPreCommitConfig(this.stack, this.pythonMinVersion)].join("\n");
+    return [`# ${BANNER}`, "", ...ciLines, renderPreCommitConfig(this.stack, this.pythonMinVersion, this.existingRevs)].join("\n");
   }
 }

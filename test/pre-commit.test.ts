@@ -1,5 +1,18 @@
-import { buildCiSkip, buildPreCommitRepos, mergeRepos, renderPreCommitConfig } from "../src/pre-commit";
+import { buildCiSkip, buildPreCommitRepos, mergeRepos, newRepoUrls, readExistingRevs, renderPreCommitConfig } from "../src/pre-commit";
 import { Stack } from "../src/stack";
+
+describe("readExistingRevs", () => {
+  it("maps repo url to rev, skipping local and revless entries", () => {
+    const revs = readExistingRevs(
+      ["repos:", "- repo: https://x", "  rev: v1.2.3", "  hooks: []", "- repo: local", "  hooks: []"].join("\n"),
+    );
+    expect(revs).toEqual(new Map([["https://x", "v1.2.3"]]));
+  });
+
+  it("returns an empty map for a config with no repos", () => {
+    expect(readExistingRevs("repos: []")).toEqual(new Map());
+  });
+});
 
 describe("mergeRepos", () => {
   it("merges hooks for the same repo", () => {
@@ -8,6 +21,16 @@ describe("mergeRepos", () => {
       { repo: "https://x", hooks: [{ id: "a" }] },
     ]);
     expect(result).toEqual([{ repo: "https://x", rev: "v0.0.0", hooks: [{ id: "a" }, { id: "b" }] }]);
+  });
+
+  it("keeps an existing rev instead of the placeholder", () => {
+    const [result] = mergeRepos([{ repo: "https://x", hooks: [{ id: "a" }] }], new Map([["https://x", "v1.2.3"]]));
+    expect(result.rev).toBe("v1.2.3");
+  });
+
+  it("falls back to the placeholder for a repo with no existing rev", () => {
+    const [result] = mergeRepos([{ repo: "https://x", hooks: [{ id: "a" }] }], new Map([["https://y", "v1.2.3"]]));
+    expect(result.rev).toBe("v0.0.0");
   });
 
   it.each([
@@ -114,6 +137,23 @@ describe("buildPreCommitRepos", () => {
   it("excludes gitignore-tidy for a javascript stack", () => {
     const repos = buildPreCommitRepos([Stack.JAVASCRIPT]);
     expect(repos.map((r) => r.repo)).not.toContain("https://github.com/lorenzwalthert/gitignore-tidy");
+  });
+});
+
+describe("newRepoUrls", () => {
+  it("lists every non-local repo when there are no existing revs", () => {
+    const urls = newRepoUrls([Stack.TOML]);
+    expect(urls).toEqual(
+      buildPreCommitRepos([Stack.TOML])
+        .filter((r) => r.repo !== "local")
+        .map((r) => r.repo),
+    );
+  });
+
+  it("excludes a repo that already has an existing rev", () => {
+    const [firstRepo] = buildPreCommitRepos([]).filter((r) => r.repo !== "local");
+    const urls = newRepoUrls([], new Map([[firstRepo.repo, "v1.2.3"]]));
+    expect(urls).not.toContain(firstRepo.repo);
   });
 });
 
