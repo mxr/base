@@ -109,7 +109,7 @@ describe("BaseProject.postSynthesize with a mocked git/pre-commit binary", () =>
     project.synth();
 
     expect(fs.readFileSync(path.join(dir, ".gitignore"), "utf-8")).toBe(`# ${BANNER}\n/target/\n`);
-    expect(shCallScript(execFileSyncMock)).toContain("'pinact' 'run' '-u' '.github/workflows/main.yml' '.github/workflows/release.yml'");
+    expect(shCallScript(execFileSyncMock)).toContain("'pinact' 'run' '-u' '-i' '^actions/checkout$'");
   });
 
   it("runs pinact for a frontend stack, and excludes Next.js build/env artifacts from .gitignore", () => {
@@ -126,7 +126,7 @@ describe("BaseProject.postSynthesize with a mocked git/pre-commit binary", () =>
 
     project.synth();
 
-    expect(shCallScript(execFileSyncMock)).toContain("'pinact' 'run' '-u' '.github/workflows/main.yml' '.github/workflows/release.yml'");
+    expect(shCallScript(execFileSyncMock)).toContain("'pinact' 'run' '-u' '-i' '^actions/checkout$'");
     const gitignore = fs.readFileSync(path.join(dir, ".gitignore"), "utf-8");
     expect(gitignore).toContain("/.next/");
     expect(gitignore).toContain(".env*");
@@ -158,7 +158,85 @@ describe("BaseProject.postSynthesize with a mocked git/pre-commit binary", () =>
 
     project.synth();
 
-    expect(shCallScript(execFileSyncMock)).toContain("'pinact' 'run' '-u' '.github/workflows/main.yml' '.github/workflows/release.yml'");
+    expect(shCallScript(execFileSyncMock)).toContain("'pinact' 'run' '-u' '-i' '^actions/checkout$'");
+  });
+
+  it("keeps existing action refs and only pins newly added actions with pinact", () => {
+    const dir = outdir();
+    realChildProcess.execFileSync("git", ["init", "-q"], { cwd: dir });
+    fs.mkdirSync(path.join(dir, ".github", "workflows"), { recursive: true });
+    const sha = "a".repeat(40);
+    fs.writeFileSync(
+      path.join(dir, ".github", "workflows", "main.yml"),
+      [`- uses: actions/checkout@${sha} # v1.2.3`, `- uses: dorny/paths-filter@${sha} # v4.5.6`].join("\n"),
+    );
+    fs.writeFileSync(path.join(dir, ".github", "workflows", "release.yml"), `- uses: actions/checkout@${sha} # v1.2.3`);
+    const project = new BaseProject({ name: "test", stack: [Stack.RUST], outdir: dir });
+
+    execFileSyncMock.mockImplementation((cmd, args) => {
+      if (cmd === "git") {
+        return realChildProcess.execFileSync(cmd, args as string[], { cwd: dir });
+      }
+      return "";
+    });
+
+    project.synth();
+
+    const main = fs.readFileSync(path.join(dir, ".github", "workflows", "main.yml"), "utf-8");
+    expect(main).toContain(`uses: actions/checkout@${sha} # v1.2.3`);
+    expect(main).toContain(`uses: dorny/paths-filter@${sha} # v4.5.6`);
+    expect(main).toContain("taiki-e/install-action@v0.0.0");
+    const script = shCallScript(execFileSyncMock);
+    expect(script).toContain("'pinact' 'run' '-u' '-i' '^taiki-e/install-action$' '.github/workflows/main.yml'");
+    expect(script).not.toContain("actions/checkout$");
+    expect(script).not.toContain("paths-filter");
+  });
+
+  it("runs pinact separately per file so an action new to one file is not re-resolved in another", () => {
+    const dir = outdir();
+    realChildProcess.execFileSync("git", ["init", "-q"], { cwd: dir });
+    fs.mkdirSync(path.join(dir, ".github", "workflows"), { recursive: true });
+    const sha = "a".repeat(40);
+    fs.writeFileSync(path.join(dir, ".github", "workflows", "main.yml"), `- uses: actions/checkout@${sha} # v1`);
+    const project = new BaseProject({ name: "test", stack: [Stack.RUST], outdir: dir });
+
+    execFileSyncMock.mockImplementation((cmd, args) => {
+      if (cmd === "git") {
+        return realChildProcess.execFileSync(cmd, args as string[], { cwd: dir });
+      }
+      return "";
+    });
+
+    project.synth();
+
+    const script = shCallScript(execFileSyncMock);
+    expect(script).toContain("'-i' '^actions/checkout$' '.github/workflows/release.yml'");
+    expect(script).not.toContain("'^actions/checkout$' '.github/workflows/main.yml'");
+    expect(script).not.toContain("'.github/workflows/main.yml' '.github/workflows/release.yml'");
+  });
+
+  it("skips pinact when every action already has an existing ref", () => {
+    const dir = outdir();
+    realChildProcess.execFileSync("git", ["init", "-q"], { cwd: dir });
+    fs.mkdirSync(path.join(dir, ".github", "workflows"), { recursive: true });
+    const sha = "a".repeat(40);
+    fs.writeFileSync(
+      path.join(dir, ".github", "workflows", "main.yml"),
+      ["actions/checkout", "dorny/paths-filter", "taiki-e/install-action"].map((a) => `- uses: ${a}@${sha} # v1`).join("\n"),
+    );
+    fs.writeFileSync(path.join(dir, ".github", "workflows", "release.yml"), `- uses: actions/checkout@${sha} # v1`);
+    const project = new BaseProject({ name: "test", stack: [Stack.RUST], outdir: dir });
+
+    execFileSyncMock.mockImplementation((cmd, args) => {
+      if (cmd === "git") {
+        return realChildProcess.execFileSync(cmd, args as string[], { cwd: dir });
+      }
+      return "";
+    });
+
+    project.synth();
+
+    expect(shCallScript(execFileSyncMock)).not.toContain("pinact");
   });
 
   it("skips pinact for a mirror stack with a custom mirror", () => {

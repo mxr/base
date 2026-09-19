@@ -8,6 +8,7 @@ import { firstCommitYear } from "./git";
 import { readExistingRevs } from "./pre-commit";
 import { PreCommitConfigFile } from "./pre-commit-config-file";
 import { Stack } from "./stack";
+import { applyExistingActionRefs, readExistingActionRefs } from "./workflow-actions";
 import type { GitHubProjectOptions } from "projen/lib/github";
 import type { ExistingRev } from "./pre-commit";
 
@@ -94,8 +95,8 @@ export class BaseProject extends GitHubProject {
   public readonly stack: Stack[];
   private readonly renovateDisable: string[];
   private readonly pythonMinVersion?: string;
-  private readonly hasPreCommitMirrorMaker: boolean;
   private readonly newPreCommitRepoUrls: string[];
+  private readonly newWorkflowActions = new Map<string, string[]>();
 
   constructor(options: BaseProjectOptions) {
     super({ ...options, githubOptions: { pullRequestLint: false, ...options.githubOptions } });
@@ -126,7 +127,6 @@ export class BaseProject extends GitHubProject {
     }
 
     this.pythonMinVersion = options.opt?.python?.minVersion;
-    this.hasPreCommitMirrorMaker = this.stack.includes(Stack.MIRROR) && !!options.opt?.mirror?.preCommitMirrorMaker;
 
     // read the downstream repo's current .pre-commit-config.yaml (still on
     // disk from the pre-synth checkout) before PreCommitConfigFile below
@@ -152,16 +152,8 @@ export class BaseProject extends GitHubProject {
     }
 
     if (this.stack.includes(Stack.RUST)) {
-      new TextFile(this, ".github/workflows/main.yml", {
-        marker: false,
-        committed: true,
-        lines: [`# ${BANNER}`, "", ...readResource("rust/main.yml").trimEnd().split("\n")],
-      });
-      new TextFile(this, ".github/workflows/release.yml", {
-        marker: false,
-        committed: true,
-        lines: [`# ${BANNER}`, "", ...readResource("rust/release.yml").trimEnd().split("\n")],
-      });
+      this.addWorkflow("main.yml", readResource("rust/main.yml").trimEnd().split("\n"));
+      this.addWorkflow("release.yml", readResource("rust/release.yml").trimEnd().split("\n"));
     }
 
     if (this.stack.includes(Stack.MIRROR)) {
@@ -179,33 +171,20 @@ export class BaseProject extends GitHubProject {
           .split("\n")
           .map((line, i) => (i === 0 ? line.trim() : `          ${line.trim()}`))
           .join("\n");
-        new TextFile(this, ".github/workflows/main.yml", {
-          marker: false,
-          committed: true,
-          lines: [
-            `# ${BANNER}`,
-            "",
-            ...readResource("mirror/main.yml")
-              .replace("'{{INSTALL}}'", () => install)
-              .replace("{{COMMAND}}", () => commandLines)
-              .trimEnd()
-              .split("\n"),
-          ],
-        });
+        this.addWorkflow(
+          "main.yml",
+          readResource("mirror/main.yml")
+            .replace("'{{INSTALL}}'", () => install)
+            .replace("{{COMMAND}}", () => commandLines)
+            .trimEnd()
+            .split("\n"),
+        );
       }
     }
 
     if (isFrontend) {
-      new TextFile(this, ".github/workflows/main.yml", {
-        marker: false,
-        committed: true,
-        lines: [`# ${BANNER}`, "", ...readResource("frontend/main.yml").trimEnd().split("\n")],
-      });
-      new TextFile(this, ".github/workflows/release.yml", {
-        marker: false,
-        committed: true,
-        lines: [`# ${BANNER}`, "", ...readResource("frontend/release.yml").trimEnd().split("\n")],
-      });
+      this.addWorkflow("main.yml", readResource("frontend/main.yml").trimEnd().split("\n"));
+      this.addWorkflow("release.yml", readResource("frontend/release.yml").trimEnd().split("\n"));
       new TextFile(this, "tsconfig.json", { lines: readResource("frontend/tsconfig.json").trimEnd().split("\n") });
       new TextFile(this, "vitest.config.mts", {
         marker: false,
@@ -281,6 +260,21 @@ export class BaseProject extends GitHubProject {
       committed: true,
       lines: [`// ${BANNER}`, ...JSON.stringify(renovateConfig, null, 2).split("\n")],
     });
+  }
+
+  /**
+   * Adds a generated `.github/workflows/<file>`. A `v0.0.0` placeholder is set for each action version.
+   * If the upstream repo has the action already then that version is used. Only versions that remaing as v0.0.0 are updated by pinact.
+   */
+  private addWorkflow(file: string, body: string[]) {
+    const workflowPath = `.github/workflows/${file}`;
+    const existingPath = path.join(this.outdir, workflowPath);
+    const existing = fs.existsSync(existingPath) ? readExistingActionRefs(fs.readFileSync(existingPath, "utf-8")) : new Map();
+    const { lines, newActions } = applyExistingActionRefs(body, existing);
+    if (newActions.length > 0) {
+      this.newWorkflowActions.set(workflowPath, newActions);
+    }
+    new TextFile(this, workflowPath, { marker: false, committed: true, lines: [`# ${BANNER}`, "", ...lines] });
   }
 
   public postSynthesize() {
@@ -359,13 +353,15 @@ export class BaseProject extends GitHubProject {
     // without pinning anything here.
 
     // pins GitHub Actions refs in generated workflows to a full sha with a
-    // version comment, scoped to just those files. Uses the `pinact` that
-    // propagate-update.yml installs for these stacks. Independent of the
-    // pre-commit config task below, runs alongside it as its own task.
-    const pinactTask: readonly (readonly string[])[] =
-      this.stack.includes(Stack.RUST) || this.stack.includes(Stack.FRONTEND) || this.hasPreCommitMirrorMaker
-        ? [["pinact", "run", "-u", ".github/workflows/main.yml", ".github/workflows/release.yml"]]
-        : [];
+    // version comment, scoped to just the files and actions
+    // newly added by this synth (see addWorkflow), so already-pinned actions
+    // aren't re-bumped on every synth - renovate owns that.
+    // one task per file, since an action can be new to one workflow but
+    // already pinned in another and must only be resolved in the former.
+    // Each touches a different file, so they run in parallel.
+    const pinactTasks: (readonly (readonly string[])[])[] = [...this.newWorkflowActions].map(([file, actions]) => [
+      ["pinact", "run", "-u", ...actions.flatMap((action) => ["-i", `^${escapeRegExp(action)}$`]), file],
+    ]);
     // resolves the placeholder `v0.0.0` rev (see mergeRepos in pre-commit.ts)
     // on just the newly added repos first, so no hook sets up its env against
     // a rev that was never a real ref, without also re-bumping every
@@ -380,7 +376,7 @@ export class BaseProject extends GitHubProject {
         : []),
       ["pre-commit", "run", "--files", ".pre-commit-config.yaml"],
     ];
-    runTasksInParallelIgnoringFailure([pinactTask, configTask], this.outdir);
+    runTasksInParallelIgnoringFailure([...pinactTasks, configTask], this.outdir);
 
     // first pass may still fail on files that formatters just fixed; a repo
     // that's still broken on the second pass should still get its PR opened
@@ -390,6 +386,10 @@ export class BaseProject extends GitHubProject {
       runIgnoringFailure(["pre-commit", "run", "--all-files"], this.outdir);
     }
   }
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function isGitRepo(outdir: string): boolean {
