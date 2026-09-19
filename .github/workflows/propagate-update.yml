@@ -46,8 +46,6 @@ jobs:
         NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   list:
-    needs: publish
-    if: always() && (github.event_name != 'push' || needs.publish.result == 'success')
     runs-on: ubuntu-24.04
     outputs:
       repos: ${{ steps.list.outputs.repos }}
@@ -66,17 +64,18 @@ jobs:
         GH_TOKEN: ${{ steps.app-token.outputs.token }}
       run: |
         set -euo pipefail
-        matched='[]'
-        for repo in $(gh api /installation/repositories --paginate --jq '.repositories[].name'); do
-          if gh api "repos/mxr/$repo/contents/.github/base.yml" > /dev/null 2>&1; then
-            matched="$(jq -c --arg r "$repo" '. + [$r]' <<< "$matched")"
+        has_base_yml() {
+          if gh api "repos/mxr/$1/contents/.github/base.yml" > /dev/null 2>&1; then
+            echo "$1"
           fi
-        done
+        }
+        export -f has_base_yml
+        matched="$(gh api /installation/repositories --paginate --jq '.repositories[].name' | xargs -P 8 -I{} bash -c 'has_base_yml {}' | sort | jq -R . | jq -sc .)"
         echo "repos=$matched" >> "$GITHUB_OUTPUT"
 
   propagate:
-    needs: list
-    if: always() && needs.list.result == 'success'
+    needs: [list, publish]
+    if: always() && needs.list.result == 'success' && (github.event_name != 'push' || needs.publish.result == 'success')
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -106,57 +105,53 @@ jobs:
         permission-pull-requests: write
         permission-workflows: write
 
-    - name: read python version
-      id: python-version
+    # fetches base.yml once, then installs pinact and pre-commit concurrently
+    - name: install tools
       env:
-        GH_TOKEN: ${{ steps.app-token.outputs.token }}
-        REPO: mxr/${{ matrix.repo }}
-      run: |
-        set -euo pipefail
-        version="$(gh api "repos/${REPO}/contents/.github/base.yml" --jq '.content' | base64 -d | yq '.opt.python.min-version // ""' -)"
-        echo "version=$version" >> "$GITHUB_OUTPUT"
-
-    # mirrors BaseProject's own condition for running pinact: Stack.RUST,
-    # Stack.FRONTEND, or Stack.MIRROR with opt.mirror.preCommitMirrorMaker set
-    - name: check if pinact needed
-      id: pinact
-      env:
-        GH_TOKEN: ${{ steps.app-token.outputs.token }}
-        REPO: mxr/${{ matrix.repo }}
-      run: |
-        set -euo pipefail
-        needed="$(gh api "repos/${REPO}/contents/.github/base.yml" --jq '.content' | base64 -d | yq '((.stack // []) | (contains(["rust"]) or contains(["frontend"]))) or (((.stack // []) | contains(["mirror"])) and (.opt.mirror.pre-commit-mirror-maker != null))' -)"
-        echo "needed=$needed" >> "$GITHUB_OUTPUT"
-
-    - name: install pinact
-      if: steps.pinact.outputs.needed == 'true'
-      env:
+        APP_TOKEN: ${{ steps.app-token.outputs.token }}
         GH_TOKEN: ${{ github.token }}
+        REPO: mxr/${{ matrix.repo }}
       run: |
         set -euo pipefail
-        dir="$RUNNER_TEMP/pinact"
-        mkdir -p "$dir"
-        gh release download --repo suzuki-shunsuke/pinact --pattern 'pinact_linux_amd64.tar.gz' --dir "$dir"
-        gh attestation verify "$dir/pinact_linux_amd64.tar.gz" --repo suzuki-shunsuke/pinact --signer-workflow suzuki-shunsuke/go-release-workflow/.github/workflows/release.yaml
-        tar -xzf "$dir/pinact_linux_amd64.tar.gz" -C "$dir" pinact
-        echo "$dir" >> "$GITHUB_PATH"
+        base_yml="$(GH_TOKEN="$APP_TOKEN" gh api "repos/${REPO}/contents/.github/base.yml" --jq '.content' | base64 -d)"
+        python_version="$(yq '.opt.python.min-version // ""' - <<< "$base_yml")"
+        # mirrors BaseProject's own condition for running pinact: Stack.RUST,
+        # Stack.FRONTEND, or Stack.MIRROR with opt.mirror.preCommitMirrorMaker set
+        needs_pinact="$(yq '((.stack // []) | (contains(["rust"]) or contains(["frontend"]))) or (((.stack // []) | contains(["mirror"])) and (.opt.mirror.pre-commit-mirror-maker != null))' - <<< "$base_yml")"
 
-    # BaseProject.postSynthesize() (run by propagate-repo.sh below) shells out
-    # to a plain `pre-commit`; install it here, pinned to this repo's own
-    # opt.python.minVersion (uv fetches that interpreter if missing) so
-    # default_language_version.python matches pre-commit's own interpreter
-    # instead of pre-commit having to search PATH for it.
-    - name: install pre-commit
-      env:
-        PYTHON_VERSION: ${{ steps.python-version.outputs.version }}
-      run: |
-        set -euo pipefail
-        if [ -n "$PYTHON_VERSION" ]; then
-          uv tool install pre-commit --python "$PYTHON_VERSION"
-        else
-          uv tool install pre-commit
+        install_pinact() {
+          dir="$RUNNER_TEMP/pinact"
+          mkdir -p "$dir"
+          gh release download --repo suzuki-shunsuke/pinact --pattern 'pinact_linux_amd64.tar.gz' --dir "$dir"
+          gh attestation verify "$dir/pinact_linux_amd64.tar.gz" --repo suzuki-shunsuke/pinact --signer-workflow suzuki-shunsuke/go-release-workflow/.github/workflows/release.yaml
+          tar -xzf "$dir/pinact_linux_amd64.tar.gz" -C "$dir" pinact
+          echo "$dir" >> "$GITHUB_PATH"
+        }
+
+        # BaseProject.postSynthesize() (run by propagate-repo.sh below) shells out
+        # to a plain `pre-commit`; pin it to this repo's own opt.python.minVersion
+        # (uv fetches that interpreter if missing) so default_language_version.python
+        # matches pre-commit's own interpreter instead of pre-commit having to
+        # search PATH for it
+        install_pre_commit() {
+          if [ -n "$python_version" ]; then
+            uv tool install pre-commit --python "$python_version"
+          else
+            uv tool install pre-commit
+          fi
+          uv tool dir --bin >> "$GITHUB_PATH"
+        }
+
+        pids=()
+        install_pre_commit & pids+=($!)
+        if [ "$needs_pinact" = "true" ]; then
+          install_pinact & pids+=($!)
         fi
-        uv tool dir --bin >> "$GITHUB_PATH"
+        status=0
+        for pid in "${pids[@]}"; do
+          wait "$pid" || status=1
+        done
+        exit "$status"
 
     - name: update downstream repo
       env:
