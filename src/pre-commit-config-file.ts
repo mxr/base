@@ -21,7 +21,7 @@ export interface PreCommitConfigFileOptions extends FileBaseOptions {
    * its existing rev instead of resetting it to a placeholder that
    * `pre-commit autoupdate --freeze` would then re-resolve on every synth.
    */
-  readonly existingRevs?: ReadonlyMap<string, string>;
+  readonly existingRevs?: Record<string, string>;
 }
 
 /**
@@ -43,7 +43,7 @@ export class PreCommitConfigFile extends FileBase {
     super(scope, ".pre-commit-config.yaml", { ...options, marker: false });
     this.stack = options.stack;
     this.pythonMinVersion = options.pythonMinVersion;
-    this.existingRevs = options.existingRevs;
+    this.existingRevs = options.existingRevs && new Map(Object.entries(options.existingRevs));
     this.newRepoUrls = newRepoUrls(this.stack, this.existingRevs);
   }
 

@@ -140,7 +140,7 @@ export class BaseProject extends GitHubProject {
     const preCommitConfigFile = new PreCommitConfigFile(this, {
       stack: this.stack,
       pythonMinVersion: this.pythonMinVersion,
-      existingRevs,
+      existingRevs: existingRevs && Object.fromEntries(existingRevs),
     });
     this.newPreCommitRepoUrls = preCommitConfigFile.newRepoUrls;
 
