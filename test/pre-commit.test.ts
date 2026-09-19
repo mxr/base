@@ -23,7 +23,7 @@ describe("renderPreCommitConfig", () => {
   it("re-emits the frozen comment for an already-pinned hook", () => {
     const [firstRepo] = buildPreCommitRepos([]);
     const rendered = renderPreCommitConfig([], undefined, new Map([[firstRepo.repo, { rev: "abc123", comment: "frozen: v1.2.3" }]]));
-    expect(rendered).toMatch(/rev: abc123\s+# frozen: v1\.2\.3/);
+    expect(rendered).toContain("rev: abc123  # frozen: v1.2.3\n");
   });
 });
 

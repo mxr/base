@@ -356,5 +356,8 @@ export function renderPreCommitConfig(stack: Stack[], pythonMinVersion?: string,
     },
   });
 
-  return doc.toString({ indentSeq: false, lineWidth: 0, flowCollectionPadding: false });
+  // yaml emits one space before an inline comment, but `pre-commit autoupdate
+  // --freeze` writes two (`rev: <sha>  # frozen: <ref>`) and no formatter
+  // hook normalizes it, so match freeze's own spacing
+  return doc.toString({ indentSeq: false, lineWidth: 0, flowCollectionPadding: false }).replace(/^(\s*rev: \S+) # /gm, "$1  # ");
 }
