@@ -9,6 +9,7 @@ import { readExistingRevs } from "./pre-commit";
 import { PreCommitConfigFile } from "./pre-commit-config-file";
 import { Stack } from "./stack";
 import type { GitHubProjectOptions } from "projen/lib/github";
+import type { ExistingRev } from "./pre-commit";
 
 function readResource(name: string): string {
   return fs.readFileSync(path.join(__dirname, "resources", name), "utf-8");
@@ -135,12 +136,12 @@ export class BaseProject extends GitHubProject {
     const existingPreCommitConfigPath = path.join(this.outdir, ".pre-commit-config.yaml");
     const existingRevs = fs.existsSync(existingPreCommitConfigPath)
       ? readExistingRevs(fs.readFileSync(existingPreCommitConfigPath, "utf-8"))
-      : undefined;
+      : new Map<string, ExistingRev>();
 
     const preCommitConfigFile = new PreCommitConfigFile(this, {
       stack: this.stack,
       pythonMinVersion: this.pythonMinVersion,
-      existingRevs: existingRevs && Object.fromEntries(existingRevs),
+      existingRevs: Object.fromEntries(existingRevs),
     });
     this.newPreCommitRepoUrls = preCommitConfigFile.newRepoUrls;
 

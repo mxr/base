@@ -1,4 +1,4 @@
-import { Document, isScalar, parse, Scalar, visit } from "yaml";
+import { Document, isMap, isScalar, isSeq, parseDocument, Scalar, visit } from "yaml";
 import { Stack } from "./stack";
 
 const INLINE_LIST_MAX_WIDTH = 60;
@@ -196,17 +196,35 @@ export function buildCiSkip(stack: Stack[]): string[] {
 }
 
 /**
+ * A hook's pinned `rev` from an existing `.pre-commit-config.yaml`, plus its
+ * inline comment (e.g. `frozen: v2.5.14` from `pre-commit autoupdate --freeze`)
+ * so re-synthing doesn't drop it.
+ */
+export interface ExistingRev {
+  readonly rev: string;
+  readonly comment?: string;
+}
+
+/**
  * Parses a downstream repo's current `.pre-commit-config.yaml` (if any) into
  * a `repo` url -> `rev` map, so a re-synth can keep an already-pinned hook at
  * its existing rev instead of resetting it to the `v0.0.0` placeholder that
  * `pre-commit autoupdate --freeze` would then re-resolve on every synth.
  */
-export function readExistingRevs(configYaml: string): Map<string, string> {
-  const parsed = parse(configYaml) as { repos?: { repo: string; rev?: string }[] } | undefined;
-  const revs = new Map<string, string>();
-  for (const repo of parsed?.repos ?? []) {
-    if (repo.rev) {
-      revs.set(repo.repo, repo.rev);
+export function readExistingRevs(configYaml: string): Map<string, ExistingRev> {
+  const revs = new Map<string, ExistingRev>();
+  const repos = parseDocument(configYaml).get("repos");
+  if (!isSeq(repos)) {
+    return revs;
+  }
+  for (const item of repos.items) {
+    if (!isMap(item)) {
+      continue;
+    }
+    const repo = item.get("repo");
+    const rev = item.get("rev", true);
+    if (typeof repo === "string" && isScalar(rev) && rev.value) {
+      revs.set(repo, { rev: String(rev.value), comment: rev.comment?.trim() });
     }
   }
   return revs;
@@ -228,7 +246,7 @@ export function readExistingRevs(configYaml: string): Map<string, string> {
  * which is wrong if there's ever more than one distinct local repo entry.
  * Fine for now since we only ever have a single local entry (biome-schema-version).
  */
-export function mergeRepos(entries: PreCommitRepo[], existingRevs?: ReadonlyMap<string, string>): PreCommitRepo[] {
+export function mergeRepos(entries: PreCommitRepo[], existingRevs?: ReadonlyMap<string, ExistingRev>): PreCommitRepo[] {
   const hooksByRepo = new Map<string, PreCommitHook[]>();
   for (const entry of entries) {
     const hooks = hooksByRepo.get(entry.repo) ?? [];
@@ -240,7 +258,7 @@ export function mergeRepos(entries: PreCommitRepo[], existingRevs?: ReadonlyMap<
   for (const [repo, hooks] of hooksByRepo) {
     repos.push({
       repo,
-      ...(repo === "local" ? {} : { rev: existingRevs?.get(repo) ?? "v0.0.0" }),
+      ...(repo === "local" ? {} : { rev: existingRevs?.get(repo)?.rev ?? "v0.0.0" }),
       hooks: [...hooks].sort((a, b) => a.id.localeCompare(b.id)),
     });
   }
@@ -257,7 +275,7 @@ export function mergeRepos(entries: PreCommitRepo[], existingRevs?: ReadonlyMap<
  * Builds the merged, sorted `.pre-commit-config.yaml` `repos` list for the
  * given stacks.
  */
-export function buildPreCommitRepos(stack: Stack[], existingRevs?: ReadonlyMap<string, string>): PreCommitRepo[] {
+export function buildPreCommitRepos(stack: Stack[], existingRevs?: ReadonlyMap<string, ExistingRev>): PreCommitRepo[] {
   // every Stack member has an entry in STACK_REPOS today; the fallback just
   // guards against a future stack being added to one without the other
   const entries = [...DEFAULT, ...expandStacks(stack).flatMap((name) => STACK_REPOS[name] ?? /* v8 ignore next */ [])];
@@ -281,7 +299,7 @@ export function buildPreCommitRepos(stack: Stack[], existingRevs?: ReadonlyMap<s
  * current `.pre-commit-config.yaml` yet. Scopes `pre-commit autoupdate
  * --freeze` (via `--repo`) to just these, leaving already-pinned hooks alone.
  */
-export function newRepoUrls(stack: Stack[], existingRevs?: ReadonlyMap<string, string>): string[] {
+export function newRepoUrls(stack: Stack[], existingRevs?: ReadonlyMap<string, ExistingRev>): string[] {
   return buildPreCommitRepos(stack, existingRevs)
     .filter((repo) => repo.repo !== "local" && (repo as { rev?: string }).rev === "v0.0.0")
     .map((repo) => repo.repo);
@@ -308,7 +326,7 @@ function toSnakeCaseKeys(value: unknown): unknown {
  * `default_language_version.python`, so individual Python hooks (mypy, ty,
  * etc.) don't need their own per-hook `language_version`.
  */
-export function renderPreCommitConfig(stack: Stack[], pythonMinVersion?: string, existingRevs?: ReadonlyMap<string, string>): string {
+export function renderPreCommitConfig(stack: Stack[], pythonMinVersion?: string, existingRevs?: ReadonlyMap<string, ExistingRev>): string {
   const repos = toSnakeCaseKeys(buildPreCommitRepos(stack, existingRevs));
   const doc = new Document({
     ...(pythonMinVersion ? { default_language_version: { python: `python${pythonMinVersion}` } } : {}),
@@ -316,6 +334,14 @@ export function renderPreCommitConfig(stack: Stack[], pythonMinVersion?: string,
   });
 
   visit(doc, {
+    Map(_, node) {
+      const repo = node.get("repo");
+      const rev = node.get("rev", true);
+      const comment = typeof repo === "string" ? existingRevs?.get(repo)?.comment : undefined;
+      if (comment && isScalar(rev)) {
+        rev.comment = ` ${comment}`;
+      }
+    },
     Seq(_, node) {
       const values = node.items.map((item) => (isScalar(item) ? item.value : item));
       const isScalarList = values.every((value) => ["string", "number", "boolean"].includes(typeof value));

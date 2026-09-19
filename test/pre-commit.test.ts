@@ -6,11 +6,24 @@ describe("readExistingRevs", () => {
     const revs = readExistingRevs(
       ["repos:", "- repo: https://x", "  rev: v1.2.3", "  hooks: []", "- repo: local", "  hooks: []"].join("\n"),
     );
-    expect(revs).toEqual(new Map([["https://x", "v1.2.3"]]));
+    expect(revs).toEqual(new Map([["https://x", { rev: "v1.2.3", comment: undefined }]]));
+  });
+
+  it("keeps the inline frozen comment", () => {
+    const revs = readExistingRevs(["repos:", "- repo: https://x", "  rev: abc123  # frozen: v1.2.3", "  hooks: []"].join("\n"));
+    expect(revs).toEqual(new Map([["https://x", { rev: "abc123", comment: "frozen: v1.2.3" }]]));
   });
 
   it("returns an empty map for a config with no repos", () => {
     expect(readExistingRevs("repos: []")).toEqual(new Map());
+  });
+});
+
+describe("renderPreCommitConfig", () => {
+  it("re-emits the frozen comment for an already-pinned hook", () => {
+    const [firstRepo] = buildPreCommitRepos([]);
+    const rendered = renderPreCommitConfig([], undefined, new Map([[firstRepo.repo, { rev: "abc123", comment: "frozen: v1.2.3" }]]));
+    expect(rendered).toMatch(/rev: abc123\s+# frozen: v1\.2\.3/);
   });
 });
 
@@ -24,12 +37,12 @@ describe("mergeRepos", () => {
   });
 
   it("keeps an existing rev instead of the placeholder", () => {
-    const [result] = mergeRepos([{ repo: "https://x", hooks: [{ id: "a" }] }], new Map([["https://x", "v1.2.3"]]));
+    const [result] = mergeRepos([{ repo: "https://x", hooks: [{ id: "a" }] }], new Map([["https://x", { rev: "v1.2.3" }]]));
     expect(result.rev).toBe("v1.2.3");
   });
 
   it("falls back to the placeholder for a repo with no existing rev", () => {
-    const [result] = mergeRepos([{ repo: "https://x", hooks: [{ id: "a" }] }], new Map([["https://y", "v1.2.3"]]));
+    const [result] = mergeRepos([{ repo: "https://x", hooks: [{ id: "a" }] }], new Map([["https://y", { rev: "v1.2.3" }]]));
     expect(result.rev).toBe("v0.0.0");
   });
 
@@ -152,7 +165,7 @@ describe("newRepoUrls", () => {
 
   it("excludes a repo that already has an existing rev", () => {
     const [firstRepo] = buildPreCommitRepos([]).filter((r) => r.repo !== "local");
-    const urls = newRepoUrls([], new Map([[firstRepo.repo, "v1.2.3"]]));
+    const urls = newRepoUrls([], new Map([[firstRepo.repo, { rev: "v1.2.3" }]]));
     expect(urls).not.toContain(firstRepo.repo);
   });
 });

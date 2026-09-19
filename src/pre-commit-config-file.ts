@@ -3,6 +3,7 @@ import { BANNER } from "./banner";
 import { buildCiSkip, newRepoUrls, renderPreCommitConfig } from "./pre-commit";
 import type { IConstruct } from "constructs";
 import type { FileBaseOptions, IResolver } from "projen";
+import type { ExistingRev } from "./pre-commit";
 import type { Stack } from "./stack";
 
 export interface PreCommitConfigFileOptions extends FileBaseOptions {
@@ -16,12 +17,12 @@ export interface PreCommitConfigFileOptions extends FileBaseOptions {
   readonly pythonMinVersion?: string;
 
   /**
-   * `repo` url -> `rev` from the downstream repo's current
+   * `repo` url -> `rev` (and its inline comment) from the downstream repo's current
    * `.pre-commit-config.yaml`, so re-synthing keeps an already-pinned hook at
    * its existing rev instead of resetting it to a placeholder that
    * `pre-commit autoupdate --freeze` would then re-resolve on every synth.
    */
-  readonly existingRevs?: Record<string, string>;
+  readonly existingRevs?: Record<string, ExistingRev>;
 }
 
 /**
@@ -30,7 +31,7 @@ export interface PreCommitConfigFileOptions extends FileBaseOptions {
 export class PreCommitConfigFile extends FileBase {
   private readonly stack: Stack[];
   private readonly pythonMinVersion?: string;
-  private readonly existingRevs?: ReadonlyMap<string, string>;
+  private readonly existingRevs: ReadonlyMap<string, ExistingRev>;
 
   /**
    * Non-local repo urls newly added by this synth (i.e. not present in
@@ -43,7 +44,7 @@ export class PreCommitConfigFile extends FileBase {
     super(scope, ".pre-commit-config.yaml", { ...options, marker: false });
     this.stack = options.stack;
     this.pythonMinVersion = options.pythonMinVersion;
-    this.existingRevs = options.existingRevs && new Map(Object.entries(options.existingRevs));
+    this.existingRevs = new Map(Object.entries(options.existingRevs ?? {}));
     this.newRepoUrls = newRepoUrls(this.stack, this.existingRevs);
   }
 
