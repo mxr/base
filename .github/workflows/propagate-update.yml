@@ -116,6 +116,31 @@ jobs:
         version="$(gh api "repos/${REPO}/contents/.github/base.yml" --jq '.content' | base64 -d | yq '.opt.python.min-version // ""' -)"
         echo "version=$version" >> "$GITHUB_OUTPUT"
 
+    # mirrors BaseProject's own condition for running pinact: Stack.RUST,
+    # Stack.FRONTEND, or Stack.MIRROR with opt.mirror.preCommitMirrorMaker set
+    - name: check if pinact needed
+      id: pinact
+      env:
+        GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        REPO: mxr/${{ matrix.repo }}
+      run: |
+        set -euo pipefail
+        needed="$(gh api "repos/${REPO}/contents/.github/base.yml" --jq '.content' | base64 -d | yq '((.stack // []) | (contains(["rust"]) or contains(["frontend"]))) or (((.stack // []) | contains(["mirror"])) and (.opt.mirror.pre-commit-mirror-maker != null))' -)"
+        echo "needed=$needed" >> "$GITHUB_OUTPUT"
+
+    - name: install pinact
+      if: steps.pinact.outputs.needed == 'true'
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        set -euo pipefail
+        dir="$RUNNER_TEMP/pinact"
+        mkdir -p "$dir"
+        gh release download --repo suzuki-shunsuke/pinact --pattern 'pinact_linux_amd64.tar.gz' --dir "$dir"
+        gh attestation verify "$dir/pinact_linux_amd64.tar.gz" --repo suzuki-shunsuke/pinact --signer-workflow suzuki-shunsuke/go-release-workflow/.github/workflows/release.yaml
+        tar -xzf "$dir/pinact_linux_amd64.tar.gz" -C "$dir" pinact
+        echo "$dir" >> "$GITHUB_PATH"
+
     # BaseProject.postSynthesize() (run by propagate-repo.sh below) shells out
     # to a plain `pre-commit`; install it here, pinned to this repo's own
     # opt.python.minVersion (uv fetches that interpreter if missing) so

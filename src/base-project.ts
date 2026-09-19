@@ -358,21 +358,12 @@ export class BaseProject extends GitHubProject {
     // without pinning anything here.
 
     // pins GitHub Actions refs in generated workflows to a full sha with a
-    // version comment, scoped to just those files. Independent of the
+    // version comment, scoped to just those files. Uses the `pinact` that
+    // propagate-update.yml installs for these stacks. Independent of the
     // pre-commit config task below, runs alongside it as its own task.
     const pinactTask: readonly (readonly string[])[] =
       this.stack.includes(Stack.RUST) || this.stack.includes(Stack.FRONTEND) || this.hasPreCommitMirrorMaker
-        ? [
-            [
-              "go",
-              "run",
-              "github.com/suzuki-shunsuke/pinact/v4/cmd/pinact@latest",
-              "run",
-              "-u",
-              ".github/workflows/main.yml",
-              ".github/workflows/release.yml",
-            ],
-          ]
+        ? [["pinact", "run", "-u", ".github/workflows/main.yml", ".github/workflows/release.yml"]]
         : [];
     // resolves the placeholder `v0.0.0` rev (see mergeRepos in pre-commit.ts)
     // on just the newly added repos first, so no hook sets up its env against
