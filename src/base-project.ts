@@ -291,20 +291,14 @@ export class BaseProject extends GitHubProject {
     // since it's all about to be regenerated on the next synth anyway
     execFileSync("chmod", ["-R", "u+w", this.outdir]);
 
-    // BaseProject only manages a handful of files; strip projen's own
-    // default scaffolding that it insists on creating regardless of options,
-    // since downstream repos aren't full projen-managed projects
+    // remove projen files that i don't use
     fs.rmSync(path.join(this.outdir, ".gitattributes"), { force: true });
     fs.rmSync(path.join(this.outdir, ".projen"), { recursive: true, force: true });
+
     const gitignorePath = path.join(this.outdir, ".gitignore");
     if (this.stack.includes(Stack.RUST)) {
       fs.rmSync(gitignorePath, { force: true });
       fs.writeFileSync(gitignorePath, `# ${BANNER}\n/target/\n`);
-    } else if (this.stack.includes(Stack.JAVASCRIPT)) {
-      // a javascript-stack repo (e.g. a Tampermonkey script) has nothing
-      // Next.js-specific to ignore, so don't manage a .gitignore at all
-      // rather than shipping projen's generic default
-      fs.rmSync(gitignorePath, { force: true });
     } else if (this.stack.includes(Stack.FRONTEND)) {
       fs.chmodSync(gitignorePath, 0o644);
       fs.appendFileSync(
@@ -324,8 +318,7 @@ export class BaseProject extends GitHubProject {
         ].join("\n"),
       );
     } else {
-      // no stack here needs anything ignored (e.g. a shell-only repo), so
-      // don't ship projen's generic default .gitignore either
+      // most repos dont have a prescriptive .gitignore
       fs.rmSync(gitignorePath, { force: true });
     }
     const readmePath = path.join(this.outdir, "README.md");
