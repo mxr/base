@@ -104,16 +104,11 @@ export class BaseProject extends GitHubProject {
     this.stack = options.stack;
     const isFrontend = this.stack.includes(Stack.FRONTEND);
     const isJavascript = this.stack.includes(Stack.JAVASCRIPT);
-    // @vercel/fun (used by the Vercel deploy workflow) transitively pins a
-    // deprecated `tar` that npm's own override can't safely be auto-bumped
-    // past, so disable it in Renovate for every Next.js repo
+    // @vercel/fun transitively pins a deprecated `tar` that can't be safely auto-bumped
     this.renovateDisable = isFrontend ? ["tar"] : [];
 
-    // FileBase's own marker wording is fixed and points at a .projenrc.js
-    // that doesn't exist in downstream repos (see banner.ts); .gitignore is
-    // projen's own built-in component with no option to swap that wording via
-    // its constructor, so shadow the inherited `marker` getter on this
-    // instance to ship the custom banner instead
+    // projen's default marker points at a .projenrc.js downstream repos don't have (see
+    // banner.ts), and .gitignore has no option to override it, so shadow the getter
     Object.defineProperty(this.gitignore, "marker", { configurable: true, get: () => BANNER });
 
     new License(this, {
@@ -128,11 +123,7 @@ export class BaseProject extends GitHubProject {
 
     this.pythonMinVersion = options.opt?.python?.minVersion;
 
-    // read the downstream repo's current .pre-commit-config.yaml (still on
-    // disk from the pre-synth checkout) before PreCommitConfigFile below
-    // overwrites it, so an already-pinned hook keeps its existing rev instead
-    // of resetting to a placeholder that autoupdate --freeze would re-resolve
-    // on every synth
+    // read before PreCommitConfigFile overwrites it, so already-pinned hooks keep their rev
     const existingPreCommitConfigPath = path.join(this.outdir, ".pre-commit-config.yaml");
     const existingRevs = fs.existsSync(existingPreCommitConfigPath)
       ? readExistingRevs(fs.readFileSync(existingPreCommitConfigPath, "utf-8"))
@@ -202,11 +193,8 @@ export class BaseProject extends GitHubProject {
     }
 
     if (this.github) {
-      // projen's own Mergify component hardcodes its output to root
-      // `.mergify.yml`; write the same shape it would to `.github/mergify.yml`
-      // instead, since that's the path this repo's downstream consumers expect.
-      // Pre-commit ci won't automerge on its own (see
-      // https://github.com/pre-commit-ci/issues/issues/48), hence that rule.
+      // projen's Mergify component only writes root `.mergify.yml`, so write `.github/mergify.yml` directly.
+      // pre-commit ci won't automerge on its own: https://github.com/pre-commit-ci/issues/issues/48
       new TextFile(this, ".github/mergify.yml", {
         marker: false,
         committed: true,
@@ -263,8 +251,8 @@ export class BaseProject extends GitHubProject {
   }
 
   /**
-   * Adds a generated `.github/workflows/<file>`. A `v0.0.0` placeholder is set for each action version.
-   * If the upstream repo has the action already then that version is used. Only versions that remaing as v0.0.0 are updated by pinact.
+   * Adds a generated `.github/workflows/<file>`. Action versions default to a `v0.0.0` placeholder,
+   * unless the existing workflow already pins that action. Only placeholders are resolved by pinact.
    */
   private addWorkflow(file: string, body: string[]) {
     const workflowPath = `.github/workflows/${file}`;
@@ -284,11 +272,7 @@ export class BaseProject extends GitHubProject {
       return;
     }
 
-    // projen marks most generated files readonly to discourage hand-edits
-    // between synths, but some pre-commit hooks (e.g. end-of-file-fixer)
-    // unconditionally open every file for writing even when no fix is
-    // needed, so they'd hard-fail on any readonly file; unlock everything
-    // since it's all about to be regenerated on the next synth anyway
+    // some hooks (e.g. end-of-file-fixer) open every file for writing and fail on projen's readonly ones
     execFileSync("chmod", ["-R", "u+w", this.outdir]);
 
     // remove projen files that i don't use
@@ -322,43 +306,20 @@ export class BaseProject extends GitHubProject {
       fs.rmSync(gitignorePath, { force: true });
     }
 
-    // `pre-commit run --all-files` only considers files `git ls-files` knows
-    // about, so a freshly generated or renamed file (e.g. this synth renaming
-    // renovate.json to renovate.jsonc) would silently skip every hook below
-    // until propagate-repo.sh's own `git add -A` runs after synth is done.
-    // Add just the files this project actually manages rather than `-A`:
-    // propagate-repo.sh's scaffolding (package.json, node_modules, etc.) is
-    // still sitting in outdir at this point and .gitignore was just deleted
-    // above, so a blanket `-A` would stage all of it.
+    // `pre-commit run --all-files` skips untracked files, so stage new/renamed managed files.
+    // Not `-A`: propagate-repo.sh's scaffolding (package.json, node_modules, etc.) is still in outdir.
     const managedFiles = this.files.map((file) => file.path).filter((file) => fs.existsSync(path.join(this.outdir, file)));
     if (managedFiles.length > 0) {
       execFileSync("git", ["add", "--", ...managedFiles], { cwd: this.outdir });
     }
 
-    // propagate-update.yml already installs `pre-commit` (via `uv tool
-    // install pre-commit --python <opt.python.minVersion>`) under the
-    // interpreter this repo needs before synth runs, so
-    // default_language_version.python matches pre-commit's own interpreter
-    // without pinning anything here.
-
-    // pins GitHub Actions refs in generated workflows to a full sha with a
-    // version comment, scoped to just the files and actions
-    // newly added by this synth (see addWorkflow), so already-pinned actions
-    // aren't re-bumped on every synth - renovate owns that.
-    // one task per file, since an action can be new to one workflow but
-    // already pinned in another and must only be resolved in the former.
-    // Each touches a different file, so they run in parallel.
+    // pin only actions newly added by this synth (see addWorkflow); renovate owns bumps.
+    // One task per file, since an action can be new to one workflow but already pinned in another.
     const pinactTasks: (readonly (readonly string[])[])[] = [...this.newWorkflowActions].map(([file, actions]) => [
       ["pinact", "run", "-u", ...actions.flatMap((action) => ["-i", `^${escapeRegExp(action)}$`]), file],
     ]);
-    // resolves the placeholder `v0.0.0` rev (see mergeRepos in pre-commit.ts)
-    // on just the newly added repos first, so no hook sets up its env against
-    // a rev that was never a real ref, without also re-bumping every
-    // already-pinned hook on every synth - renovate/pre-commit-ci own that.
-    // Then seeds .pre-commit-config.yaml's additional_dependencies via
-    // sync-typing-deps before the full run below, otherwise ty/mypy fail with
-    // no deps on a fresh render since they'd run before sync-typing-deps
-    // touches the file.
+    // resolve placeholder `v0.0.0` revs (see mergeRepos in pre-commit.ts) on new repos only.
+    // Then finish generating .pre-commit-config.yaml, for example sync-typing-deps will seed additional_dependencies.
     const configTask = [
       ...(this.newPreCommitRepoUrls.length > 0
         ? [["pre-commit", "autoupdate", "--freeze", ...this.newPreCommitRepoUrls.flatMap((repo) => ["--repo", repo])]]
@@ -367,10 +328,7 @@ export class BaseProject extends GitHubProject {
     ];
     runTasksInParallelIgnoringFailure([...pinactTasks, configTask], this.outdir);
 
-    // first pass may still fail on files that formatters just fixed; a repo
-    // that's still broken on the second pass should still get its PR opened
-    // so remaining issues can be resolved as part of the base update, rather
-    // than synth aborting and dropping the update entirely
+    // first pass may fail from formatter fixes; still open the PR if the second fails
     if (!runIgnoringFailure(["pre-commit", "run", "--all-files"], this.outdir)) {
       runIgnoringFailure(["pre-commit", "run", "--all-files"], this.outdir);
     }
@@ -395,8 +353,7 @@ function runIgnoringFailure(command: readonly string[], cwd: string): boolean {
     execFileSync(command[0], command.slice(1), { cwd, stdio: "inherit" });
     return true;
   } catch {
-    // best-effort: formatters commonly exit non-zero on the run that fixes
-    // the file, so this step's failure is expected rather than fatal
+    // formatters exit non-zero on the run that fixes files
     return false;
   }
 }
@@ -405,11 +362,8 @@ function shQuote(arg: string): string {
   return `'${arg.replace(/'/g, `'\\''`)}'`;
 }
 
-// runs each `task` (its steps executed in order) as its own background job,
-// like `asyncio.gather`'d futures, then waits for all of them - all inside a
-// single `sh -c` invocation so this stays a synchronous call, matching
-// postSynthesize()'s (unawaited) signature. Failures are ignored, both a
-// step's own and the overall script's.
+// runs tasks concurrently as background jobs in one `sh -c` (steps within a task run in order).
+// Blocks until all finish, since postSynthesize() can't await. Failures are ignored.
 function runTasksInParallelIgnoringFailure(tasks: readonly (readonly (readonly string[])[])[], cwd: string): void {
   const quote = (command: readonly string[]): string => command.map(shQuote).join(" ");
   const pids = tasks.map((_, i) => `pid${i}`);
