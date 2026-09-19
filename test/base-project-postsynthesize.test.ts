@@ -323,21 +323,4 @@ describe("BaseProject.postSynthesize with a mocked git/pre-commit binary", () =>
 
     expect(fs.existsSync(path.join(dir, ".gitignore"))).toBe(false);
   });
-
-  it("removes the default README only when it's still the projen placeholder", () => {
-    const dir = outdir();
-    realChildProcess.execFileSync("git", ["init", "-q"], { cwd: dir });
-    const project = new BaseProject({ name: "test", stack: [], outdir: dir, readme: { contents: "not the placeholder" } });
-
-    execFileSyncMock.mockImplementation((cmd, args) => {
-      if (cmd === "git") {
-        return realChildProcess.execFileSync(cmd, args as string[], { cwd: dir });
-      }
-      return "";
-    });
-
-    project.synth();
-
-    expect(fs.readFileSync(path.join(dir, "README.md"), "utf-8")).toBe("not the placeholder");
-  });
 });

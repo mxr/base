@@ -321,10 +321,6 @@ export class BaseProject extends GitHubProject {
       // most repos dont have a prescriptive .gitignore
       fs.rmSync(gitignorePath, { force: true });
     }
-    const readmePath = path.join(this.outdir, "README.md");
-    if (fs.existsSync(readmePath) && fs.readFileSync(readmePath, "utf-8").trim() === "# replace this") {
-      fs.rmSync(readmePath);
-    }
 
     // `pre-commit run --all-files` only considers files `git ls-files` knows
     // about, so a freshly generated or renamed file (e.g. this synth renaming
