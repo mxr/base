@@ -94,7 +94,7 @@ export interface BaseProjectOptions extends GitHubProjectOptions {
 export class BaseProject extends GitHubProject {
   public readonly stack: Stack[];
   private readonly renovateDisable: string[];
-  private readonly pythonMinVersion?: string;
+  private readonly pythonMinVersion: string | undefined;
   private readonly newPreCommitRepoUrls: string[];
   private readonly newWorkflowActions = new Map<string, string[]>();
 
@@ -131,7 +131,7 @@ export class BaseProject extends GitHubProject {
 
     const preCommitConfigFile = new PreCommitConfigFile(this, {
       stack: this.stack,
-      pythonMinVersion: this.pythonMinVersion,
+      ...(this.pythonMinVersion ? { pythonMinVersion: this.pythonMinVersion } : {}),
       existingRevs: Object.fromEntries(existingRevs),
     });
     this.newPreCommitRepoUrls = preCommitConfigFile.newRepoUrls;
@@ -265,7 +265,7 @@ export class BaseProject extends GitHubProject {
     new TextFile(this, workflowPath, { marker: false, committed: true, lines: [`# ${BANNER}`, "", ...lines] });
   }
 
-  public postSynthesize() {
+  public override postSynthesize() {
     super.postSynthesize();
 
     if (!isGitRepo(this.outdir)) {
@@ -349,8 +349,12 @@ function isGitRepo(outdir: string): boolean {
 }
 
 function runIgnoringFailure(command: readonly string[], cwd: string): boolean {
+  const [file, ...args] = command;
+  if (!file) {
+    return false;
+  }
   try {
-    execFileSync(command[0], command.slice(1), { cwd, stdio: "inherit" });
+    execFileSync(file, args, { cwd, stdio: "inherit" });
     return true;
   } catch {
     // formatters exit non-zero on the run that fixes files

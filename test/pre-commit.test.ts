@@ -22,7 +22,7 @@ describe("readExistingRevs", () => {
 describe("renderPreCommitConfig", () => {
   it("re-emits the frozen comment for an already-pinned hook", () => {
     const [firstRepo] = buildPreCommitRepos([]);
-    const rendered = renderPreCommitConfig([], undefined, new Map([[firstRepo.repo, { rev: "abc123", comment: "frozen: v1.2.3" }]]));
+    const rendered = renderPreCommitConfig([], undefined, new Map([[firstRepo!.repo, { rev: "abc123", comment: "frozen: v1.2.3" }]]));
     expect(rendered).toContain("rev: abc123  # frozen: v1.2.3\n");
   });
 });
@@ -38,12 +38,12 @@ describe("mergeRepos", () => {
 
   it("keeps an existing rev instead of the placeholder", () => {
     const [result] = mergeRepos([{ repo: "https://x", hooks: [{ id: "a" }] }], new Map([["https://x", { rev: "v1.2.3" }]]));
-    expect(result.rev).toBe("v1.2.3");
+    expect(result).toMatchObject({ rev: "v1.2.3" });
   });
 
   it("falls back to the placeholder for a repo with no existing rev", () => {
     const [result] = mergeRepos([{ repo: "https://x", hooks: [{ id: "a" }] }], new Map([["https://y", { rev: "v1.2.3" }]]));
-    expect(result.rev).toBe("v0.0.0");
+    expect(result).toMatchObject({ rev: "v0.0.0" });
   });
 
   it.each([
@@ -51,7 +51,7 @@ describe("mergeRepos", () => {
     ["local", false],
   ])("sets rev for %s: %s", (repo, expectRev) => {
     const [result] = mergeRepos([{ repo, hooks: [{ id: "a" }] }]);
-    expect("rev" in result).toBe(expectRev);
+    expect("rev" in result!).toBe(expectRev);
   });
 
   it("sorts local last and everything else alphabetically", () => {
@@ -65,7 +65,7 @@ describe("mergeRepos", () => {
 
   it("sorts hooks by id", () => {
     const [result] = mergeRepos([{ repo: "https://x", hooks: [{ id: "b" }, { id: "a" }] }]);
-    expect(result.hooks.map((h) => h.id)).toEqual(["a", "b"]);
+    expect(result?.hooks.map((h) => h.id)).toEqual(["a", "b"]);
   });
 });
 
@@ -83,8 +83,8 @@ describe("buildPreCommitRepos", () => {
 
   it("puts the local repo last, with no rev, regardless of stack", () => {
     const repos = buildPreCommitRepos([Stack.PYTHON]);
-    expect(repos[repos.length - 1].repo).toBe("local");
-    expect("rev" in repos[repos.length - 1]).toBe(false);
+    expect(repos.at(-1)?.repo).toBe("local");
+    expect("rev" in repos.at(-1)!).toBe(false);
   });
 
   it("includes check-docstring-first and the mirrors-pyright hook for a python stack", () => {
@@ -165,8 +165,8 @@ describe("newRepoUrls", () => {
 
   it("excludes a repo that already has an existing rev", () => {
     const [firstRepo] = buildPreCommitRepos([]).filter((r) => r.repo !== "local");
-    const urls = newRepoUrls([], new Map([[firstRepo.repo, { rev: "v1.2.3" }]]));
-    expect(urls).not.toContain(firstRepo.repo);
+    const urls = newRepoUrls([], new Map([[firstRepo!.repo, { rev: "v1.2.3" }]]));
+    expect(urls).not.toContain(firstRepo!.repo);
   });
 });
 

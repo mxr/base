@@ -1,31 +1,20 @@
 {
   "compilerOptions": {
-    "alwaysStrict": true,
     "declaration": true,
-    "esModuleInterop": true,
     "experimentalDecorators": true,
     "inlineSourceMap": true,
     "inlineSources": true,
     "lib": ["es2022"],
-    "module": "node16",
+    "module": "nodenext",
     "noEmitOnError": true,
-    "noFallthroughCasesInSwitch": true,
-    "noImplicitAny": true,
-    "noImplicitReturns": true,
-    "noImplicitThis": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
     "outDir": "lib",
     "resolveJsonModule": true,
     "rootDir": "src",
-    "skipLibCheck": true,
-    "strict": true,
-    "strictNullChecks": true,
-    "strictPropertyInitialization": true,
     "stripInternal": false,
     "target": "ES2022",
     "types": ["jest", "node"]
   },
   "exclude": ["node_modules", "src/resources"],
+  "extends": "@tsconfig/strictest/tsconfig.json",
   "include": ["src/**/*.ts"]
 }

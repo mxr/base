@@ -9,7 +9,7 @@ describe("BaseProject", () => {
   it("uses MIT for a non-frontend stack, and still adds biome.json", () => {
     const project = new BaseProject({ name: "test", stack: [Stack.PYTHON], opt: { python: { minVersion: "3.11" } } });
     const snapshot = Testing.synth(project);
-    expect(snapshot.LICENSE).toContain("Permission is hereby granted, free of charge");
+    expect(snapshot["LICENSE"]).toContain("Permission is hereby granted, free of charge");
     expect(snapshot["biome.json"].$schema).toBe("https://biomejs.dev/schemas/2.5.4/schema.json");
   });
 
@@ -26,7 +26,7 @@ describe("BaseProject", () => {
   it("uses AGPL-3.0-or-later and adds a frontend-specific biome.json for a frontend stack", () => {
     const project = new BaseProject({ name: "test", stack: [Stack.FRONTEND] });
     const snapshot = Testing.synth(project);
-    expect(snapshot.LICENSE).toContain("GNU AFFERO GENERAL PUBLIC LICENSE");
+    expect(snapshot["LICENSE"]).toContain("GNU AFFERO GENERAL PUBLIC LICENSE");
     expect(snapshot["biome.json"].$schema).toBe("https://biomejs.dev/schemas/2.5.4/schema.json");
     expect(snapshot["biome.json"].css.parser.tailwindDirectives).toBe(true);
     expect(snapshot["biome.json"].linter.rules.style.useImportType.options.style).toBe("separatedType");
@@ -35,7 +35,7 @@ describe("BaseProject", () => {
   it("uses AGPL-3.0-or-later for a javascript stack, but does not manage biome.json", () => {
     const project = new BaseProject({ name: "test", stack: [Stack.JAVASCRIPT] });
     const snapshot = Testing.synth(project);
-    expect(snapshot.LICENSE).toContain("GNU AFFERO GENERAL PUBLIC LICENSE");
+    expect(snapshot["LICENSE"]).toContain("GNU AFFERO GENERAL PUBLIC LICENSE");
     expect(snapshot["biome.json"]).toBeUndefined();
   });
 

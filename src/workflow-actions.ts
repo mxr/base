@@ -6,6 +6,22 @@ export interface ExistingActionRef {
 const PLACEHOLDER_REF = "v0.0.0";
 const USES_RE = /^(\s*(?:-\s+)?uses:\s+)([^\s@]+)@(\S+)(?:(\s+)#\s*(.*?))?\s*$/;
 
+interface UsesLine {
+  prefix: string;
+  action: string;
+  ref: string;
+  comment: string | undefined;
+}
+
+function parseUsesLine(line: string): UsesLine | undefined {
+  const match = USES_RE.exec(line);
+  const [, prefix, action, ref, , comment] = match ?? [];
+  if (prefix === undefined || action === undefined || ref === undefined) {
+    return undefined;
+  }
+  return { prefix, action, ref, comment };
+}
+
 /**
  * `action` name (e.g. `actions/checkout`) -> `ref` (and its inline comment)
  * from the downstream repo's current workflow file.
@@ -13,9 +29,9 @@ const USES_RE = /^(\s*(?:-\s+)?uses:\s+)([^\s@]+)@(\S+)(?:(\s+)#\s*(.*?))?\s*$/;
 export function readExistingActionRefs(workflowYaml: string): Map<string, ExistingActionRef> {
   const refs = new Map<string, ExistingActionRef>();
   for (const line of workflowYaml.split("\n")) {
-    const match = USES_RE.exec(line);
-    if (match && match[3] !== PLACEHOLDER_REF) {
-      refs.set(match[2], { ref: match[3], comment: match[5] || undefined });
+    const uses = parseUsesLine(line);
+    if (uses && uses.ref !== PLACEHOLDER_REF) {
+      refs.set(uses.action, { ref: uses.ref, ...(uses.comment ? { comment: uses.comment } : {}) });
     }
   }
   return refs;
@@ -34,16 +50,16 @@ export function applyExistingActionRefs(
 ): { lines: string[]; newActions: string[] } {
   const newActions = new Set<string>();
   const out = lines.map((line) => {
-    const match = USES_RE.exec(line);
-    if (!match || match[3] !== PLACEHOLDER_REF) {
+    const uses = parseUsesLine(line);
+    if (!uses || uses.ref !== PLACEHOLDER_REF) {
       return line;
     }
-    const found = existing.get(match[2]);
+    const found = existing.get(uses.action);
     if (!found) {
-      newActions.add(match[2]);
+      newActions.add(uses.action);
       return line;
     }
-    return `${match[1]}${match[2]}@${found.ref}${found.comment ? ` # ${found.comment}` : ""}`;
+    return `${uses.prefix}${uses.action}@${found.ref}${found.comment ? ` # ${found.comment}` : ""}`;
   });
   return { lines: out, newActions: [...newActions] };
 }

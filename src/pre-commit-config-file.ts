@@ -30,7 +30,7 @@ export interface PreCommitConfigFileOptions extends FileBaseOptions {
  */
 export class PreCommitConfigFile extends FileBase {
   private readonly stack: Stack[];
-  private readonly pythonMinVersion?: string;
+  private readonly pythonMinVersion: string | undefined;
   private readonly existingRevs: ReadonlyMap<string, ExistingRev>;
 
   /**

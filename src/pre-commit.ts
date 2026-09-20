@@ -224,7 +224,8 @@ export function readExistingRevs(configYaml: string): Map<string, ExistingRev> {
     const repo = item.get("repo");
     const rev = item.get("rev", true);
     if (typeof repo === "string" && isScalar(rev) && rev.value) {
-      revs.set(repo, { rev: String(rev.value), comment: rev.comment?.trim() });
+      const comment = rev.comment?.trim();
+      revs.set(repo, { rev: String(rev.value), ...(comment ? { comment } : {}) });
     }
   }
   return revs;
