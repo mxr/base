@@ -168,9 +168,20 @@ describe("BaseProject.postSynthesize with a mocked git/pre-commit binary", () =>
     const sha = "a".repeat(40);
     fs.writeFileSync(
       path.join(dir, ".github", "workflows", "main.yml"),
-      [`- uses: actions/checkout@${sha} # v1.2.3`, `- uses: dorny/paths-filter@${sha} # v4.5.6`].join("\n"),
+      [
+        `- uses: actions/checkout@${sha} # v1.2.3`,
+        `- uses: dorny/paths-filter@${sha} # v4.5.6`,
+        `- uses: actions-rust-lang/setup-rust-toolchain@${sha} # v2.0.0`,
+      ].join("\n"),
     );
-    fs.writeFileSync(path.join(dir, ".github", "workflows", "release.yml"), `- uses: actions/checkout@${sha} # v1.2.3`);
+    fs.writeFileSync(
+      path.join(dir, ".github", "workflows", "release.yml"),
+      [
+        `- uses: actions/checkout@${sha} # v1.2.3`,
+        `- uses: actions-rust-lang/setup-rust-toolchain@${sha} # v2.0.0`,
+        `- uses: rust-lang/crates-io-auth-action@${sha} # v1.0.5`,
+      ].join("\n"),
+    );
     const project = new BaseProject({ name: "test", stack: [Stack.RUST], outdir: dir });
 
     execFileSyncMock.mockImplementation((cmd, args) => {
@@ -210,7 +221,7 @@ describe("BaseProject.postSynthesize with a mocked git/pre-commit binary", () =>
     project.synth();
 
     const script = shCallScript(execFileSyncMock);
-    expect(script).toContain("'-i' '^actions/checkout$' '.github/workflows/release.yml'");
+    expect(script).toMatch(/'-i' '\^actions\/checkout\$'[^;]*'\.github\/workflows\/release\.yml'/);
     expect(script).not.toContain("'^actions/checkout$' '.github/workflows/main.yml'");
     expect(script).not.toContain("'.github/workflows/main.yml' '.github/workflows/release.yml'");
   });
@@ -222,9 +233,16 @@ describe("BaseProject.postSynthesize with a mocked git/pre-commit binary", () =>
     const sha = "a".repeat(40);
     fs.writeFileSync(
       path.join(dir, ".github", "workflows", "main.yml"),
-      ["actions/checkout", "dorny/paths-filter", "taiki-e/install-action"].map((a) => `- uses: ${a}@${sha} # v1`).join("\n"),
+      ["actions/checkout", "dorny/paths-filter", "actions-rust-lang/setup-rust-toolchain", "taiki-e/install-action"]
+        .map((a) => `- uses: ${a}@${sha} # v1`)
+        .join("\n"),
     );
-    fs.writeFileSync(path.join(dir, ".github", "workflows", "release.yml"), `- uses: actions/checkout@${sha} # v1`);
+    fs.writeFileSync(
+      path.join(dir, ".github", "workflows", "release.yml"),
+      ["actions/checkout", "actions-rust-lang/setup-rust-toolchain", "rust-lang/crates-io-auth-action"]
+        .map((a) => `- uses: ${a}@${sha} # v1`)
+        .join("\n"),
+    );
     const project = new BaseProject({ name: "test", stack: [Stack.RUST], outdir: dir });
 
     execFileSyncMock.mockImplementation((cmd, args) => {
