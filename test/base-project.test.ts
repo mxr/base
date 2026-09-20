@@ -61,6 +61,7 @@ describe("BaseProject", () => {
     const project = new BaseProject({ name: "test", stack: [Stack.FRONTEND] });
     const snapshot = Testing.synth(project);
     expect(snapshot["tsconfig.json"].compilerOptions.jsx).toBe("react-jsx");
+    expect(snapshot["tsconfig.json"].extends).toBe("@tsconfig/strictest/tsconfig.json");
     expect(snapshot["vitest.config.mts"]).toContain("defineConfig");
     expect(snapshot["postcss.config.mjs"]).toContain("@tailwindcss/postcss");
     expect(snapshot["next.config.ts"]).toContain("useTypeScriptCli");
