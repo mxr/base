@@ -94,8 +94,11 @@ describe("buildPreCommitRepos", () => {
     expect(repos.map((r) => r.repo)).toContain("https://github.com/mxr/mirrors-pyright");
   });
 
-  it("pulls in toml hooks for a python stack", () => {
-    const repos = buildPreCommitRepos([Stack.PYTHON]);
+  it.each([
+    { name: "python", stack: Stack.PYTHON },
+    { name: "sql", stack: Stack.SQL },
+  ])("pulls in toml hooks for a $name stack", ({ stack }) => {
+    const repos = buildPreCommitRepos([stack]);
     const formatters = repos.find((r) => r.repo === "https://github.com/macisamuele/language-formatters-pre-commit-hooks");
     expect(formatters?.hooks.map((h) => h.id)).toEqual(expect.arrayContaining(["pretty-format-toml", "pretty-format-yaml"]));
   });

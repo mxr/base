@@ -184,6 +184,7 @@ const IMPLIED_STACKS: Partial<Record<Stack, Stack[]>> = {
   [Stack.MIRROR]: [Stack.GITHUB_ACTIONS],
   [Stack.PYTHON]: [Stack.TOML],
   [Stack.RUST]: [Stack.TOML, Stack.GITHUB_ACTIONS, Stack.GITIGNORE],
+  [Stack.SQL]: [Stack.TOML],
 };
 
 function expandStacks(stack: Stack[]): Stack[] {
