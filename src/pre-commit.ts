@@ -107,6 +107,17 @@ const STACK_REPOS: Partial<Record<Stack, PreCommitRepo[]>> = {
       repo: "https://github.com/sqlfluff/sqlfluff",
       hooks: [{ id: "sqlfluff-fix", args: ["--dialect", "sqlite"] }],
     },
+    {
+      repo: "https://github.com/adamtheturtle/doccmd-pre-commit",
+      hooks: [
+        {
+          id: "doccmd",
+          name: "doccmd-sqlfluff",
+          args: ["--no-pad-file", "--language", "sql", "--command", "sqlfluff fix --dialect sqlite"],
+          additionalDependencies: ["sqlfluff"],
+        },
+      ],
+    },
   ],
   [Stack.RUST]: [
     {

@@ -341,4 +341,47 @@ describe("BaseProject.postSynthesize with a mocked git/pre-commit binary", () =>
 
     expect(fs.existsSync(path.join(dir, ".gitignore"))).toBe(false);
   });
+
+  it("merges sqlfluff config into an existing pyproject.toml for a sql stack", () => {
+    const dir = outdir();
+    realChildProcess.execFileSync("git", ["init", "-q"], { cwd: dir });
+    fs.writeFileSync(
+      path.join(dir, "pyproject.toml"),
+      '[project]\nname = "x"\n\n[tool.sqlfluff.layout.type.comma]\nline_position = "trailing"\n',
+    );
+    const project = new BaseProject({ name: "test", stack: [Stack.SQL], outdir: dir });
+
+    execFileSyncMock.mockImplementation((cmd, args) => {
+      if (cmd === "git") {
+        return realChildProcess.execFileSync(cmd, args as string[], { cwd: dir });
+      }
+      return "";
+    });
+
+    project.synth();
+
+    const pyproject = fs.readFileSync(path.join(dir, "pyproject.toml"), "utf-8");
+    expect(pyproject).toMatch(/^\[project\]\nname = "x"\n\n\[tool\.sqlfluff\.layout\.type\.comma\]\nline_position = "leading"\n/);
+    expect(pyproject).not.toContain("trailing");
+    expect(pyproject).toContain("require_final_semicolon = true");
+    const staged = realChildProcess.execFileSync("git", ["diff", "--cached", "--name-only"], { cwd: dir, encoding: "utf-8" });
+    expect(staged.split("\n")).toContain("pyproject.toml");
+  });
+
+  it("does not write a pyproject.toml for a non-sql stack", () => {
+    const dir = outdir();
+    realChildProcess.execFileSync("git", ["init", "-q"], { cwd: dir });
+    const project = new BaseProject({ name: "test", stack: [Stack.SHELL], outdir: dir });
+
+    execFileSyncMock.mockImplementation((cmd, args) => {
+      if (cmd === "git") {
+        return realChildProcess.execFileSync(cmd, args as string[], { cwd: dir });
+      }
+      return "";
+    });
+
+    project.synth();
+
+    expect(fs.existsSync(path.join(dir, "pyproject.toml"))).toBe(false);
+  });
 });

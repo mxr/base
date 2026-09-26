@@ -7,6 +7,7 @@ import { BANNER } from "./banner";
 import { firstCommitYear } from "./git";
 import { readExistingRevs } from "./pre-commit";
 import { PreCommitConfigFile } from "./pre-commit-config-file";
+import { mergeSqlfluffConfig } from "./pyproject";
 import { Stack } from "./stack";
 import { applyExistingActionRefs, readExistingActionRefs } from "./workflow-actions";
 import type { GitHubProjectOptions } from "projen/lib/github";
@@ -306,9 +307,20 @@ export class BaseProject extends GitHubProject {
       fs.rmSync(gitignorePath, { force: true });
     }
 
+    // pyproject.toml is otherwise owned by the downstream repo, so only its sqlfluff tables are managed
+    const partiallyManagedFiles: string[] = [];
+    if (this.stack.includes(Stack.SQL)) {
+      const pyprojectPath = path.join(this.outdir, "pyproject.toml");
+      const existing = fs.existsSync(pyprojectPath) ? fs.readFileSync(pyprojectPath, "utf-8") : "";
+      fs.writeFileSync(pyprojectPath, mergeSqlfluffConfig(existing, readResource("sql/sqlfluff.toml")));
+      partiallyManagedFiles.push("pyproject.toml");
+    }
+
     // `pre-commit run --all-files` skips untracked files, so stage new/renamed managed files.
     // Not `-A`: propagate-repo.sh's scaffolding (package.json, node_modules, etc.) is still in outdir.
-    const managedFiles = this.files.map((file) => file.path).filter((file) => fs.existsSync(path.join(this.outdir, file)));
+    const managedFiles = [...this.files.map((file) => file.path), ...partiallyManagedFiles].filter((file) =>
+      fs.existsSync(path.join(this.outdir, file)),
+    );
     if (managedFiles.length > 0) {
       execFileSync("git", ["add", "--", ...managedFiles], { cwd: this.outdir });
     }
