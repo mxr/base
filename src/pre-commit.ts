@@ -189,6 +189,15 @@ const CI_SKIP: Partial<Record<Stack, string[]>> = {
 };
 
 /**
+ * Generated toml lockfiles that pretty-format-toml should skip, to avoid diff
+ * noise.
+ */
+const TOML_LOCKFILES: Partial<Record<Stack, string[]>> = {
+  [Stack.PYTHON]: ["uv.lock"],
+  [Stack.RUST]: ["Cargo.lock"],
+};
+
+/**
  * Builds the `ci.skip` hook id list for the given stacks, deduplicated.
  */
 export function buildCiSkip(stack: Stack[]): string[] {
@@ -281,16 +290,14 @@ export function buildPreCommitRepos(stack: Stack[], existingRevs?: ReadonlyMap<s
   // guards against a future stack being added to one without the other
   const entries = [...DEFAULT, ...expandStacks(stack).flatMap((name) => STACK_REPOS[name] ?? /* v8 ignore next */ [])];
   const repos = mergeRepos(entries, existingRevs);
-  if (!stack.includes(Stack.RUST)) {
+  const lockfiles = stack.flatMap((name) => TOML_LOCKFILES[name] ?? []);
+  if (lockfiles.length === 0) {
     return repos;
   }
-  // Cargo.lock is a generated lockfile even though it's toml-formatted, so
-  // only skip it for repos that actually have one (i.e. rust stack repos) -
-  // other toml-stack repos (e.g. python) may have their own file named
-  // Cargo.lock that pretty-format-toml should still touch
+  const exclude = `^(${lockfiles.map((file) => file.replaceAll(".", "\\.")).join("|")})$`;
   return repos.map((repo) => ({
     ...repo,
-    hooks: repo.hooks.map((hook) => (hook.id === "pretty-format-toml" ? { ...hook, exclude: "Cargo.lock" } : hook)),
+    hooks: repo.hooks.map((hook) => (hook.id === "pretty-format-toml" ? { ...hook, exclude } : hook)),
   }));
 }
 

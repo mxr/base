@@ -113,14 +113,16 @@ describe("buildPreCommitRepos", () => {
     expect(formatters?.hooks.map((h) => h.id)).toEqual(expect.arrayContaining(["pretty-format-toml", "pretty-format-yaml"]));
   });
 
-  it("excludes Cargo.lock from pretty-format-toml only for a rust stack", () => {
-    const rust = buildPreCommitRepos([Stack.RUST]);
-    const rustFormatters = rust.find((r) => r.repo === "https://github.com/macisamuele/language-formatters-pre-commit-hooks");
-    expect(rustFormatters?.hooks.find((h) => h.id === "pretty-format-toml")?.exclude).toBe("Cargo.lock");
-
-    const toml = buildPreCommitRepos([Stack.TOML]);
-    const tomlFormatters = toml.find((r) => r.repo === "https://github.com/macisamuele/language-formatters-pre-commit-hooks");
-    expect(tomlFormatters?.hooks.find((h) => h.id === "pretty-format-toml")?.exclude).toBeUndefined();
+  it.each([
+    { name: "rust", stack: [Stack.RUST], exclude: "^(Cargo\\.lock)$" },
+    { name: "python", stack: [Stack.PYTHON], exclude: "^(uv\\.lock)$" },
+    { name: "python and rust", stack: [Stack.PYTHON, Stack.RUST], exclude: "^(uv\\.lock|Cargo\\.lock)$" },
+    { name: "toml", stack: [Stack.TOML], exclude: undefined },
+  ])("sets pretty-format-toml lockfile exclude for $name stack", ({ stack, exclude }) => {
+    const formatters = buildPreCommitRepos(stack).find(
+      (r) => r.repo === "https://github.com/macisamuele/language-formatters-pre-commit-hooks",
+    );
+    expect(formatters?.hooks.find((h) => h.id === "pretty-format-toml")?.exclude).toBe(exclude);
   });
 
   it("includes gitignore-tidy for a rust stack", () => {
