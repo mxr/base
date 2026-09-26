@@ -1,4 +1,4 @@
-import { mergeSqlfluffConfig } from "../src/pyproject";
+import { mergeSqlfluffConfig, renderSqlfluffConfig } from "../src/pyproject";
 
 const SQLFLUFF = '[tool.sqlfluff.rules.capitalisation.keywords]\ncapitalisation_policy = "upper"\n';
 
@@ -23,5 +23,13 @@ describe("mergeSqlfluffConfig", () => {
     },
   ])("replaces sqlfluff tables for $name", ({ existing, expected }) => {
     expect(mergeSqlfluffConfig(existing, SQLFLUFF)).toBe(expected);
+  });
+});
+
+describe("renderSqlfluffConfig", () => {
+  it("renders each table with quoted strings and bare booleans", () => {
+    const rendered = renderSqlfluffConfig();
+    expect(rendered).toMatch(/^\[tool\.sqlfluff\.layout\.type\.comma\]\nline_position = "leading"\nspacing_before = "touch"\n\n/);
+    expect(rendered).toContain("[tool.sqlfluff.rules.convention.terminator]\nmultiline_newline = true\nrequire_final_semicolon = true");
   });
 });

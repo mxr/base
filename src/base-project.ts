@@ -7,7 +7,7 @@ import { BANNER } from "./banner";
 import { firstCommitYear } from "./git";
 import { readExistingRevs } from "./pre-commit";
 import { PreCommitConfigFile } from "./pre-commit-config-file";
-import { mergeSqlfluffConfig } from "./pyproject";
+import { mergeSqlfluffConfig, renderSqlfluffConfig } from "./pyproject";
 import { Stack } from "./stack";
 import { applyExistingActionRefs, readExistingActionRefs } from "./workflow-actions";
 import type { GitHubProjectOptions } from "projen/lib/github";
@@ -312,7 +312,7 @@ export class BaseProject extends GitHubProject {
     if (this.stack.includes(Stack.SQL)) {
       const pyprojectPath = path.join(this.outdir, "pyproject.toml");
       const existing = fs.existsSync(pyprojectPath) ? fs.readFileSync(pyprojectPath, "utf-8") : "";
-      fs.writeFileSync(pyprojectPath, mergeSqlfluffConfig(existing, readResource("sql/sqlfluff.toml")));
+      fs.writeFileSync(pyprojectPath, mergeSqlfluffConfig(existing, renderSqlfluffConfig()));
       partiallyManagedFiles.push("pyproject.toml");
     }
 
