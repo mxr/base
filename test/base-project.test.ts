@@ -3,7 +3,7 @@ import * as os from "os";
 import * as path from "path";
 import { Testing } from "projen";
 import { BaseProject } from "../src/base-project";
-import { Stack } from "../src/stack";
+import { PythonPackaging, Stack } from "../src/stack";
 
 describe("BaseProject", () => {
   it("uses MIT for a non-frontend stack, and still adds biome.json", () => {
@@ -209,5 +209,94 @@ describe("BaseProject.postSynthesize", () => {
     const project = new BaseProject({ name: "test", stack: [], outdir: dir });
     project.synth();
     expect(fs.existsSync(path.join(dir, ".gitignore"))).toBe(true);
+  });
+});
+
+describe("BaseProject python packaging", () => {
+  const homeAssistant = { name: "Foo", minVersion: "2026.4.0" };
+
+  it("writes no workflows or hacs.json without opt.python.packaging", () => {
+    const snapshot = Testing.synth(new BaseProject({ name: "test", stack: [Stack.PYTHON], opt: { python: { minVersion: "3.12" } } }));
+    expect(snapshot[".github/workflows/main.yml"]).toBeUndefined();
+    expect(snapshot[".github/workflows/release.yml"]).toBeUndefined();
+    expect(snapshot["hacs.json"]).toBeUndefined();
+  });
+
+  it("tests and publishes a wheel to PyPI", () => {
+    const project = new BaseProject({
+      name: "test",
+      stack: [Stack.PYTHON],
+      opt: { python: { minVersion: "3.12", packaging: PythonPackaging.WHEEL } },
+    });
+    const snapshot = Testing.synth(project);
+    expect(snapshot[".github/workflows/main.yml"]).toContain(`env: '["py312", "py313", "py314", "py315", "pypy3"]'`);
+    expect(snapshot[".github/workflows/release.yml"]).toContain("python-version: '3.12'");
+    expect(snapshot[".github/workflows/release.yml"]).toContain("uses: pypa/gh-action-pypi-publish@v0.0.0");
+    expect(snapshot[".github/workflows/release.yml"]).toContain(
+      'gh release create "$GITHUB_REF_NAME" dist/* --verify-tag --generate-notes',
+    );
+    expect(snapshot["hacs.json"]).toBeUndefined();
+  });
+
+  it("releases a home assistant integration through GitHub and writes hacs.json", () => {
+    const project = new BaseProject({
+      name: "test",
+      stack: [Stack.PYTHON],
+      opt: { python: { minVersion: "3.14", packaging: PythonPackaging.HOME_ASSISTANT, homeAssistant } },
+    });
+    const snapshot = Testing.synth(project);
+    expect(snapshot[".github/workflows/main.yml"]).toContain(`env: '["py314"]'`);
+    expect(snapshot[".github/workflows/release.yml"]).toContain("uses: mxr/workflows/.github/workflows/github-release.yml@v0.0.0");
+    expect(snapshot["hacs.json"]).toEqual({ content_in_root: false, homeassistant: "2026.4.0", name: "Foo" });
+  });
+
+  it.each([
+    { name: "a wheel", packaging: PythonPackaging.WHEEL },
+    { name: "no packaging", packaging: undefined },
+  ])("runs type checks in GHA instead of pre-commit.ci for $name", ({ packaging }) => {
+    const project = new BaseProject({
+      name: "test",
+      stack: [Stack.PYTHON],
+      opt: { python: { minVersion: "3.14", runTypeChecksInGithubActions: true, ...(packaging ? { packaging } : {}) } },
+    });
+    const snapshot = Testing.synth(project);
+    expect(snapshot[".pre-commit-config.yaml"]).toContain(
+      "ci:\n  skip: [mypy, pyright, ty] # venv is too big; runs with github action instead\n",
+    );
+    expect(snapshot[".github/workflows/type-checks.yml"]).toContain("pre-commit-typing-real:");
+  });
+
+  it("keeps type checks on pre-commit.ci by default", () => {
+    const project = new BaseProject({
+      name: "test",
+      stack: [Stack.PYTHON],
+      opt: { python: { minVersion: "3.14", packaging: PythonPackaging.WHEEL } },
+    });
+    const snapshot = Testing.synth(project);
+    expect(snapshot[".pre-commit-config.yaml"]).not.toContain("ci:");
+    expect(snapshot[".github/workflows/type-checks.yml"]).toBeUndefined();
+  });
+
+  it("pins generated python workflows to the ubuntu-24.04 runner", () => {
+    const project = new BaseProject({
+      name: "test",
+      stack: [Stack.PYTHON],
+      opt: { python: { minVersion: "3.14", packaging: PythonPackaging.WHEEL } },
+    });
+    const snapshot = Testing.synth(project);
+    expect(snapshot[".github/workflows/main.yml"]).toContain("runs-on: ubuntu-24.04");
+    expect(snapshot[".github/workflows/main.yml"]).not.toContain("ubuntu-latest");
+    expect(snapshot[".github/workflows/release.yml"]).toContain("runs-on: ubuntu-24.04");
+  });
+
+  it("throws without opt.python.homeAssistant for home assistant packaging", () => {
+    expect(
+      () =>
+        new BaseProject({
+          name: "test",
+          stack: [Stack.PYTHON],
+          opt: { python: { minVersion: "3.14", packaging: PythonPackaging.HOME_ASSISTANT } },
+        }),
+    ).toThrow("PythonPackaging.HOME_ASSISTANT requires opt.python.homeAssistant to be set");
   });
 });

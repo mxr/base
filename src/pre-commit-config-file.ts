@@ -1,10 +1,10 @@
 import { FileBase } from "projen";
 import { BANNER } from "./banner";
-import { buildCiSkip, newRepoUrls, renderPreCommitConfig } from "./pre-commit";
+import { newRepoUrls, renderPreCommitConfig } from "./pre-commit";
+import { Stack } from "./stack";
 import type { IConstruct } from "constructs";
 import type { FileBaseOptions, IResolver } from "projen";
 import type { ExistingRev } from "./pre-commit";
-import type { Stack } from "./stack";
 
 export interface PreCommitConfigFileOptions extends FileBaseOptions {
   readonly stack: Stack[];
@@ -23,6 +23,12 @@ export interface PreCommitConfigFileOptions extends FileBaseOptions {
    * `pre-commit autoupdate --freeze` would then re-resolve on every synth.
    */
   readonly existingRevs?: Record<string, ExistingRev>;
+
+  /**
+   * Skip the type checkers (mypy, pyright, ty) on pre-commit.ci, since they
+   * run in a GitHub Actions job instead.
+   */
+  readonly typeChecksInGithubActions?: boolean;
 }
 
 /**
@@ -32,6 +38,7 @@ export class PreCommitConfigFile extends FileBase {
   private readonly stack: Stack[];
   private readonly pythonMinVersion: string | undefined;
   private readonly existingRevs: ReadonlyMap<string, ExistingRev>;
+  private readonly typeChecksInGithubActions: boolean;
 
   /**
    * Non-local repo urls newly added by this synth (i.e. not present in
@@ -45,12 +52,22 @@ export class PreCommitConfigFile extends FileBase {
     this.stack = options.stack;
     this.pythonMinVersion = options.pythonMinVersion;
     this.existingRevs = new Map(Object.entries(options.existingRevs ?? {}));
+    this.typeChecksInGithubActions = options.typeChecksInGithubActions ?? false;
     this.newRepoUrls = newRepoUrls(this.stack, this.existingRevs);
   }
 
   protected synthesizeContent(_resolver: IResolver): string | undefined {
-    const skip = buildCiSkip(this.stack);
-    const ciLines = skip.length > 0 ? [`ci:`, `  skip: [${skip.join(", ")}] # runs via GHA to avoid keeping deps in-sync here`, ""] : [];
+    const skips = [
+      // pre-commit.ci's containers don't keep a project's own crate versions in sync
+      ...(this.stack.includes(Stack.RUST) ? [{ hooks: ["clippy"], reason: "runs via GHA to avoid keeping deps in-sync here" }] : []),
+      ...(this.typeChecksInGithubActions
+        ? [{ hooks: ["mypy", "pyright", "ty"], reason: "venv is too big; runs with github action instead" }]
+        : []),
+    ];
+    const ciLines =
+      skips.length > 0
+        ? [`ci:`, `  skip: [${skips.flatMap(({ hooks }) => hooks).join(", ")}] # ${skips.map(({ reason }) => reason).join("; ")}`, ""]
+        : [];
     return [`# ${BANNER}`, "", ...ciLines, renderPreCommitConfig(this.stack, this.pythonMinVersion, this.existingRevs)].join("\n");
   }
 }

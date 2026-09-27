@@ -1,4 +1,4 @@
-import { buildCiSkip, buildPreCommitRepos, mergeRepos, newRepoUrls, readExistingRevs, renderPreCommitConfig } from "../src/pre-commit";
+import { buildPreCommitRepos, mergeRepos, newRepoUrls, readExistingRevs, renderPreCommitConfig } from "../src/pre-commit";
 import { Stack } from "../src/stack";
 
 describe("readExistingRevs", () => {
@@ -172,16 +172,6 @@ describe("newRepoUrls", () => {
     const [firstRepo] = buildPreCommitRepos([]).filter((r) => r.repo !== "local");
     const urls = newRepoUrls([], new Map([[firstRepo!.repo, { rev: "v1.2.3" }]]));
     expect(urls).not.toContain(firstRepo!.repo);
-  });
-});
-
-describe("buildCiSkip", () => {
-  it("is empty for a stack with nothing to skip", () => {
-    expect(buildCiSkip([Stack.PYTHON])).toEqual([]);
-  });
-
-  it("skips clippy for a rust stack", () => {
-    expect(buildCiSkip([Stack.RUST])).toEqual(["clippy"]);
   });
 });
 

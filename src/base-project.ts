@@ -7,11 +7,14 @@ import { BANNER } from "./banner";
 import { firstCommitYear } from "./git";
 import { readExistingRevs } from "./pre-commit";
 import { PreCommitConfigFile } from "./pre-commit-config-file";
-import { mergeSqlfluffConfig, renderSqlfluffConfig } from "./pyproject";
-import { Stack } from "./stack";
+import { mergePyproject, sqlfluffTables } from "./pyproject";
+import { managedPyproject, pythonMainWorkflow, typeChecksWorkflow } from "./python";
+import { cargoReleaseWorkflow, homeAssistantReleaseWorkflow, wheelReleaseWorkflow } from "./release";
+import { PythonPackaging, Stack } from "./stack";
 import { applyExistingActionRefs, readExistingActionRefs } from "./workflow-actions";
 import type { GitHubProjectOptions } from "projen/lib/github";
 import type { ExistingRev } from "./pre-commit";
+import type { ManagedTable } from "./pyproject";
 
 function readResource(name: string): string {
   return fs.readFileSync(path.join(__dirname, "resources", name), "utf-8");
@@ -57,6 +60,43 @@ export interface PythonOptions {
    * `.pre-commit-config.yaml`'s top-level `default_language_version.python`.
    */
   readonly minVersion: string;
+
+  /**
+   * How the repo is packaged and released. When set, BaseProject renders
+   * `.github/workflows/main.yml`, `.github/workflows/release.yml`, and the
+   * packaging-specific parts of `pyproject.toml` (lint and tox config is
+   * managed either way). Omit for a repo that base shouldn't release (e.g.
+   * a mirror with its own workflows).
+   */
+  readonly packaging?: PythonPackaging;
+
+  /**
+   * Run the type checkers (mypy, pyright, ty) in a GitHub Actions job via
+   * mxr/workflows' pre-commit-typing workflow instead of on pre-commit.ci,
+   * whose environment is too small for a big project venv. Writes
+   * `.github/workflows/type-checks.yml` and adds the hooks to `ci.skip`.
+   *
+   * @default false
+   */
+  readonly runTypeChecksInGithubActions?: boolean;
+
+  /**
+   * Required when `packaging` is `PythonPackaging.HOME_ASSISTANT`.
+   */
+  readonly homeAssistant?: HomeAssistantOptions;
+}
+
+export interface HomeAssistantOptions {
+  /**
+   * Integration name shown in HACS, rendered as `hacs.json`'s `name`.
+   */
+  readonly name: string;
+
+  /**
+   * Minimum Home Assistant version, e.g. `"2026.4.0"`, rendered as
+   * `hacs.json`'s `homeassistant`.
+   */
+  readonly minVersion: string;
 }
 
 export interface BaseProjectOpt {
@@ -96,6 +136,8 @@ export class BaseProject extends GitHubProject {
   public readonly stack: Stack[];
   private readonly renovateDisable: string[];
   private readonly pythonMinVersion: string | undefined;
+  private readonly pythonPackaging: PythonPackaging | undefined;
+  private readonly license: string;
   private readonly newPreCommitRepoUrls: string[];
   private readonly newWorkflowActions = new Map<string, string[]>();
 
@@ -112,8 +154,9 @@ export class BaseProject extends GitHubProject {
     // banner.ts), and .gitignore has no option to override it, so shadow the getter
     Object.defineProperty(this.gitignore, "marker", { configurable: true, get: () => BANNER });
 
+    this.license = isFrontend || isJavascript ? "AGPL-3.0-or-later" : "MIT";
     new License(this, {
-      spdx: isFrontend || isJavascript ? "AGPL-3.0-or-later" : "MIT",
+      spdx: this.license,
       copyrightOwner: "Max R",
       copyrightPeriod: String(firstCommitYear(this.outdir)),
     });
@@ -123,6 +166,12 @@ export class BaseProject extends GitHubProject {
     }
 
     this.pythonMinVersion = options.opt?.python?.minVersion;
+    this.pythonPackaging = options.opt?.python?.packaging;
+    const homeAssistant = options.opt?.python?.homeAssistant;
+    const runTypeChecksInGithubActions = this.stack.includes(Stack.PYTHON) && (options.opt?.python?.runTypeChecksInGithubActions ?? false);
+    if (this.pythonPackaging === PythonPackaging.HOME_ASSISTANT && !homeAssistant) {
+      throw new Error("PythonPackaging.HOME_ASSISTANT requires opt.python.homeAssistant to be set");
+    }
 
     // read before PreCommitConfigFile overwrites it, so already-pinned hooks keep their rev
     const existingPreCommitConfigPath = path.join(this.outdir, ".pre-commit-config.yaml");
@@ -134,6 +183,7 @@ export class BaseProject extends GitHubProject {
       stack: this.stack,
       ...(this.pythonMinVersion ? { pythonMinVersion: this.pythonMinVersion } : {}),
       existingRevs: Object.fromEntries(existingRevs),
+      typeChecksInGithubActions: runTypeChecksInGithubActions,
     });
     this.newPreCommitRepoUrls = preCommitConfigFile.newRepoUrls;
 
@@ -145,7 +195,31 @@ export class BaseProject extends GitHubProject {
 
     if (this.stack.includes(Stack.RUST)) {
       this.addWorkflow("main.yml", readResource("rust/main.yml").trimEnd().split("\n"));
-      this.addWorkflow("release.yml", readResource("rust/release.yml").trimEnd().split("\n"));
+      this.addWorkflow("release.yml", cargoReleaseWorkflow());
+    }
+
+    if (this.pythonMinVersion && this.pythonPackaging) {
+      this.addWorkflow(
+        "main.yml",
+        pythonMainWorkflow({
+          packaging: this.pythonPackaging,
+          minVersion: this.pythonMinVersion,
+          stack: this.stack,
+        }),
+      );
+      this.addWorkflow(
+        "release.yml",
+        this.pythonPackaging === PythonPackaging.WHEEL ? wheelReleaseWorkflow(this.pythonMinVersion) : homeAssistantReleaseWorkflow(),
+      );
+    }
+
+    if (runTypeChecksInGithubActions) {
+      this.addWorkflow("type-checks.yml", typeChecksWorkflow());
+    }
+
+    if (homeAssistant && this.pythonPackaging === PythonPackaging.HOME_ASSISTANT) {
+      const hacs = { content_in_root: false, homeassistant: homeAssistant.minVersion, name: homeAssistant.name };
+      new TextFile(this, "hacs.json", { marker: false, lines: JSON.stringify(hacs, null, 2).split("\n") });
     }
 
     if (this.stack.includes(Stack.MIRROR)) {
@@ -307,12 +381,29 @@ export class BaseProject extends GitHubProject {
       fs.rmSync(gitignorePath, { force: true });
     }
 
-    // pyproject.toml is otherwise owned by the downstream repo, so only its sqlfluff tables are managed
+    // pyproject.toml is otherwise owned by the downstream repo, so only base's tables and keys are managed
     const partiallyManagedFiles: string[] = [];
-    if (this.stack.includes(Stack.SQL)) {
+    const python = this.pythonMinVersion
+      ? managedPyproject({
+          ...(this.pythonPackaging ? { packaging: this.pythonPackaging } : {}),
+          minVersion: this.pythonMinVersion,
+          name: this.name,
+          license: this.license,
+        })
+      : undefined;
+    const isSql = this.stack.includes(Stack.SQL);
+    if (python || isSql) {
       const pyprojectPath = path.join(this.outdir, "pyproject.toml");
       const existing = fs.existsSync(pyprojectPath) ? fs.readFileSync(pyprojectPath, "utf-8") : "";
-      fs.writeFileSync(pyprojectPath, mergeSqlfluffConfig(existing, renderSqlfluffConfig()));
+      const tables: ManagedTable[] = [...(python?.tables ?? []), ...(isSql ? sqlfluffTables() : [])];
+      fs.writeFileSync(
+        pyprojectPath,
+        mergePyproject(existing, {
+          tables,
+          ...(python?.projectKeys ? { projectKeys: python.projectKeys } : {}),
+          ...(isSql ? { ownedPrefixes: ["tool.sqlfluff"] } : {}),
+        }),
+      );
       partiallyManagedFiles.push("pyproject.toml");
     }
 

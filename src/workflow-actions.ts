@@ -3,6 +3,12 @@ export interface ExistingActionRef {
   readonly comment?: string;
 }
 
+/**
+ * `runs-on` for generated workflow jobs. Pinned rather than `ubuntu-latest`
+ * so a runner image bump doesn't change CI underneath a repo.
+ */
+export const RUNNER = "ubuntu-24.04";
+
 const PLACEHOLDER_REF = "v0.0.0";
 const USES_RE = /^(\s*(?:-\s+)?uses:\s+)([^\s@]+)@(\S+)(?:(\s+)#\s*(.*?))?\s*$/;
 

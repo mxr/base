@@ -35,6 +35,18 @@ if [ -z "${LOCAL_TARBALL:-}" ]; then
   : "${GH_PACKAGES_READ_TOKEN:?GH_PACKAGES_READ_TOKEN is required unless LOCAL_TARBALL is set}"
 fi
 
+# tokens (GH_TOKEN, GH_PACKAGES_READ_TOKEN) are deliberately left out
+step "args"
+echo "REPO=${REPO}"
+echo "VERSION=${VERSION}"
+echo "DRY_RUN=${DRY_RUN:-true}"
+echo "LOCAL_TARBALL=${LOCAL_TARBALL:-}"
+if [ -n "${BASE:-}" ]; then
+  printf 'BASE=\n%s\n' "$BASE"
+else
+  echo "BASE= (using the repo's .github/base.yml)"
+fi
+
 tag="v${VERSION}"
 branch="base-update"
 
@@ -82,7 +94,7 @@ opt_json="$(
 
 # BaseProject runs `pinact` for these stacks (see postSynthesize in
 # base-project.ts); propagate-update.yml installs it under the same condition
-needs_pinact="$(yq '((.stack // []) | (contains(["rust"]) or contains(["frontend"]))) or (((.stack // []) | contains(["mirror"])) and (.opt.mirror.pre-commit-mirror-maker != null))' "$base_yml")"
+needs_pinact="$(yq '((.stack // []) | (contains(["rust"]) or contains(["frontend"]))) or (((.stack // []) | contains(["mirror"])) and (.opt.mirror.pre-commit-mirror-maker != null)) or (((.stack // []) | contains(["python"])) and ((.opt.python.packaging != null) or (.opt.python.run-type-checks-in-github-actions == true)))' "$base_yml")"
 if [ "$needs_pinact" = "true" ]; then
   command -v pinact > /dev/null || { echo "missing required command: pinact" >&2; exit 1; }
 fi
@@ -96,6 +108,9 @@ new BaseProject({
   opt: ${opt_json},
 }).synth();
 EOF
+
+step "BaseProject args"
+cat "$workdir/.projenrc.js"
 
 constructs_version="$(jq -r '.peerDependencies.constructs' package.json)"
 projen_version="$(jq -r '.peerDependencies.projen' package.json)"

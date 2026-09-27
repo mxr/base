@@ -13,7 +13,8 @@ jest.mock("child_process", () => ({
 import { BANNER } from "../src/banner";
 import { BaseProject } from "../src/base-project";
 import { buildPreCommitRepos } from "../src/pre-commit";
-import { Stack } from "../src/stack";
+import { MANAGED_MARKER } from "../src/pyproject";
+import { PythonPackaging, Stack } from "../src/stack";
 
 function outdir(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), "base-projen-postsynth-"));
@@ -361,11 +362,44 @@ describe("BaseProject.postSynthesize with a mocked git/pre-commit binary", () =>
     project.synth();
 
     const pyproject = fs.readFileSync(path.join(dir, "pyproject.toml"), "utf-8");
-    expect(pyproject).toMatch(/^\[project\]\nname = "x"\n\n\[tool\.sqlfluff\.layout\.type\.comma\]\nline_position = "leading"\n/);
+    expect(pyproject).toMatch(
+      new RegExp(
+        `^\\[project\\]\\nname = "x"\\n\\n\\[tool\\.sqlfluff\\.layout\\.type\\.comma\\]  ${MANAGED_MARKER}\\nline_position = "leading"\\n`,
+      ),
+    );
     expect(pyproject).not.toContain("trailing");
     expect(pyproject).toContain("require_final_semicolon = true");
     const staged = realChildProcess.execFileSync("git", ["diff", "--cached", "--name-only"], { cwd: dir, encoding: "utf-8" });
     expect(staged.split("\n")).toContain("pyproject.toml");
+  });
+
+  it("merges python and sqlfluff config into an existing pyproject.toml for a wheel", () => {
+    const dir = outdir();
+    realChildProcess.execFileSync("git", ["init", "-q"], { cwd: dir });
+    fs.writeFileSync(path.join(dir, "pyproject.toml"), '[project]\nlicense = "GPL"\nname = "x"\n\n[tool.ruff]\ntarget-version = "py39"\n');
+    const project = new BaseProject({
+      name: "test",
+      stack: [Stack.PYTHON, Stack.SQL],
+      opt: { python: { minVersion: "3.12", packaging: PythonPackaging.WHEEL } },
+      outdir: dir,
+    });
+
+    execFileSyncMock.mockImplementation((cmd, args) => {
+      if (cmd === "git") {
+        return realChildProcess.execFileSync(cmd, args as string[], { cwd: dir });
+      }
+      return "";
+    });
+
+    project.synth();
+
+    const pyproject = fs.readFileSync(path.join(dir, "pyproject.toml"), "utf-8");
+    expect(pyproject).toMatch(new RegExp(`^\\[project\\]\\nauthors = .*\\nlicense = "MIT"  ${MANAGED_MARKER}\\n`));
+    expect(pyproject).toContain('name = "x"\n');
+    expect(pyproject).not.toContain("GPL");
+    expect(pyproject).not.toContain("py39");
+    expect(pyproject).toContain(`[tool.ruff]  ${MANAGED_MARKER}\ntarget-version = "py312"\n`);
+    expect(pyproject).toContain(`[tool.sqlfluff.layout.type.comma]  ${MANAGED_MARKER}\n`);
   });
 
   it("does not write a pyproject.toml for a non-sql stack", () => {

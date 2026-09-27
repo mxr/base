@@ -188,7 +188,7 @@ const IMPLIED_STACKS: Partial<Record<Stack, Stack[]>> = {
   [Stack.FRONTEND]: [Stack.GITHUB_ACTIONS, Stack.GITIGNORE],
   [Stack.JAVASCRIPT]: [Stack.GITHUB_ACTIONS],
   [Stack.MIRROR]: [Stack.GITHUB_ACTIONS],
-  [Stack.PYTHON]: [Stack.TOML],
+  [Stack.PYTHON]: [Stack.TOML, Stack.GITHUB_ACTIONS],
   [Stack.RUST]: [Stack.TOML, Stack.GITHUB_ACTIONS, Stack.GITIGNORE],
   [Stack.SQL]: [Stack.TOML],
 };
@@ -198,15 +198,6 @@ function expandStacks(stack: Stack[]): Stack[] {
 }
 
 /**
- * Hook ids that pre-commit.ci should skip for a given stack, keyed by why:
- * rust's `clippy` already runs via GitHub Actions, since pre-commit.ci's
- * containers don't keep a project's own crate versions in sync.
- */
-const CI_SKIP: Partial<Record<Stack, string[]>> = {
-  [Stack.RUST]: ["clippy"],
-};
-
-/**
  * Generated toml lockfiles that pretty-format-toml should skip, to avoid diff
  * noise.
  */
@@ -214,13 +205,6 @@ const TOML_LOCKFILES: Partial<Record<Stack, string[]>> = {
   [Stack.PYTHON]: ["uv.lock"],
   [Stack.RUST]: ["Cargo.lock"],
 };
-
-/**
- * Builds the `ci.skip` hook id list for the given stacks, deduplicated.
- */
-export function buildCiSkip(stack: Stack[]): string[] {
-  return [...new Set(stack.flatMap((name) => CI_SKIP[name] ?? []))];
-}
 
 /**
  * A hook's pinned `rev` from an existing `.pre-commit-config.yaml`, plus its

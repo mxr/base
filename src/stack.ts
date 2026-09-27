@@ -18,3 +18,15 @@ export enum Stack {
   SQL = "sql",
   TOML = "toml",
 }
+
+/**
+ * How a `Stack.PYTHON` repo is packaged and released.
+ *
+ * `WHEEL` builds an sdist and wheel and publishes them to PyPI; `HOME_ASSISTANT`
+ * is a Home Assistant custom integration distributed through HACS via GitHub
+ * releases.
+ */
+export enum PythonPackaging {
+  HOME_ASSISTANT = "home-assistant",
+  WHEEL = "wheel",
+}
