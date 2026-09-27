@@ -76,9 +76,6 @@ export function pythonMainWorkflow(options: PythonPackagingOptions): string[] {
     "'**/*.py'",
     ...(options.stack.includes(Stack.SQL) ? ["'**/*.sql'"] : []),
     "'**/*.toml'",
-    "'**/*requirements*.txt'",
-    "'**/setup.cfg'",
-    "setup.py",
     ...(isWheel ? [] : ["custom_components/*/manifest.json"]),
   ];
   return workflow("main", "project_files", projectFiles, [
