@@ -143,9 +143,7 @@ describe("BaseProject.postSynthesize with a mocked git/pre-commit binary", () =>
       outdir: dir,
       opt: {
         mirror: {
-          preCommitMirrorMaker: {
-            command: "pre-commit-mirror . --language python --package-name ty --id ty --entry 'ty check' --types python",
-          },
+          command: "pre-commit-mirror . --language python --package-name ty --id ty --entry 'ty check' --types python",
         },
       },
     });

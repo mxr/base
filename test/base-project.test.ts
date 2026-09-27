@@ -122,18 +122,16 @@ describe("BaseProject", () => {
 });
 
 describe("BaseProject mirror stack", () => {
-  const preCommitMirrorMaker = {
+  const mirror = {
     command: "pre-commit-mirror . --language python --package-name ty --id ty --entry 'ty check' --types python",
   };
 
-  it("throws without opt.mirror.preCommitMirrorMaker", () => {
-    expect(() => new BaseProject({ name: "test", stack: [Stack.MIRROR] })).toThrow(
-      "Stack.MIRROR requires opt.mirror.preCommitMirrorMaker to be set",
-    );
+  it("throws without opt.mirror", () => {
+    expect(() => new BaseProject({ name: "test", stack: [Stack.MIRROR] })).toThrow("Stack.MIRROR requires opt.mirror to be set");
   });
 
   it("renders the workflow with an unpinned install when no version is given", () => {
-    const project = new BaseProject({ name: "test", stack: [Stack.MIRROR], opt: { mirror: { preCommitMirrorMaker } } });
+    const project = new BaseProject({ name: "test", stack: [Stack.MIRROR], opt: { mirror } });
     const snapshot = Testing.synth(project);
     expect(snapshot[".github/workflows/main.yml"]).toContain("pip install pre-commit-mirror-maker");
     expect(snapshot[".github/workflows/main.yml"]).toContain("pre-commit-mirror . --language python");
@@ -146,9 +144,7 @@ describe("BaseProject mirror stack", () => {
       stack: [Stack.MIRROR],
       opt: {
         mirror: {
-          preCommitMirrorMaker: {
-            command: "pre-commit-mirror . \\\n--language python \\\n--id ty",
-          },
+          command: "pre-commit-mirror . \\\n--language python \\\n--id ty",
         },
       },
     });
@@ -164,9 +160,7 @@ describe("BaseProject mirror stack", () => {
       stack: [Stack.MIRROR],
       opt: {
         mirror: {
-          preCommitMirrorMaker: {
-            command: "pre-commit-mirror . --files-regex '(^|/)(openapi|.*[.](json|ya?ml))$'",
-          },
+          command: "pre-commit-mirror . --files-regex '(^|/)(openapi|.*[.](json|ya?ml))$'",
         },
       },
     });
@@ -178,7 +172,7 @@ describe("BaseProject mirror stack", () => {
     const project = new BaseProject({
       name: "test",
       stack: [Stack.MIRROR],
-      opt: { mirror: { preCommitMirrorMaker: { ...preCommitMirrorMaker, version: "abc123" } } },
+      opt: { mirror: { ...mirror, version: "abc123" } },
     });
     const snapshot = Testing.synth(project);
     expect(snapshot[".github/workflows/main.yml"]).toContain(
@@ -187,7 +181,7 @@ describe("BaseProject mirror stack", () => {
   });
 
   it("includes actionlint and zizmor pre-commit hooks for a mirror stack", () => {
-    const project = new BaseProject({ name: "test", stack: [Stack.MIRROR], opt: { mirror: { preCommitMirrorMaker } } });
+    const project = new BaseProject({ name: "test", stack: [Stack.MIRROR], opt: { mirror } });
     const snapshot = Testing.synth(project);
     expect(snapshot[".pre-commit-config.yaml"]).toContain("actionlint");
     expect(snapshot[".pre-commit-config.yaml"]).toContain("zizmor");

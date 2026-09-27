@@ -20,11 +20,12 @@ function readResource(name: string): string {
   return fs.readFileSync(path.join(__dirname, "resources", name), "utf-8");
 }
 
-export interface MirrorPreCommitMirrorMakerOptions {
+export interface MirrorOptions {
   /**
    * The `pre-commit-mirror` invocation, e.g.
    * `pre-commit-mirror . --language python --package-name ty --id ty --entry 'ty check' --types python`.
-   * Rendered verbatim into the workflow's `run: |` block.
+   * Rendered verbatim into the `run: |` block of `.github/workflows/main.yml`,
+   * which is rendered from the pre-commit-mirror-maker template.
    */
   readonly command: string;
 
@@ -33,14 +34,6 @@ export interface MirrorPreCommitMirrorMakerOptions {
    * install the latest release unpinned.
    */
   readonly version?: string;
-}
-
-export interface MirrorOptions {
-  /**
-   * Renders `.github/workflows/main.yml` from the pre-commit-mirror-maker
-   * template.
-   */
-  readonly preCommitMirrorMaker: MirrorPreCommitMirrorMakerOptions;
 }
 
 export interface PythonOptions {
@@ -212,11 +205,11 @@ export class BaseProject extends GitHubProject {
     }
 
     if (this.stack.includes(Stack.MIRROR)) {
-      const preCommitMirrorMaker = options.opt?.mirror?.preCommitMirrorMaker;
-      if (!preCommitMirrorMaker) {
-        throw new Error("Stack.MIRROR requires opt.mirror.preCommitMirrorMaker to be set");
+      const mirror = options.opt?.mirror;
+      if (!mirror) {
+        throw new Error("Stack.MIRROR requires opt.mirror to be set");
       }
-      const { command, version } = preCommitMirrorMaker;
+      const { command, version } = mirror;
       const install = version
         ? `pip install git+https://github.com/pre-commit/pre-commit-mirror-maker@${version}`
         : "pip install pre-commit-mirror-maker";
