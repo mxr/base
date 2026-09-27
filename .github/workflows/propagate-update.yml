@@ -116,9 +116,9 @@ jobs:
         base_yml="$(GH_TOKEN="$APP_TOKEN" gh api "repos/${REPO}/contents/.github/base.yml" --jq '.content' | base64 -d)"
         python_version="$(yq '.opt.python.min-version // ""' - <<< "$base_yml")"
         # mirrors BaseProject's own condition for running pinact: Stack.RUST,
-        # Stack.FRONTEND, Stack.MIRROR with opt.mirror.preCommitMirrorMaker set, or
+        # Stack.FRONTEND, Stack.MIRROR, or
         # Stack.PYTHON with opt.python.packaging or opt.python.runTypeChecksInGithubActions set
-        needs_pinact="$(yq '((.stack // []) | (contains(["rust"]) or contains(["frontend"]))) or (((.stack // []) | contains(["mirror"])) and (.opt.mirror.pre-commit-mirror-maker != null)) or (((.stack // []) | contains(["python"])) and ((.opt.python.packaging != null) or (.opt.python.run-type-checks-in-github-actions == true)))' - <<< "$base_yml")"
+        needs_pinact="$(yq '((.stack // []) | (contains(["rust"]) or contains(["frontend"]) or contains(["mirror"]))) or (((.stack // []) | contains(["python"])) and ((.opt.python.packaging != null) or (.opt.python.run-type-checks-in-github-actions == true)))' - <<< "$base_yml")"
 
         install_pinact() {
           dir="$RUNNER_TEMP/pinact"

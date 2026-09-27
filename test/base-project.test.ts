@@ -126,19 +126,10 @@ describe("BaseProject mirror stack", () => {
     command: "pre-commit-mirror . --language python --package-name ty --id ty --entry 'ty check' --types python",
   };
 
-  it("throws without opt.mirror.preCommitMirrorMaker or opt.mirror.custom", () => {
+  it("throws without opt.mirror.preCommitMirrorMaker", () => {
     expect(() => new BaseProject({ name: "test", stack: [Stack.MIRROR] })).toThrow(
-      "Stack.MIRROR requires opt.mirror.preCommitMirrorMaker or opt.mirror.custom to be set",
+      "Stack.MIRROR requires opt.mirror.preCommitMirrorMaker to be set",
     );
-    expect(() => new BaseProject({ name: "test", stack: [Stack.MIRROR], opt: { mirror: {} } })).toThrow(
-      "Stack.MIRROR requires opt.mirror.preCommitMirrorMaker or opt.mirror.custom to be set",
-    );
-  });
-
-  it("leaves .github/workflows/main.yml unmanaged for a custom mirror", () => {
-    const project = new BaseProject({ name: "test", stack: [Stack.MIRROR], opt: { mirror: { custom: {} } } });
-    const snapshot = Testing.synth(project);
-    expect(snapshot[".github/workflows/main.yml"]).toBeUndefined();
   });
 
   it("renders the workflow with an unpinned install when no version is given", () => {

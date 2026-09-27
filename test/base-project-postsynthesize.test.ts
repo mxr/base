@@ -134,7 +134,7 @@ describe("BaseProject.postSynthesize with a mocked git/pre-commit binary", () =>
     expect(gitignore).toContain("next-env.d.ts");
   });
 
-  it("runs pinact for a mirror stack with preCommitMirrorMaker", () => {
+  it("runs pinact for a mirror stack", () => {
     const dir = outdir();
     realChildProcess.execFileSync("git", ["init", "-q"], { cwd: dir });
     const project = new BaseProject({
@@ -245,23 +245,6 @@ describe("BaseProject.postSynthesize with a mocked git/pre-commit binary", () =>
         .join("\n"),
     );
     const project = new BaseProject({ name: "test", stack: [Stack.RUST], outdir: dir });
-
-    execFileSyncMock.mockImplementation((cmd, args) => {
-      if (cmd === "git") {
-        return realChildProcess.execFileSync(cmd, args as string[], { cwd: dir });
-      }
-      return "";
-    });
-
-    project.synth();
-
-    expect(shCallScript(execFileSyncMock)).not.toContain("pinact");
-  });
-
-  it("skips pinact for a mirror stack with a custom mirror", () => {
-    const dir = outdir();
-    realChildProcess.execFileSync("git", ["init", "-q"], { cwd: dir });
-    const project = new BaseProject({ name: "test", stack: [Stack.MIRROR], outdir: dir, opt: { mirror: { custom: {} } } });
 
     execFileSyncMock.mockImplementation((cmd, args) => {
       if (cmd === "git") {
