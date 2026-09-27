@@ -87,11 +87,11 @@ describe("buildPreCommitRepos", () => {
     expect("rev" in repos.at(-1)!).toBe(false);
   });
 
-  it("includes check-docstring-first and the mirrors-pyright hook for a python stack", () => {
+  it("includes check-docstring-first and the pyright-pre-commit hook for a python stack", () => {
     const repos = buildPreCommitRepos([Stack.PYTHON]);
     const hooks = repos.find((r) => r.repo === "https://github.com/pre-commit/pre-commit-hooks");
     expect(hooks?.hooks.map((h) => h.id)).toEqual(expect.arrayContaining(["check-docstring-first", "debug-statements"]));
-    expect(repos.map((r) => r.repo)).toContain("https://github.com/mxr/mirrors-pyright");
+    expect(repos.map((r) => r.repo)).toContain("https://github.com/mxr/pyright-pre-commit");
   });
 
   it.each([
