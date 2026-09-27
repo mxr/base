@@ -80,7 +80,7 @@ const STACK_REPOS: Partial<Record<Stack, PreCommitRepo[]>> = {
       hooks: [{ id: "mypy" }],
     },
     {
-      repo: "https://github.com/mxr/mirrors-pyright",
+      repo: "https://github.com/mxr/pyright-pre-commit",
       hooks: [{ id: "pyright" }],
     },
     {
