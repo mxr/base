@@ -5,13 +5,13 @@ import { License, TextFile } from "projen";
 import { GitHubProject } from "projen/lib/github";
 import { BANNER } from "./banner";
 import { firstCommitYear } from "./git";
-import { readExistingRevs } from "./pre-commit";
+import { expandStacks, readExistingRevs } from "./pre-commit";
 import { PreCommitConfigFile } from "./pre-commit-config-file";
 import { mergePyproject, sqlfluffTables } from "./pyproject";
 import { managedPyproject, pythonMainWorkflow, typeChecksWorkflow } from "./python";
 import { cargoReleaseWorkflow, homeAssistantReleaseWorkflow, wheelReleaseWorkflow } from "./release";
 import { PythonPackaging, Stack } from "./stack";
-import { applyExistingActionRefs, readExistingActionRefs } from "./workflow-actions";
+import { applyExistingActionRefs, RUNNER, readExistingActionRefs } from "./workflow-actions";
 import type { GitHubProjectOptions } from "projen/lib/github";
 import type { ExistingRev } from "./pre-commit";
 import type { ManagedTable } from "./pyproject";
@@ -245,6 +245,14 @@ export class BaseProject extends GitHubProject {
         lines: [`// ${BANNER}`, "", ...readResource("frontend/next.config.ts").trimEnd().split("\n")],
       });
       new TextFile(this, "vercel.json", { lines: readResource("frontend/vercel.json").trimEnd().split("\n") });
+    }
+
+    if (expandStacks(this.stack).includes(Stack.GITHUB_ACTIONS)) {
+      new TextFile(this, ".github/actionlint.yml", {
+        marker: false,
+        committed: true,
+        lines: [`# ${BANNER}`, "", "# https://github.com/rhysd/actionlint/issues/682", "self-hosted-runner:", "  labels:", `  - ${RUNNER}`],
+      });
     }
 
     if (this.github) {

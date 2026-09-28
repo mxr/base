@@ -98,6 +98,19 @@ describe("BaseProject", () => {
     expect(snapshot[".pre-commit-config.yaml"]).toContain("zizmor");
   });
 
+  it.each([
+    { name: "github-actions", stack: [Stack.GITHUB_ACTIONS], expected: true },
+    { name: "rust (implies github-actions)", stack: [Stack.RUST], expected: true },
+    { name: "shell", stack: [Stack.SHELL], expected: false },
+  ])("writes .github/actionlint.yml only when github actions is in the stack: $name", ({ stack, expected }) => {
+    const snapshot = Testing.synth(new BaseProject({ name: "test", stack }));
+    if (expected) {
+      expect(snapshot[".github/actionlint.yml"]).toContain("self-hosted-runner:\n  labels:\n  - ubuntu-26.04");
+    } else {
+      expect(snapshot[".github/actionlint.yml"]).toBeUndefined();
+    }
+  });
+
   it("writes a pre-commit config", () => {
     const project = new BaseProject({ name: "test", stack: [] });
     const snapshot = Testing.synth(project);

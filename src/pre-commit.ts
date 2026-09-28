@@ -193,7 +193,7 @@ const IMPLIED_STACKS: Partial<Record<Stack, Stack[]>> = {
   [Stack.SQL]: [Stack.TOML],
 };
 
-function expandStacks(stack: Stack[]): Stack[] {
+export function expandStacks(stack: Stack[]): Stack[] {
   return [...new Set(stack.flatMap((name) => [name, ...(IMPLIED_STACKS[name] ?? [])]))];
 }
 
