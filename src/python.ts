@@ -9,6 +9,12 @@ import type { ManagedPyproject, ManagedTable } from "./pyproject";
  */
 const LATEST_PYTHON = "3.15";
 
+/**
+ * The only CPython Home Assistant runs on, so a home assistant integration
+ * is pinned to it instead of taking a `minVersion`.
+ */
+export const HOME_ASSISTANT_PYTHON = "3.14";
+
 export interface PythonPackagingOptions {
   readonly packaging: PythonPackaging;
   readonly minVersion: string;

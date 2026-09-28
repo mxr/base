@@ -8,7 +8,7 @@ import { firstCommitYear } from "./git";
 import { expandStacks, readExistingRevs } from "./pre-commit";
 import { PreCommitConfigFile } from "./pre-commit-config-file";
 import { mergePyproject, sqlfluffTables } from "./pyproject";
-import { managedPyproject, pythonMainWorkflow, typeChecksWorkflow } from "./python";
+import { HOME_ASSISTANT_PYTHON, managedPyproject, pythonMainWorkflow, typeChecksWorkflow } from "./python";
 import { cargoReleaseWorkflow, homeAssistantReleaseWorkflow, wheelReleaseWorkflow } from "./release";
 import { PythonPackaging, Stack } from "./stack";
 import { applyExistingActionRefs, RUNNER, readExistingActionRefs } from "./workflow-actions";
@@ -40,8 +40,10 @@ export interface PythonOptions {
   /**
    * Minimum Python version this repo supports, e.g. `"3.11"`. Rendered as
    * `.pre-commit-config.yaml`'s top-level `default_language_version.python`.
+   * Required unless `packaging` is `PythonPackaging.HOME_ASSISTANT`, which
+   * always uses the only Python Home Assistant runs on and must omit it.
    */
-  readonly minVersion: string;
+  readonly minVersion?: string;
 
   /**
    * How the repo is packaged and released. When set, BaseProject renders
@@ -143,15 +145,18 @@ export class BaseProject extends GitHubProject {
       copyrightPeriod: String(firstCommitYear(this.outdir)),
     });
 
-    if (this.stack.includes(Stack.PYTHON) && !options.opt?.python) {
+    this.pythonPackaging = options.opt?.python?.packaging;
+    const isHomeAssistant = this.pythonPackaging === PythonPackaging.HOME_ASSISTANT;
+    if (isHomeAssistant && options.opt?.python?.minVersion) {
+      throw new Error(`PythonPackaging.HOME_ASSISTANT always uses python ${HOME_ASSISTANT_PYTHON}; omit opt.python.minVersion`);
+    }
+    this.pythonMinVersion = isHomeAssistant ? HOME_ASSISTANT_PYTHON : options.opt?.python?.minVersion;
+    if (this.stack.includes(Stack.PYTHON) && !this.pythonMinVersion) {
       throw new Error("Stack.PYTHON requires opt.python.minVersion to be set");
     }
-
-    this.pythonMinVersion = options.opt?.python?.minVersion;
-    this.pythonPackaging = options.opt?.python?.packaging;
     const homeAssistant = options.opt?.python?.homeAssistant;
     const runTypeChecksInGithubActions = this.stack.includes(Stack.PYTHON) && (options.opt?.python?.runTypeChecksInGithubActions ?? false);
-    if (this.pythonPackaging === PythonPackaging.HOME_ASSISTANT && !homeAssistant) {
+    if (isHomeAssistant && !homeAssistant) {
       throw new Error("PythonPackaging.HOME_ASSISTANT requires opt.python.homeAssistant to be set");
     }
 

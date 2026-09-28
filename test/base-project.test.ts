@@ -240,10 +240,11 @@ describe("BaseProject python packaging", () => {
     const project = new BaseProject({
       name: "test",
       stack: [Stack.PYTHON],
-      opt: { python: { minVersion: "3.14", packaging: PythonPackaging.HOME_ASSISTANT, homeAssistant } },
+      opt: { python: { packaging: PythonPackaging.HOME_ASSISTANT, homeAssistant } },
     });
     const snapshot = Testing.synth(project);
     expect(snapshot[".github/workflows/main.yml"]).toContain(`env: '["py314"]'`);
+    expect(snapshot[".pre-commit-config.yaml"]).toContain("default_language_version:\n  python: python3.14\n");
     expect(snapshot[".github/workflows/release.yml"]).toContain("uses: mxr/workflows/.github/workflows/github-release.yml@v0.0.0");
     expect(snapshot["hacs.json"]).toEqual({ content_in_root: false, homeassistant: "2026.4.0", name: "Foo" });
   });
@@ -293,8 +294,19 @@ describe("BaseProject python packaging", () => {
         new BaseProject({
           name: "test",
           stack: [Stack.PYTHON],
-          opt: { python: { minVersion: "3.14", packaging: PythonPackaging.HOME_ASSISTANT } },
+          opt: { python: { packaging: PythonPackaging.HOME_ASSISTANT } },
         }),
     ).toThrow("PythonPackaging.HOME_ASSISTANT requires opt.python.homeAssistant to be set");
+  });
+
+  it("throws when home assistant packaging sets opt.python.minVersion", () => {
+    expect(
+      () =>
+        new BaseProject({
+          name: "test",
+          stack: [Stack.PYTHON],
+          opt: { python: { minVersion: "3.14", packaging: PythonPackaging.HOME_ASSISTANT, homeAssistant } },
+        }),
+    ).toThrow("PythonPackaging.HOME_ASSISTANT always uses python 3.14; omit opt.python.minVersion");
   });
 });

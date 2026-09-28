@@ -114,7 +114,12 @@ jobs:
       run: |
         set -euo pipefail
         base_yml="$(GH_TOKEN="$APP_TOKEN" gh api "repos/${REPO}/contents/.github/base.yml" --jq '.content' | base64 -d)"
-        python_version="$(yq '.opt.python.min-version // ""' - <<< "$base_yml")"
+        # home assistant packaging omits min-version; keep in sync with HOME_ASSISTANT_PYTHON in src/python.ts
+        if [ "$(yq '.opt.python.packaging // ""' - <<< "$base_yml")" = "home-assistant" ]; then
+          python_version="3.14"
+        else
+          python_version="$(yq '.opt.python.min-version // ""' - <<< "$base_yml")"
+        fi
         # mirrors BaseProject's own condition for running pinact: Stack.RUST,
         # Stack.FRONTEND, Stack.MIRROR, or
         # Stack.PYTHON with opt.python.packaging or opt.python.runTypeChecksInGithubActions set
