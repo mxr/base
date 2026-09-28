@@ -262,16 +262,16 @@ describe("BaseProject python packaging", () => {
     expect(snapshot[".github/workflows/type-checks.yml"]).toBeUndefined();
   });
 
-  it("pins generated python workflows to the ubuntu-24.04 runner", () => {
+  it("pins generated python workflows to the ubuntu-26.04 runner", () => {
     const project = new BaseProject({
       name: "test",
       stack: [Stack.PYTHON],
       opt: { python: { minVersion: "3.14", packaging: PythonPackaging.WHEEL } },
     });
     const snapshot = Testing.synth(project);
-    expect(snapshot[".github/workflows/main.yml"]).toContain("runs-on: ubuntu-24.04");
+    expect(snapshot[".github/workflows/main.yml"]).toContain("runs-on: ubuntu-26.04");
     expect(snapshot[".github/workflows/main.yml"]).not.toContain("ubuntu-latest");
-    expect(snapshot[".github/workflows/release.yml"]).toContain("runs-on: ubuntu-24.04");
+    expect(snapshot[".github/workflows/release.yml"]).toContain("runs-on: ubuntu-26.04");
   });
 
   it("throws without opt.python.homeAssistant for home assistant packaging", () => {
