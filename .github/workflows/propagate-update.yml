@@ -70,7 +70,7 @@ jobs:
           fi
         }
         export -f has_base_yml
-        matched="$(gh api /installation/repositories --paginate --jq '.repositories[].name' | xargs -P 8 -I{} bash -c 'has_base_yml {}' | sort | jq -R . | jq -sc .)"
+        matched="$(gh api /installation/repositories --paginate --jq '.repositories[] | select(.archived | not) | .name' | xargs -P 8 -I{} bash -c 'has_base_yml {}' | sort | jq -R . | jq -sc .)"
         echo "repos=$matched" >> "$GITHUB_OUTPUT"
 
   propagate:
