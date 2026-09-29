@@ -15,14 +15,17 @@ describe("supportedToxEnvs", () => {
 });
 
 describe("pythonMainWorkflow", () => {
-  it("tests a wheel on every supported version plus pypy, and on windows", () => {
+  it.each([
+    { minVersion: "3.12", envs: '["py312", "py313", "py314", "py315", "pypy3"]' },
+    { minVersion: "3.13", envs: '["py313", "py314", "py315"]' },
+  ])("tests a $minVersion wheel on every supported version, pypy if it supports $minVersion, and windows", ({ minVersion, envs }) => {
     const workflow = pythonMainWorkflow({
       packaging: PythonPackaging.WHEEL,
-      minVersion: "3.13",
+      minVersion,
       stack: [Stack.PYTHON],
     }).join("\n");
-    expect(workflow).toContain(`      env: '["py313", "py314", "py315", "pypy3"]'\n`);
-    expect(workflow).toContain(`      env: '["py313"]'\n      os: windows-latest\n`);
+    expect(workflow).toContain(`      env: '${envs}'\n`);
+    expect(workflow).toContain(`      env: '["${`py${minVersion.replace(".", "")}`}"]'\n      os: windows-latest\n`);
     expect(workflow).toContain("        MAIN_WIN_REAL_RESULT: ${{ needs.main-win-real.result }}\n");
     expect(workflow).not.toContain("'**/*.sql'");
     expect(workflow).not.toContain("manifest.json");

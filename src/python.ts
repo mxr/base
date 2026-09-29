@@ -15,10 +15,20 @@ const LATEST_PYTHON = "3.15";
  */
 export const HOME_ASSISTANT_PYTHON = "3.14";
 
+/**
+ * Newest python version PyPy implements, so `pypy3` is only tested when a
+ * wheel's `minVersion` is at or below it.
+ */
+const LATEST_PYPY = "3.12";
+
 export interface PythonPackagingOptions {
   readonly packaging: PythonPackaging;
   readonly minVersion: string;
   readonly stack: readonly Stack[];
+}
+
+function minor(version: string): number {
+  return Number(version.split(".")[1]);
 }
 
 function toxEnv(version: string): string {
@@ -76,7 +86,8 @@ function toxJob(envs: readonly string[], os?: string): string {
  */
 export function pythonMainWorkflow(options: PythonPackagingOptions): string[] {
   const isWheel = options.packaging === PythonPackaging.WHEEL;
-  const envs = isWheel ? [...supportedToxEnvs(options.minVersion), "pypy3"] : [toxEnv(options.minVersion)];
+  const pypy = minor(options.minVersion) <= minor(LATEST_PYPY) ? ["pypy3"] : [];
+  const envs = isWheel ? [...supportedToxEnvs(options.minVersion), ...pypy] : [toxEnv(options.minVersion)];
   const projectFiles = [
     ".github/workflows/main.yml",
     "'**/*.py'",
