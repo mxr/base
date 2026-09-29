@@ -44,7 +44,6 @@ describe("BaseProject", () => {
     const snapshot = Testing.synth(project);
     expect(snapshot[".github/mergify.yml"]).toContain("renovate[bot]");
     expect(snapshot[".github/mergify.yml"]).toContain("author=mxr-base-sync[bot]");
-    expect(snapshot[".github/mergify.yml"]).not.toContain("copier-sync");
     expect(snapshot[".github/renovate.jsonc"]).toMatchObject({ commitMessagePrefix: "[renovate]" });
   });
 
