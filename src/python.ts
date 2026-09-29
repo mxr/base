@@ -1,6 +1,6 @@
 import { tomlEntries } from "./pyproject";
 import { PythonPackaging, Stack } from "./stack";
-import { RUNNER } from "./workflow-actions";
+import { RUNNER, WINDOWS_RUNNER } from "./workflow-actions";
 import type { ManagedPyproject, ManagedTable } from "./pyproject";
 
 /**
@@ -97,7 +97,7 @@ export function pythonMainWorkflow(options: PythonPackagingOptions): string[] {
   ];
   return workflow("main", "project_files", projectFiles, [
     gatedJob("main", "project_files", toxJob(envs)),
-    ...(isWheel ? [gatedJob("main-win", "project_files", toxJob([toxEnv(options.minVersion)], "windows-latest"))] : []),
+    ...(isWheel ? [gatedJob("main-win", "project_files", toxJob([toxEnv(options.minVersion)], WINDOWS_RUNNER))] : []),
   ]);
 }
 

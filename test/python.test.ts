@@ -25,7 +25,7 @@ describe("pythonMainWorkflow", () => {
       stack: [Stack.PYTHON],
     }).join("\n");
     expect(workflow).toContain(`      env: '${envs}'\n`);
-    expect(workflow).toContain(`      env: '["${`py${minVersion.replace(".", "")}`}"]'\n      os: windows-latest\n`);
+    expect(workflow).toContain(`      env: '["${`py${minVersion.replace(".", "")}`}"]'\n      os: windows-2025\n`);
     expect(workflow).toContain("        MAIN_WIN_REAL_RESULT: ${{ needs.main-win-real.result }}\n");
     expect(workflow).not.toContain("'**/*.sql'");
     expect(workflow).not.toContain("manifest.json");
@@ -39,7 +39,7 @@ describe("pythonMainWorkflow", () => {
       stack: [Stack.PYTHON, Stack.SQL],
     }).join("\n");
     expect(workflow).toContain(`      env: '["py314"]'\n`);
-    expect(workflow).not.toContain("windows-latest");
+    expect(workflow).not.toContain("windows-2025");
     expect(workflow).toContain("            - '**/*.sql'\n");
     expect(workflow).toContain("            - custom_components/*/manifest.json");
   });

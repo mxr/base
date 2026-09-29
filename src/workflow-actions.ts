@@ -4,6 +4,7 @@ export interface ExistingActionRef {
 }
 
 export const RUNNER = "ubuntu-26.04";
+export const WINDOWS_RUNNER = "windows-2025";
 
 const PLACEHOLDER_REF = "v0.0.0";
 const USES_RE = /^(\s*(?:-\s+)?uses:\s+)([^\s@]+)@(\S+)(?:(\s+)#\s*(.*?))?\s*$/;
