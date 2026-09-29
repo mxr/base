@@ -297,12 +297,28 @@ export class BaseProject extends GitHubProject {
       $schema: "https://docs.renovatebot.com/renovate-schema.json",
       commitMessageAction: "weekly",
       commitMessagePrefix: "[renovate]",
+      // the windows runner is a tox.yml `os` input, not `runs-on`, so the github-actions manager misses it
+      ...(this.stack.includes(Stack.PYTHON)
+        ? {
+            customManagers: [
+              {
+                customType: "regex",
+                managerFilePatterns: ["/^\\.github/workflows/main\\.yml$/"],
+                matchStrings: ["\\sos: (?<depName>windows)-(?<currentValue>\\S+)"],
+                datasourceTemplate: "github-runners",
+                versioningTemplate: "docker",
+              },
+            ],
+          }
+        : {}),
       extends: ["config:recommended", ":disableDependencyDashboard"],
       groupSingleUpdates: true,
       minimumReleaseAge: "7 days",
       packageRules: [
         ...(this.renovateDisable.length > 0 ? [{ matchPackageNames: this.renovateDisable, enabled: false }] : []),
         { commitMessageExtra: " ", groupName: "update", matchPackageNames: ["*"] },
+        // github-runners has no release timestamps, so minimumReleaseAge would otherwise block every runner update
+        { matchDatasources: ["github-runners"], minimumReleaseAgeBehaviour: "timestamp-optional" },
       ],
       prBodyTemplate: "{{{table}}}",
       schedule: ["* 16-17 * * 1"],

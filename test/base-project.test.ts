@@ -45,6 +45,10 @@ describe("BaseProject", () => {
     expect(snapshot[".github/mergify.yml"]).toContain("renovate[bot]");
     expect(snapshot[".github/mergify.yml"]).toContain("author=mxr-base-sync[bot]");
     expect(snapshot[".github/renovate.jsonc"]).toMatchObject({ commitMessagePrefix: "[renovate]" });
+    expect(snapshot[".github/renovate.jsonc"].packageRules).toContainEqual({
+      matchDatasources: ["github-runners"],
+      minimumReleaseAgeBehaviour: "timestamp-optional",
+    });
   });
 
   it("writes rust workflow files only for a rust stack", () => {
@@ -131,6 +135,19 @@ describe("BaseProject", () => {
 
     const javascript = Testing.synth(new BaseProject({ name: "test", stack: [Stack.JAVASCRIPT] }));
     expect(javascript[".github/renovate.jsonc"].packageRules).not.toContainEqual(expect.objectContaining({ matchPackageNames: ["tar"] }));
+  });
+
+  it("adds a renovate custom manager for the windows runner for a python stack only", () => {
+    const python = Testing.synth(
+      new BaseProject({ name: "test", stack: [Stack.PYTHON], opt: { python: { minVersion: "3.14", packaging: PythonPackaging.WHEEL } } }),
+    );
+    const [manager] = python[".github/renovate.jsonc"].customManagers;
+    expect(manager).toMatchObject({ datasourceTemplate: "github-runners", versioningTemplate: "docker" });
+    const match = new RegExp(manager.matchStrings[0]).exec(python[".github/workflows/main.yml"]);
+    expect(match?.groups).toEqual({ depName: "windows", currentValue: "2025" });
+
+    const nonPython = Testing.synth(new BaseProject({ name: "test", stack: [] }));
+    expect(nonPython[".github/renovate.jsonc"].customManagers).toBeUndefined();
   });
 });
 
