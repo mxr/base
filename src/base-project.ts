@@ -8,7 +8,7 @@ import { firstCommitYear } from "./git";
 import { expandStacks, readExistingRevs } from "./pre-commit";
 import { PreCommitConfigFile } from "./pre-commit-config-file";
 import { mergePyproject, sqlfluffTables } from "./pyproject";
-import { HOME_ASSISTANT_PYTHON, managedPyproject, pythonMainWorkflow, typeChecksWorkflow } from "./python";
+import { HOME_ASSISTANT_PYTHON, managedPyproject, pythonMainWorkflow, typingWorkflow } from "./python";
 import { cargoReleaseWorkflow, homeAssistantReleaseWorkflow, wheelReleaseWorkflow } from "./release";
 import { PythonPackaging, Stack } from "./stack";
 import { applyExistingActionRefs, RUNNER, readExistingActionRefs } from "./workflow-actions";
@@ -58,7 +58,7 @@ export interface PythonOptions {
    * Run the type checkers (mypy, pyright, ty) in a GitHub Actions job via
    * mxr/workflows' pre-commit-typing workflow instead of on pre-commit.ci,
    * whose environment is too small for a big project venv. Writes
-   * `.github/workflows/type-checks.yml` and adds the hooks to `ci.skip`.
+   * `.github/workflows/typing.yml` and adds the hooks to `ci.skip`.
    *
    * @default false
    */
@@ -201,7 +201,7 @@ export class BaseProject extends GitHubProject {
     }
 
     if (runTypeChecksInGithubActions) {
-      this.addWorkflow("type-checks.yml", typeChecksWorkflow());
+      this.addWorkflow("typing.yml", typingWorkflow());
     }
 
     if (homeAssistant && this.pythonPackaging === PythonPackaging.HOME_ASSISTANT) {

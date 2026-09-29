@@ -91,15 +91,15 @@ export function pythonMainWorkflow(options: PythonPackagingOptions): string[] {
 }
 
 /**
- * `.github/workflows/type-checks.yml`: the typing pre-commit hooks, which
+ * `.github/workflows/typing.yml`: the typing pre-commit hooks, which
  * pre-commit.ci skips since the project venv is too big for it. Its own file,
  * so it doesn't depend on base owning `main.yml`.
  */
-export function typeChecksWorkflow(): string[] {
+export function typingWorkflow(): string[] {
   return workflow(
-    "type checks",
+    "typing",
     "typing_linting_files",
-    [".github/workflows/type-checks.yml", "'**/*.py'", ".pre-commit-config.yaml"],
+    [".github/workflows/typing.yml", "'**/*.py'", ".pre-commit-config.yaml"],
     [gatedJob("pre-commit-typing", "typing_linting_files", "    uses: mxr/workflows/.github/workflows/pre-commit-typing.yml@v0.0.0")],
   );
 }

@@ -1,4 +1,4 @@
-import { managedPyproject, pythonMainWorkflow, supportedToxEnvs, typeChecksWorkflow } from "../src/python";
+import { managedPyproject, pythonMainWorkflow, supportedToxEnvs, typingWorkflow } from "../src/python";
 import { PythonPackaging, Stack } from "../src/stack";
 
 describe("supportedToxEnvs", () => {
@@ -42,13 +42,13 @@ describe("pythonMainWorkflow", () => {
   });
 });
 
-describe("typeChecksWorkflow", () => {
+describe("typingWorkflow", () => {
   it("runs the gated pre-commit-typing job when python or pre-commit config changes", () => {
-    const workflow = typeChecksWorkflow().join("\n");
-    expect(workflow).toMatch(/^name: type checks\n/);
+    const workflow = typingWorkflow().join("\n");
+    expect(workflow).toMatch(/^name: typing\n/);
     expect(workflow).toContain("      typing_linting_files: ${{ steps.filter.outputs.typing_linting_files }}\n");
     expect(workflow).toContain(
-      "          typing_linting_files:\n            - .github/workflows/type-checks.yml\n            - '**/*.py'\n            - .pre-commit-config.yaml\n",
+      "          typing_linting_files:\n            - .github/workflows/typing.yml\n            - '**/*.py'\n            - .pre-commit-config.yaml\n",
     );
     expect(workflow).toContain(
       "  pre-commit-typing-real:\n    needs: [changes]\n    if: needs.changes.outputs.typing_linting_files == 'true'\n    uses: mxr/workflows/.github/workflows/pre-commit-typing.yml@v0.0.0\n",
