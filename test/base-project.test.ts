@@ -262,7 +262,7 @@ describe("BaseProject python packaging", () => {
     expect(snapshot[".pre-commit-config.yaml"]).toContain(
       "ci:\n  skip: [mypy, pyright, ty] # venv is too big; runs with github action instead\n",
     );
-    expect(snapshot[".github/workflows/typing.yml"]).toContain("pre-commit-typing-real:");
+    expect(snapshot[".github/workflows/typing.yml"]).toContain("typing-real:");
   });
 
   it("keeps type checks on pre-commit.ci by default", () => {

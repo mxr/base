@@ -100,7 +100,7 @@ export function typingWorkflow(): string[] {
     "typing",
     "typing_linting_files",
     [".github/workflows/typing.yml", "'**/*.py'", ".pre-commit-config.yaml"],
-    [gatedJob("pre-commit-typing", "typing_linting_files", "    uses: mxr/workflows/.github/workflows/pre-commit-typing.yml@v0.0.0")],
+    [gatedJob("typing", "typing_linting_files", "    uses: mxr/workflows/.github/workflows/pre-commit-typing.yml@v0.0.0")],
   );
 }
 

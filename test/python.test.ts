@@ -26,7 +26,7 @@ describe("pythonMainWorkflow", () => {
     expect(workflow).toContain("        MAIN_WIN_REAL_RESULT: ${{ needs.main-win-real.result }}\n");
     expect(workflow).not.toContain("'**/*.sql'");
     expect(workflow).not.toContain("manifest.json");
-    expect(workflow).not.toContain("pre-commit-typing");
+    expect(workflow).not.toContain("typing");
   });
 
   it("tests a home assistant integration on its min version only", () => {
@@ -43,7 +43,7 @@ describe("pythonMainWorkflow", () => {
 });
 
 describe("typingWorkflow", () => {
-  it("runs the gated pre-commit-typing job when python or pre-commit config changes", () => {
+  it("runs the gated typing job when python or pre-commit config changes", () => {
     const workflow = typingWorkflow().join("\n");
     expect(workflow).toMatch(/^name: typing\n/);
     expect(workflow).toContain("      typing_linting_files: ${{ steps.filter.outputs.typing_linting_files }}\n");
@@ -51,9 +51,9 @@ describe("typingWorkflow", () => {
       "          typing_linting_files:\n            - .github/workflows/typing.yml\n            - '**/*.py'\n            - .pre-commit-config.yaml\n",
     );
     expect(workflow).toContain(
-      "  pre-commit-typing-real:\n    needs: [changes]\n    if: needs.changes.outputs.typing_linting_files == 'true'\n    uses: mxr/workflows/.github/workflows/pre-commit-typing.yml@v0.0.0\n",
+      "  typing-real:\n    needs: [changes]\n    if: needs.changes.outputs.typing_linting_files == 'true'\n    uses: mxr/workflows/.github/workflows/pre-commit-typing.yml@v0.0.0\n",
     );
-    expect(workflow).toContain('        if [ "$PRE_COMMIT_TYPING_REAL_RESULT" != "success" ]; then\n');
+    expect(workflow).toContain('        if [ "$TYPING_REAL_RESULT" != "success" ]; then\n');
   });
 });
 
