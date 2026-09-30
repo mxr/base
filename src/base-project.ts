@@ -118,7 +118,6 @@ export interface BaseProjectOptions extends GitHubProjectOptions {
  */
 export class BaseProject extends GitHubProject {
   public readonly stack: Stack[];
-  private readonly renovateDisable: string[];
   private readonly pythonMinVersion: string | undefined;
   private readonly pythonPackaging: PythonPackaging | undefined;
   private readonly license: string;
@@ -131,8 +130,6 @@ export class BaseProject extends GitHubProject {
     this.stack = options.stack;
     const isFrontend = this.stack.includes(Stack.FRONTEND);
     const isJavascript = this.stack.includes(Stack.JAVASCRIPT);
-    // @vercel/fun transitively pins a deprecated `tar` that can't be safely auto-bumped
-    this.renovateDisable = isFrontend ? ["tar"] : [];
 
     // projen's default marker points at a .projenrc.js downstream repos don't have (see
     // banner.ts), and .gitignore has no option to override it, so shadow the getter
@@ -315,7 +312,6 @@ export class BaseProject extends GitHubProject {
       groupSingleUpdates: true,
       minimumReleaseAge: "7 days",
       packageRules: [
-        ...(this.renovateDisable.length > 0 ? [{ matchPackageNames: this.renovateDisable, enabled: false }] : []),
         { commitMessageExtra: " ", groupName: "update", matchPackageNames: ["*"] },
         // github-runners has no release timestamps, so minimumReleaseAge would otherwise block every runner update
         { matchDatasources: ["github-runners"], minimumReleaseAgeBehaviour: "timestamp-optional" },

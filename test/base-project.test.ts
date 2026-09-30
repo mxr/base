@@ -129,14 +129,6 @@ describe("BaseProject", () => {
     expect(nonRust[".pre-commit-config.yaml"]).not.toContain("ci:");
   });
 
-  it("auto-disables tar in renovate for a frontend stack, but not a javascript stack", () => {
-    const frontend = Testing.synth(new BaseProject({ name: "test", stack: [Stack.FRONTEND] }));
-    expect(frontend[".github/renovate.jsonc"].packageRules).toContainEqual({ matchPackageNames: ["tar"], enabled: false });
-
-    const javascript = Testing.synth(new BaseProject({ name: "test", stack: [Stack.JAVASCRIPT] }));
-    expect(javascript[".github/renovate.jsonc"].packageRules).not.toContainEqual(expect.objectContaining({ matchPackageNames: ["tar"] }));
-  });
-
   it("adds a renovate custom manager for the windows runner for a python stack only", () => {
     const python = Testing.synth(
       new BaseProject({ name: "test", stack: [Stack.PYTHON], opt: { python: { minVersion: "3.14", packaging: PythonPackaging.WHEEL } } }),
