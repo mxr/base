@@ -317,7 +317,7 @@ export class BaseProject extends GitHubProject {
         { matchDatasources: ["github-runners"], minimumReleaseAgeBehaviour: "timestamp-optional" },
       ],
       prBodyTemplate: "{{{table}}}",
-      schedule: ["* 16-17 * * 1"],
+      schedule: ["* 21-22 * * 1"],
       separateMajorMinor: false,
       separateMultipleMajor: false,
     };
