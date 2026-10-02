@@ -104,8 +104,8 @@ const STACK_REPOS: Partial<Record<Stack, PreCommitRepo[]>> = {
   ],
   [Stack.TOML]: [
     {
-      repo: "https://github.com/macisamuele/language-formatters-pre-commit-hooks",
-      hooks: [{ id: "pretty-format-toml", args: ["--autofix", "--trailing-commas"] }],
+      repo: "https://github.com/tombi-toml/tombi-pre-commit",
+      hooks: [{ id: "tombi-format", args: ["--offline", "--quiet"] }],
     },
   ],
   [Stack.SQL]: [
@@ -198,7 +198,7 @@ export function expandStacks(stack: Stack[]): Stack[] {
 }
 
 /**
- * Generated toml lockfiles that pretty-format-toml should skip, to avoid diff
+ * Generated toml lockfiles that tombi-format should skip, to avoid diff
  * noise.
  */
 const TOML_LOCKFILES: Partial<Record<Stack, string[]>> = {
@@ -299,7 +299,7 @@ export function buildPreCommitRepos(stack: Stack[], existingRevs?: ReadonlyMap<s
   const exclude = `^(${lockfiles.map((file) => file.replaceAll(".", "\\.")).join("|")})$`;
   return repos.map((repo) => ({
     ...repo,
-    hooks: repo.hooks.map((hook) => (hook.id === "pretty-format-toml" ? { ...hook, exclude } : hook)),
+    hooks: repo.hooks.map((hook) => (hook.id === "tombi-format" ? { ...hook, exclude } : hook)),
   }));
 }
 

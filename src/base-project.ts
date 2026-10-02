@@ -11,6 +11,7 @@ import { mergePyproject, sqlfluffTables } from "./pyproject";
 import { HOME_ASSISTANT_PYTHON, managedPyproject, pythonMainWorkflow, typingWorkflow } from "./python";
 import { cargoReleaseWorkflow, homeAssistantReleaseWorkflow, wheelReleaseWorkflow } from "./release";
 import { PythonPackaging, Stack } from "./stack";
+import { tombiConfigLines, tombiTable } from "./tombi";
 import { applyExistingActionRefs, RUNNER, readExistingActionRefs } from "./workflow-actions";
 import type { GitHubProjectOptions } from "projen/lib/github";
 import type { ExistingRev } from "./pre-commit";
@@ -180,6 +181,12 @@ export class BaseProject extends GitHubProject {
     if (this.stack.includes(Stack.RUST)) {
       this.addWorkflow("main.yml", readResource("rust/main.yml").trimEnd().split("\n"));
       this.addWorkflow("release.yml", cargoReleaseWorkflow());
+      // no pyproject.toml to hold `[tool.tombi]`
+      new TextFile(this, ".config/tombi.toml", {
+        marker: false,
+        committed: true,
+        lines: [`# ${BANNER}`, "", ...tombiConfigLines()],
+      });
     }
 
     if (this.pythonMinVersion && this.pythonPackaging) {
@@ -398,7 +405,7 @@ export class BaseProject extends GitHubProject {
     if (python || isSql) {
       const pyprojectPath = path.join(this.outdir, "pyproject.toml");
       const existing = fs.existsSync(pyprojectPath) ? fs.readFileSync(pyprojectPath, "utf-8") : "";
-      const tables: ManagedTable[] = [...(python?.tables ?? []), ...(isSql ? sqlfluffTables() : [])];
+      const tables: ManagedTable[] = [...(python?.tables ?? []), ...(isSql ? sqlfluffTables() : []), tombiTable()];
       fs.writeFileSync(
         pyprojectPath,
         mergePyproject(existing, {

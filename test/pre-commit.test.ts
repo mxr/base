@@ -99,21 +99,21 @@ describe("buildPreCommitRepos", () => {
     { name: "sql", stack: Stack.SQL },
   ])("pulls in toml hooks for a $name stack", ({ stack }) => {
     const repos = buildPreCommitRepos([stack]);
-    const formatters = repos.find((r) => r.repo === "https://github.com/macisamuele/language-formatters-pre-commit-hooks");
-    expect(formatters?.hooks.map((h) => h.id)).toEqual(expect.arrayContaining(["pretty-format-toml", "pretty-format-yaml"]));
+    const tombi = repos.find((r) => r.repo === "https://github.com/tombi-toml/tombi-pre-commit");
+    expect(tombi?.hooks.map((h) => h.id)).toEqual(["tombi-format"]);
   });
 
   it("pulls in toml and github-actions hooks for a rust stack", () => {
     const repos = buildPreCommitRepos([Stack.RUST]);
     expect(repos.map((r) => r.repo)).toEqual(
       expect.arrayContaining([
-        "https://github.com/macisamuele/language-formatters-pre-commit-hooks",
         "https://github.com/rhysd/actionlint",
+        "https://github.com/tombi-toml/tombi-pre-commit",
         "https://github.com/zizmorcore/zizmor-pre-commit",
       ]),
     );
-    const formatters = repos.find((r) => r.repo === "https://github.com/macisamuele/language-formatters-pre-commit-hooks");
-    expect(formatters?.hooks.map((h) => h.id)).toEqual(expect.arrayContaining(["pretty-format-toml", "pretty-format-yaml"]));
+    const tombi = repos.find((r) => r.repo === "https://github.com/tombi-toml/tombi-pre-commit");
+    expect(tombi?.hooks.map((h) => h.id)).toEqual(["tombi-format"]);
   });
 
   it.each([
@@ -121,11 +121,9 @@ describe("buildPreCommitRepos", () => {
     { name: "python", stack: [Stack.PYTHON], exclude: "^(uv\\.lock)$" },
     { name: "python and rust", stack: [Stack.PYTHON, Stack.RUST], exclude: "^(uv\\.lock|Cargo\\.lock)$" },
     { name: "toml", stack: [Stack.TOML], exclude: undefined },
-  ])("sets pretty-format-toml lockfile exclude for $name stack", ({ stack, exclude }) => {
-    const formatters = buildPreCommitRepos(stack).find(
-      (r) => r.repo === "https://github.com/macisamuele/language-formatters-pre-commit-hooks",
-    );
-    expect(formatters?.hooks.find((h) => h.id === "pretty-format-toml")?.exclude).toBe(exclude);
+  ])("sets tombi-format lockfile exclude for $name stack", ({ stack, exclude }) => {
+    const tombi = buildPreCommitRepos(stack).find((r) => r.repo === "https://github.com/tombi-toml/tombi-pre-commit");
+    expect(tombi?.hooks.find((h) => h.id === "tombi-format")?.exclude).toBe(exclude);
   });
 
   it("includes gitignore-tidy for a rust stack", () => {

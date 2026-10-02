@@ -350,6 +350,7 @@ describe("BaseProject.postSynthesize with a mocked git/pre-commit binary", () =>
     );
     expect(pyproject).not.toContain("trailing");
     expect(pyproject).toContain("require_final_semicolon = true");
+    expect(pyproject).toContain(`[tool.tombi]  ${MANAGED_MARKER}\noffline = true\nstring-quote-style = "double"\n`);
     const staged = realChildProcess.execFileSync("git", ["diff", "--cached", "--name-only"], { cwd: dir, encoding: "utf-8" });
     expect(staged.split("\n")).toContain("pyproject.toml");
   });

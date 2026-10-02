@@ -51,13 +51,15 @@ describe("BaseProject", () => {
     });
   });
 
-  it("writes rust workflow files only for a rust stack", () => {
+  it("writes rust workflow files and .config/tombi.toml only for a rust stack", () => {
     const rust = Testing.synth(new BaseProject({ name: "test", stack: [Stack.RUST] }));
     expect(rust[".github/workflows/main.yml"]).toContain("cargo clippy");
     expect(rust[".github/workflows/release.yml"]).toContain("cargo publish");
+    expect(rust[".config/tombi.toml"]).toContain('\noffline = true\nstring-quote-style = "double"');
 
     const nonRust = Testing.synth(new BaseProject({ name: "test", stack: [] }));
     expect(nonRust[".github/workflows/main.yml"]).toBeUndefined();
+    expect(nonRust[".config/tombi.toml"]).toBeUndefined();
     expect(nonRust[".github/workflows/release.yml"]).toBeUndefined();
   });
 

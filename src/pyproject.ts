@@ -1,6 +1,6 @@
 /**
  * Trailing comment on every table header and `[project]` key that base
- * manages. pretty-format-toml sorts tables and keys, so a block-style
+ * manages. tombi sorts tables and keys, so a block-style
  * begin/end marker pair doesn't survive, but a trailing comment stays with
  * its line.
  */
@@ -59,7 +59,7 @@ export function sqlfluffTables(): ManagedTable[] {
   return Object.entries(SQLFLUFF_CONFIG).map(([table, values]) => ({ name: `tool.sqlfluff.${table}`, lines: tomlEntries(values) }));
 }
 
-// pretty-format-toml doesn't reflow arrays, so ones holding several arrays or a multi-line string get one element per line up front
+// tombi doesn't reflow arrays, so ones holding several arrays or a multi-line string get one element per line up front
 function isMultiline(value: TomlValue): boolean {
   if (typeof value === "string") {
     return value.includes("\n");
