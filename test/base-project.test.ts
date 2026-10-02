@@ -51,15 +51,13 @@ describe("BaseProject", () => {
     });
   });
 
-  it("writes rust workflow files and .config/tombi.toml only for a rust stack", () => {
+  it("writes rust workflow files only for a rust stack", () => {
     const rust = Testing.synth(new BaseProject({ name: "test", stack: [Stack.RUST] }));
     expect(rust[".github/workflows/main.yml"]).toContain("cargo clippy");
     expect(rust[".github/workflows/release.yml"]).toContain("cargo publish");
-    expect(rust[".config/tombi.toml"]).toContain('\noffline = true\nstring-quote-style = "double"');
 
     const nonRust = Testing.synth(new BaseProject({ name: "test", stack: [] }));
     expect(nonRust[".github/workflows/main.yml"]).toBeUndefined();
-    expect(nonRust[".config/tombi.toml"]).toBeUndefined();
     expect(nonRust[".github/workflows/release.yml"]).toBeUndefined();
   });
 
@@ -114,6 +112,22 @@ describe("BaseProject", () => {
       expect(snapshot[".github/actionlint.yml"]).toContain("self-hosted-runner:\n  labels:\n  - ubuntu-26.04");
     } else {
       expect(snapshot[".github/actionlint.yml"]).toBeUndefined();
+    }
+  });
+
+  it.each([
+    { name: "toml", stack: [Stack.TOML], expected: true },
+    { name: "rust (implies toml)", stack: [Stack.RUST], expected: true },
+    { name: "python (uses pyproject.toml)", stack: [Stack.PYTHON], opt: { python: { minVersion: "3.11" } }, expected: false },
+    { name: "sql (uses pyproject.toml)", stack: [Stack.SQL], expected: false },
+    { name: "rust and sql (uses pyproject.toml)", stack: [Stack.RUST, Stack.SQL], expected: false },
+    { name: "shell", stack: [Stack.SHELL], expected: false },
+  ])("writes .config/tombi.toml only for a toml stack without a pyproject.toml: $name", ({ stack, opt, expected }) => {
+    const snapshot = Testing.synth(new BaseProject({ name: "test", stack, ...(opt ? { opt } : {}) }));
+    if (expected) {
+      expect(snapshot[".config/tombi.toml"]).toContain('\noffline = true\nstring-quote-style = "double"');
+    } else {
+      expect(snapshot[".config/tombi.toml"]).toBeUndefined();
     }
   });
 

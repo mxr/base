@@ -181,7 +181,11 @@ export class BaseProject extends GitHubProject {
     if (this.stack.includes(Stack.RUST)) {
       this.addWorkflow("main.yml", readResource("rust/main.yml").trimEnd().split("\n"));
       this.addWorkflow("release.yml", cargoReleaseWorkflow());
-      // no pyproject.toml to hold `[tool.tombi]`
+    }
+
+    // python and sql repos keep tombi config in pyproject.toml's `[tool.tombi]` instead
+    const stacks = expandStacks(this.stack);
+    if (stacks.includes(Stack.TOML) && !stacks.includes(Stack.PYTHON) && !stacks.includes(Stack.SQL)) {
       new TextFile(this, ".config/tombi.toml", {
         marker: false,
         committed: true,
