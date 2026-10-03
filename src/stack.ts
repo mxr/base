@@ -4,7 +4,8 @@
  *
  * `FRONTEND` is for a Next.js app deployed to Vercel; `JAVASCRIPT` is for
  * other browser JS/TS (e.g. a Tampermonkey userscript) that doesn't want the
- * Next.js starters or Vercel deploy workflow.
+ * Next.js starters or Vercel deploy workflow. `TYPESCRIPT` is for a
+ * TypeScript/jsii library built with npm, like this repo.
  */
 export enum Stack {
   FRONTEND = "frontend",
@@ -17,6 +18,7 @@ export enum Stack {
   SHELL = "shell",
   SQL = "sql",
   TOML = "toml",
+  TYPESCRIPT = "typescript",
 }
 
 /**

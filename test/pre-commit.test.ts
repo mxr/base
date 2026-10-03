@@ -150,6 +150,12 @@ describe("buildPreCommitRepos", () => {
     );
   });
 
+  it("pulls in github-actions hooks and gitignore-tidy for a typescript stack", () => {
+    const repos = buildPreCommitRepos([Stack.TYPESCRIPT]).map((r) => r.repo);
+    expect(repos).toContain("https://github.com/rhysd/actionlint");
+    expect(repos).toContain("https://github.com/lorenzwalthert/gitignore-tidy");
+  });
+
   it("excludes gitignore-tidy for a javascript stack", () => {
     const repos = buildPreCommitRepos([Stack.JAVASCRIPT]);
     expect(repos.map((r) => r.repo)).not.toContain("https://github.com/lorenzwalthert/gitignore-tidy");

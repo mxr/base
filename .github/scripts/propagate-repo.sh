@@ -19,20 +19,23 @@
 set -euo pipefail
 
 step() {
-  echo ""
-  echo "::: 🚀 $1 :::"
-  echo ""
+	echo ""
+	echo "::: 🚀 $1 :::"
+	echo ""
 }
 
 for cmd in git gh jq yq npm pre-commit; do
-  command -v "$cmd" > /dev/null || { echo "missing required command: $cmd" >&2; exit 1; }
+	command -v "$cmd" >/dev/null || {
+		echo "missing required command: $cmd" >&2
+		exit 1
+	}
 done
 
 : "${REPO:?REPO is required}"
 : "${VERSION:?VERSION is required}"
 : "${GH_TOKEN:?GH_TOKEN is required}"
 if [ -z "${LOCAL_TARBALL:-}" ]; then
-  : "${GH_PACKAGES_READ_TOKEN:?GH_PACKAGES_READ_TOKEN is required unless LOCAL_TARBALL is set}"
+	: "${GH_PACKAGES_READ_TOKEN:?GH_PACKAGES_READ_TOKEN is required unless LOCAL_TARBALL is set}"
 fi
 
 # tokens (GH_TOKEN, GH_PACKAGES_READ_TOKEN) are deliberately left out
@@ -42,9 +45,9 @@ echo "VERSION=${VERSION}"
 echo "DRY_RUN=${DRY_RUN:-true}"
 echo "LOCAL_TARBALL=${LOCAL_TARBALL:-}"
 if [ -n "${BASE:-}" ]; then
-  printf 'BASE=\n%s\n' "$BASE"
+	printf 'BASE=\n%s\n' "$BASE"
 else
-  echo "BASE= (using the repo's .github/base.yml)"
+	echo "BASE= (using the repo's .github/base.yml)"
 fi
 
 tag="v${VERSION}"
@@ -61,11 +64,11 @@ git -C "$workdir" config user.email "306625798+mxr-base-sync[bot]@users.noreply.
 
 base_yml="$workdir/.github/base.yml"
 if [ -n "${BASE:-}" ]; then
-  base_yml="$workdir/.base-yml-override.yml"
-  printf '%s\n' "$BASE" > "$base_yml"
+	base_yml="$workdir/.base-yml-override.yml"
+	printf '%s\n' "$BASE" >"$base_yml"
 elif [ ! -f "$base_yml" ]; then
-  echo "no .github/base.yml, skipping"
-  exit 0
+	echo "no .github/base.yml, skipping"
+	exit 0
 fi
 
 # branch off main's actual content, never a prior base-update-* PR's state —
@@ -82,7 +85,7 @@ stack_json="$(yq -o=json '.stack' "$base_yml")"
 # github-actions), but BaseProject's TS options are camelCase (jsii forbids
 # non-camelCase property names), so convert object keys on the way through
 opt_json="$(
-  yq -o=json '.opt // {}' "$base_yml" | jq '
+	yq -o=json '.opt // {}' "$base_yml" | jq '
     def to_camel: split("-") as $p | $p[0] + ($p[1:] | map((.[0:1] | ascii_upcase) + .[1:]) | join(""));
     def camelize:
       if type == "object" then with_entries(.key |= to_camel | .value |= camelize)
@@ -96,10 +99,13 @@ opt_json="$(
 # base-project.ts); propagate-update.yml installs it under the same condition
 needs_pinact="$(yq '((.stack // []) | (contains(["rust"]) or contains(["frontend"]) or contains(["mirror"]))) or (((.stack // []) | contains(["python"])) and ((.opt.python.packaging != null) or (.opt.python.run-type-checks-in-github-actions == true)))' "$base_yml")"
 if [ "$needs_pinact" = "true" ]; then
-  command -v pinact > /dev/null || { echo "missing required command: pinact" >&2; exit 1; }
+	command -v pinact >/dev/null || {
+		echo "missing required command: pinact" >&2
+		exit 1
+	}
 fi
 
-cat > "$workdir/.projenrc.js" <<EOF
+cat >"$workdir/.projenrc.js" <<EOF
 const { BaseProject } = require("@mxr/base");
 
 new BaseProject({
@@ -116,9 +122,9 @@ constructs_version="$(jq -r '.peerDependencies.constructs' package.json)"
 projen_version="$(jq -r '.peerDependencies.projen' package.json)"
 
 if [ -n "${LOCAL_TARBALL:-}" ]; then
-  base_dep="file:${VERSION}"
+	base_dep="file:${VERSION}"
 else
-  base_dep="${VERSION}"
+	base_dep="${VERSION}"
 fi
 
 # the downstream repo may already have its own package.json/package-lock.json
@@ -127,7 +133,7 @@ fi
 [ -f "$workdir/package.json" ] && mv "$workdir/package.json" "$workdir/.package.json.orig"
 [ -f "$workdir/package-lock.json" ] && mv "$workdir/package-lock.json" "$workdir/.package-lock.json.orig"
 
-cat > "$workdir/package.json" <<EOF
+cat >"$workdir/package.json" <<EOF
 {
   "name": "${name}-base-sync",
   "private": true,
@@ -140,7 +146,7 @@ cat > "$workdir/package.json" <<EOF
 EOF
 
 if [ -z "${LOCAL_TARBALL:-}" ]; then
-  cat > "$workdir/.npmrc" <<EOF
+	cat >"$workdir/.npmrc" <<EOF
 @mxr:registry=https://npm.pkg.github.com
 //npm.pkg.github.com/:_authToken=${GH_PACKAGES_READ_TOKEN}
 EOF
@@ -161,10 +167,10 @@ step "synthing via generated .projenrc.js"
 rm -f "$workdir/.npmrc" "$workdir/package.json" "$workdir/package-lock.json" "$workdir/.projenrc.js" "$workdir/.base-yml-override.yml"
 rm -rf "$workdir/node_modules"
 if [ -f "$workdir/.package.json.orig" ]; then
-  mv "$workdir/.package.json.orig" "$workdir/package.json"
+	mv "$workdir/.package.json.orig" "$workdir/package.json"
 fi
 if [ -f "$workdir/.package-lock.json.orig" ]; then
-  mv "$workdir/.package-lock.json.orig" "$workdir/package-lock.json"
+	mv "$workdir/.package-lock.json.orig" "$workdir/package-lock.json"
 fi
 
 # synth's own postSynthesize() already ran `git add` mid-way through (see
@@ -178,13 +184,13 @@ fi
 step "checking for changes"
 git -C "$workdir" add -A
 if git -C "$workdir" diff --cached --quiet; then
-  echo "no changes"
-  exit 0
+	echo "no changes"
+	exit 0
 fi
 
 if [ "${DRY_RUN:-true}" != "false" ]; then
-  git -C "$workdir" diff --cached
-  exit 0
+	git -C "$workdir" diff --cached
+	exit 0
 fi
 
 git -C "$workdir" commit -m "[base] apply ${tag}"
@@ -193,17 +199,17 @@ step "pushing ${branch}"
 # force-with-lease over any existing branch of the same name, since we
 # deliberately rebuilt it fresh from main above instead of incrementally
 # updating whatever was there before
-if git -C "$workdir" ls-remote --exit-code --heads origin "$branch" > /dev/null 2>&1; then
-  git -C "$workdir" fetch --quiet origin "$branch"
-  git -C "$workdir" push --force-with-lease="$branch:refs/remotes/origin/$branch" origin "$branch"
+if git -C "$workdir" ls-remote --exit-code --heads origin "$branch" >/dev/null 2>&1; then
+	git -C "$workdir" fetch --quiet origin "$branch"
+	git -C "$workdir" push --force-with-lease="$branch:refs/remotes/origin/$branch" origin "$branch"
 else
-  git -C "$workdir" push -u origin "$branch"
+	git -C "$workdir" push -u origin "$branch"
 fi
 
 step "creating/updating PR"
 existing_pr="$(gh pr list --repo "${REPO}" --head "$branch" --json number -q '.[0].number' || true)"
 if [ -n "$existing_pr" ]; then
-  gh pr edit "$existing_pr" --repo "${REPO}" --title "[base] apply ${tag}"
+	gh pr edit "$existing_pr" --repo "${REPO}" --title "[base] apply ${tag}"
 else
-  (cd "$workdir" && gh pr create --repo "${REPO}" --fill --head "$branch")
+	(cd "$workdir" && gh pr create --repo "${REPO}" --fill --head "$branch")
 fi

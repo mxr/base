@@ -294,6 +294,27 @@ describe("BaseProject.postSynthesize with a mocked git/pre-commit binary", () =>
     expect(shCallScript(execFileSyncMock)).not.toContain("pinact");
   });
 
+  it("writes a node .gitignore and a .gitattributes for a typescript stack", () => {
+    const dir = outdir();
+    realChildProcess.execFileSync("git", ["init", "-q"], { cwd: dir });
+    const project = new BaseProject({ name: "test", stack: [Stack.TYPESCRIPT], outdir: dir });
+
+    execFileSyncMock.mockImplementation((cmd, args) => {
+      if (cmd === "git") {
+        return realChildProcess.execFileSync(cmd, args as string[], { cwd: dir });
+      }
+      return "";
+    });
+
+    project.synth();
+
+    const gitignore = fs.readFileSync(path.join(dir, ".gitignore"), "utf-8");
+    expect(gitignore).toContain("/lib/\n");
+    expect(gitignore).toContain("node_modules/\n");
+    expect(fs.readFileSync(path.join(dir, ".gitattributes"), "utf-8")).toBe(`# ${BANNER}\n* text=auto eol=lf\n`);
+    expect(shCallScript(execFileSyncMock)).not.toContain("pinact");
+  });
+
   it("does not manage a .gitignore for a javascript stack", () => {
     const dir = outdir();
     realChildProcess.execFileSync("git", ["init", "-q"], { cwd: dir });

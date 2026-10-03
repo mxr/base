@@ -282,9 +282,12 @@ export class BaseProject extends GitHubProject {
     this.newPreCommitRepoUrls = preCommitConfigFile.newRepoUrls;
 
     if (!isJavascript) {
-      new TextFile(this, "biome.json", {
-        lines: readResource(isFrontend ? "frontend/biome.json" : "default/biome.json").split("\n"),
-      });
+      const biomeResource = isFrontend
+        ? "frontend/biome.json"
+        : this.stack.includes(Stack.TYPESCRIPT)
+          ? "typescript/biome.json"
+          : "default/biome.json";
+      new TextFile(this, "biome.json", { lines: readResource(biomeResource).split("\n") });
     }
 
     if (this.stack.includes(Stack.RUST)) {
@@ -436,6 +439,10 @@ export class BaseProject extends GitHubProject {
         { commitMessageExtra: " ", groupName: "update", matchPackageNames: ["*"] },
         // github-runners has no release timestamps, so minimumReleaseAge would otherwise block every runner update
         { matchDatasources: ["github-runners"], minimumReleaseAgeBehaviour: "timestamp-optional" },
+        // jsii pins the typescript major it supports
+        ...(this.stack.includes(Stack.TYPESCRIPT)
+          ? [{ enabled: false, matchPackageNames: ["typescript"], matchUpdateTypes: ["major"] }]
+          : []),
       ],
       prBodyTemplate: "{{{table}}}",
       schedule: ["* 21-22 * * 1"],
@@ -475,8 +482,12 @@ export class BaseProject extends GitHubProject {
     execFileSync("chmod", ["-R", "u+w", this.outdir]);
 
     // remove projen files that i don't use
-    fs.rmSync(path.join(this.outdir, ".gitattributes"), { force: true });
+    const gitattributesPath = path.join(this.outdir, ".gitattributes");
+    fs.rmSync(gitattributesPath, { force: true });
     fs.rmSync(path.join(this.outdir, ".projen"), { recursive: true, force: true });
+    if (this.stack.includes(Stack.TYPESCRIPT)) {
+      fs.writeFileSync(gitattributesPath, `# ${BANNER}\n* text=auto eol=lf\n`);
+    }
 
     const gitignorePath = path.join(this.outdir, ".gitignore");
     if (this.stack.includes(Stack.RUST)) {
@@ -497,6 +508,25 @@ export class BaseProject extends GitHubProject {
           ".vercel",
           "*.tsbuildinfo",
           "next-env.d.ts",
+          "",
+        ].join("\n"),
+      );
+    } else if (this.stack.includes(Stack.TYPESCRIPT)) {
+      fs.rmSync(gitignorePath, { force: true });
+      fs.writeFileSync(
+        gitignorePath,
+        [
+          `# ${BANNER}`,
+          "*.log",
+          "*.tgz",
+          "*.tsbuildinfo",
+          ".DS_Store",
+          ".jsii",
+          "/coverage/",
+          "/dist/",
+          "/lib/",
+          "/test-reports/",
+          "node_modules/",
           "",
         ].join("\n"),
       );

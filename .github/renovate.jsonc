@@ -13,6 +13,10 @@
       "matchPackageNames": ["*"]
     },
     {
+      "matchDatasources": ["github-runners"],
+      "minimumReleaseAgeBehaviour": "timestamp-optional"
+    },
+    {
       "enabled": false,
       "matchPackageNames": ["typescript"],
       "matchUpdateTypes": ["major"]

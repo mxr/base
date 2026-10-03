@@ -76,6 +76,7 @@ const STACK_REPOS: Partial<Record<Stack, PreCommitRepo[]>> = {
   [Stack.GITIGNORE]: [GITIGNORE_TIDY_REPO],
   [Stack.JAVASCRIPT]: [],
   [Stack.MIRROR]: [],
+  [Stack.TYPESCRIPT]: [],
   [Stack.PYTHON]: [
     {
       repo: "https://github.com/astral-sh/ruff-pre-commit",
@@ -191,6 +192,7 @@ const IMPLIED_STACKS: Partial<Record<Stack, Stack[]>> = {
   [Stack.PYTHON]: [Stack.TOML, Stack.GITHUB_ACTIONS],
   [Stack.RUST]: [Stack.TOML, Stack.GITHUB_ACTIONS, Stack.GITIGNORE],
   [Stack.SQL]: [Stack.TOML],
+  [Stack.TYPESCRIPT]: [Stack.GITHUB_ACTIONS, Stack.GITIGNORE],
 };
 
 export function expandStacks(stack: Stack[]): Stack[] {
