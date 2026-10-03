@@ -215,7 +215,7 @@ export function managedPyproject(options: ManagedPyprojectOptions): ManagedPypro
   });
 
   const tables: ManagedTable[] = [
-    ...(isWheel ? [table("build-system", { "build-backend": "setuptools.build_meta", requires: ["setuptools"] })] : []),
+    ...(isWheel ? [table("build-system", { requires: ["setuptools"], "build-backend": "setuptools.build_meta" })] : []),
     ...(isWheel ? [table("project.urls", { Homepage: `https://github.com/mxr/${options.name}` })] : []),
     table("tool.coverage.run", { plugins: ["covdefaults"] }),
     table("tool.mypy", {
@@ -295,10 +295,11 @@ export function managedPyproject(options: ManagedPyprojectOptions): ManagedPypro
     ...(isWheel
       ? {
           projectKeys: {
-            authors: [{ name: "Max R", email: "mxr@users.noreply.github.com" }],
+            // tombi's order, for keys new to `[project]`
+            "requires-python": `>=${options.minVersion}`,
             license: options.license,
             "license-files": ["LICENSE"],
-            "requires-python": `>=${options.minVersion}`,
+            authors: [{ name: "Max R", email: "mxr@users.noreply.github.com" }],
           },
         }
       : {}),

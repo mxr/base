@@ -124,7 +124,10 @@ export function mergePyproject(existing: string, managed: ManagedPyproject): str
     ownedPrefixes.some((prefix) => name === prefix || name.startsWith(`${prefix}.`));
 
   const kept: string[] = [];
-  let hasProject = false;
+  const managedEntry = (key: string): string => `${tomlEntries({ [key]: projectKeys[key] as TomlValue })[0]}  ${MANAGED_MARKER}`;
+  // managed keys replace existing ones in place, so tombi's key order holds; new ones go right under `[project]`
+  const placedKeys = new Set<string>();
+  let projectHeaderIndex: number | undefined;
   let currentTable: string | undefined;
   let droppingTable = false;
   let droppingDepth = 0;
@@ -135,8 +138,8 @@ export function mergePyproject(existing: string, managed: ManagedPyproject): str
       droppingTable = isDropped(currentTable, line);
       droppingDepth = 0;
       if (!droppingTable && currentTable === "project") {
-        hasProject = true;
-        kept.push(line, ...tomlEntries(projectKeys).map((entry) => `${entry}  ${MANAGED_MARKER}`));
+        projectHeaderIndex = kept.length;
+        kept.push(line);
         continue;
       }
     }
@@ -150,16 +153,23 @@ export function mergePyproject(existing: string, managed: ManagedPyproject): str
     const key = currentTable === "project" ? KEY.exec(line)?.[1] : undefined;
     if (key !== undefined && (key in projectKeys || line.includes(MANAGED_MARKER))) {
       droppingDepth = bracketDepth(line);
+      if (key in projectKeys && !placedKeys.has(key)) {
+        placedKeys.add(key);
+        kept.push(managedEntry(key));
+      }
       continue;
     }
     kept.push(line);
   }
 
+  const newKeys = Object.keys(projectKeys)
+    .filter((key) => !placedKeys.has(key))
+    .map(managedEntry);
+  if (projectHeaderIndex !== undefined) {
+    kept.splice(projectHeaderIndex + 1, 0, ...newKeys);
+  }
   // the downstream repo owns the rest of `[project]`, so a new one's header isn't marked
-  const newProject =
-    !hasProject && Object.keys(projectKeys).length > 0
-      ? ["[project]", ...tomlEntries(projectKeys).map((entry) => `${entry}  ${MANAGED_MARKER}`)].join("\n")
-      : "";
+  const newProject = projectHeaderIndex === undefined && newKeys.length > 0 ? ["[project]", ...newKeys].join("\n") : "";
   const rest = kept.join("\n").trim();
   return `${sortToolTables([rest, newProject, renderManagedTables(managed.tables)].filter(Boolean).join("\n\n"))}\n`;
 }
@@ -200,8 +210,11 @@ export function sortToolTables(content: string): string {
     }
   }
   const isTool = (name: string): boolean => name === "tool" || name.startsWith("tool.");
+  // tombi keeps `[project]`'s subtables right after it
+  const isProject = (name: string): boolean => name === "project" || name.startsWith("project.");
   const ordered = [
-    ...blocks.filter(({ name }) => !isTool(name)),
+    ...blocks.filter(({ name }) => isProject(name)),
+    ...blocks.filter(({ name }) => !isProject(name) && !isTool(name)),
     ...blocks.filter(({ name }) => isTool(name)).sort((a, b) => compareTableNames(a.name, b.name)),
   ];
   return [preamble.join("\n").trim(), ...ordered.map(({ lines }) => lines.join("\n").trim())].filter(Boolean).join("\n\n");

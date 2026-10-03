@@ -383,11 +383,14 @@ describe("BaseProject.postSynthesize with a mocked git/pre-commit binary", () =>
     project.synth();
 
     const pyproject = fs.readFileSync(path.join(dir, "pyproject.toml"), "utf-8");
-    expect(pyproject).toMatch(new RegExp(`^\\[project\\]\\nauthors = .*\\nlicense = "MIT"  ${MANAGED_MARKER}\\n`));
+    expect(pyproject).toMatch(
+      new RegExp(
+        `^\\[project\\]\\nrequires-python = ">=3\\.12"  ${MANAGED_MARKER}\\nlicense-files = .*\\nauthors = .*\\nlicense = "MIT"  ${MANAGED_MARKER}\\nname = "x"\\n\\n\\[project\\.urls\\]`,
+      ),
+    );
     expect(pyproject).toContain('name = "x"\n');
     expect(pyproject).not.toContain("GPL");
     expect(pyproject).not.toContain("py39");
-    expect(pyproject).toContain(`requires-python = ">=3.12"  ${MANAGED_MARKER}\n`);
     expect(pyproject).not.toContain("[tool.ruff]");
     expect(pyproject).toContain(`[tool.sqlfluff.layout.type.comma]  ${MANAGED_MARKER}\n`);
   });

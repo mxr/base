@@ -54,6 +54,11 @@ describe("mergePyproject", () => {
       expected: `[project]\nlicense = "MIT"  ${M}\nname = "x"\n`,
     },
     {
+      name: "unmarked key in place",
+      existing: '[project]\nname = "x"\nlicense = "GPL"\nreadme = "README.md"\n',
+      expected: `[project]\nname = "x"\nlicense = "MIT"  ${M}\nreadme = "README.md"\n`,
+    },
+    {
       name: "unmarked multi-line key",
       existing: '[project]\nlicense = {\n  text = "GPL",\n}\nname = "x"\n',
       expected: `[project]\nlicense = "MIT"  ${M}\nname = "x"\n`,
@@ -79,6 +84,11 @@ describe("sortToolTables", () => {
       name: "tool tables by name after the rest",
       content: "[tool.tox]\na = 1\n\n[project]\nname = 1\n\n[tool.tombi]\nb = 1\n\n[build-system]\nc = 1",
       expected: "[project]\nname = 1\n\n[build-system]\nc = 1\n\n[tool.tombi]\nb = 1\n\n[tool.tox]\na = 1",
+    },
+    {
+      name: "project subtables right after project",
+      content: "[project]\nname = 1\n\n[build-system]\nc = 1\n\n[project.urls]\nd = 1",
+      expected: "[project]\nname = 1\n\n[project.urls]\nd = 1\n\n[build-system]\nc = 1",
     },
     {
       name: "subtables by segment",
