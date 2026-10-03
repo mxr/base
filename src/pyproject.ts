@@ -161,5 +161,48 @@ export function mergePyproject(existing: string, managed: ManagedPyproject): str
       ? ["[project]", ...tomlEntries(projectKeys).map((entry) => `${entry}  ${MANAGED_MARKER}`)].join("\n")
       : "";
   const rest = kept.join("\n").trim();
-  return `${[rest, newProject, renderManagedTables(managed.tables)].filter(Boolean).join("\n\n")}\n`;
+  return `${sortToolTables([rest, newProject, renderManagedTables(managed.tables)].filter(Boolean).join("\n\n"))}\n`;
+}
+
+function compareTableNames(a: string, b: string): number {
+  const as = a.split(".");
+  const bs = b.split(".");
+  for (let i = 0; i < Math.min(as.length, bs.length); i++) {
+    const [x = "", y = ""] = [as[i], bs[i]];
+    if (x !== y) {
+      return x < y ? -1 : 1;
+    }
+  }
+  return as.length - bs.length;
+}
+
+/**
+ * Moves the `[tool.*]` tables after the rest, sorted by name, which is how
+ * tombi orders them. tombi formats `pyproject.toml` after the merge anyway,
+ * but not a template it's rendered from (e.g. a `pyproject.mustache`).
+ * Comment lines right above a header move with its table.
+ */
+export function sortToolTables(content: string): string {
+  const preamble: string[] = [];
+  const blocks: { name: string; lines: string[] }[] = [];
+  for (const line of content.split("\n")) {
+    const header = TABLE_HEADER.exec(line);
+    const current = blocks.at(-1);
+    if (header?.[1] !== undefined) {
+      const previous = current?.lines ?? preamble;
+      let start = previous.length;
+      while (start > 0 && previous[start - 1]?.startsWith("#")) {
+        start--;
+      }
+      blocks.push({ name: header[1], lines: [...previous.splice(start), line] });
+    } else {
+      (current?.lines ?? preamble).push(line);
+    }
+  }
+  const isTool = (name: string): boolean => name === "tool" || name.startsWith("tool.");
+  const ordered = [
+    ...blocks.filter(({ name }) => !isTool(name)),
+    ...blocks.filter(({ name }) => isTool(name)).sort((a, b) => compareTableNames(a.name, b.name)),
+  ];
+  return [preamble.join("\n").trim(), ...ordered.map(({ lines }) => lines.join("\n").trim())].filter(Boolean).join("\n\n");
 }

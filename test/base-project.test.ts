@@ -51,6 +51,28 @@ describe("BaseProject", () => {
     });
   });
 
+  it("appends opt.mergify.extras.rules after base's own", () => {
+    const project = new BaseProject({
+      name: "test",
+      stack: [],
+      opt: {
+        mergify: {
+          extras: { rules: [{ name: "automatic merge for spec updates", conditions: ["author=github-actions[bot]", "title~=^Update"] }] },
+        },
+      },
+    });
+    const snapshot = Testing.synth(project);
+    expect(snapshot[".github/mergify.yml"]).toMatch(
+      /author=mxr-base-sync\[bot\]\n {2}actions:\n {4}merge:\n {6}method: squash\n- name: automatic merge for spec updates\n {2}conditions:\n {2}- author=github-actions\[bot\]\n {2}- title~=\^Update\n {2}actions:\n {4}merge:\n {6}method: squash$/,
+    );
+  });
+
+  it("renders opt.preCommit.exclude as the top-level exclude", () => {
+    const project = new BaseProject({ name: "test", stack: [], opt: { preCommit: { exclude: ["gen/.+", "spec\\.yaml"] } } });
+    const snapshot = Testing.synth(project);
+    expect(snapshot[".pre-commit-config.yaml"]).toContain("exclude: |\n  (?x)^(\n      gen/.+|\n      spec\\.yaml\n  )$\nrepos:\n");
+  });
+
   it("writes rust workflow files only for a rust stack", () => {
     const rust = Testing.synth(new BaseProject({ name: "test", stack: [Stack.RUST] }));
     expect(rust[".github/workflows/main.yml"]).toContain("cargo clippy");
@@ -238,11 +260,23 @@ describe("BaseProject.postSynthesize", () => {
 describe("BaseProject python packaging", () => {
   const homeAssistant = { name: "Foo", minVersion: "2026.4.0" };
 
-  it("writes no workflows or hacs.json without opt.python.packaging", () => {
+  it("tests but doesn't release or write hacs.json without opt.python.packaging", () => {
     const snapshot = Testing.synth(new BaseProject({ name: "test", stack: [Stack.PYTHON], opt: { python: { minVersion: "3.12" } } }));
-    expect(snapshot[".github/workflows/main.yml"]).toBeUndefined();
+    expect(snapshot[".github/workflows/main.yml"]).toContain(`env: '["py312", "py313", "py314", "py315", "pypy3"]'`);
+    expect(snapshot[".github/workflows/main.yml"]).toContain("main-win-real:");
     expect(snapshot[".github/workflows/release.yml"]).toBeUndefined();
     expect(snapshot["hacs.json"]).toBeUndefined();
+  });
+
+  it("skips main.yml with opt.python.ci off", () => {
+    const project = new BaseProject({
+      name: "test",
+      stack: [Stack.PYTHON],
+      opt: { python: { minVersion: "3.12", packaging: PythonPackaging.WHEEL, ci: false } },
+    });
+    const snapshot = Testing.synth(project);
+    expect(snapshot[".github/workflows/main.yml"]).toBeUndefined();
+    expect(snapshot[".github/workflows/release.yml"]).toContain("uses: pypa/gh-action-pypi-publish@v0.0.0");
   });
 
   it("tests and publishes a wheel to PyPI", () => {

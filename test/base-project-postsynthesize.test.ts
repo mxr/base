@@ -16,6 +16,10 @@ import { buildPreCommitRepos } from "../src/pre-commit";
 import { MANAGED_MARKER } from "../src/pyproject";
 import { PythonPackaging, Stack } from "../src/stack";
 
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 function outdir(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), "base-projen-postsynth-"));
 }
@@ -382,6 +386,38 @@ describe("BaseProject.postSynthesize with a mocked git/pre-commit binary", () =>
     expect(pyproject).not.toContain("py39");
     expect(pyproject).toContain(`[tool.ruff]  ${MANAGED_MARKER}\ntarget-version = "py312"\n`);
     expect(pyproject).toContain(`[tool.sqlfluff.layout.type.comma]  ${MANAGED_MARKER}\n`);
+  });
+
+  it("merges python config into opt.python.pyprojectPath instead of pyproject.toml", () => {
+    const dir = outdir();
+    realChildProcess.execFileSync("git", ["init", "-q"], { cwd: dir });
+    fs.mkdirSync(path.join(dir, "templates"));
+    const template = '[project]\ndependencies = [\n{{#httpx}}\n  "httpx",\n{{/httpx}}\n]\nversion = "{{{packageVersion}}}"\n';
+    fs.writeFileSync(path.join(dir, "templates/pyproject.mustache"), template);
+    fs.writeFileSync(path.join(dir, "pyproject.toml"), '[project]\nversion = "1.0.0"\n');
+    const project = new BaseProject({
+      name: "test",
+      stack: [Stack.PYTHON],
+      opt: { python: { minVersion: "3.12", pyprojectPath: "templates/pyproject.mustache", extras: { generated: ["gen"] } } },
+      outdir: dir,
+    });
+
+    execFileSyncMock.mockImplementation((cmd, args) => {
+      if (cmd === "git") {
+        return realChildProcess.execFileSync(cmd, args as string[], { cwd: dir });
+      }
+      return "";
+    });
+
+    project.synth();
+
+    const merged = fs.readFileSync(path.join(dir, "templates/pyproject.mustache"), "utf-8");
+    expect(merged).toMatch(new RegExp(`^${escapeRegExp(template)}\\n\\[tool\\.coverage\\.run\\]  ${MANAGED_MARKER}\\n`));
+    expect(merged).toContain(`[tool.ruff]  ${MANAGED_MARKER}\ntarget-version = "py312"\n`);
+    expect(merged).toContain(`[[tool.mypy.overrides]]  ${MANAGED_MARKER}\nignore_errors = true\nmodule = ["gen.*"]\n`);
+    expect(fs.readFileSync(path.join(dir, "pyproject.toml"), "utf-8")).toBe('[project]\nversion = "1.0.0"\n');
+    const staged = realChildProcess.execFileSync("git", ["diff", "--cached", "--name-only"], { cwd: dir, encoding: "utf-8" });
+    expect(staged.split("\n")).toContain("templates/pyproject.mustache");
   });
 
   it("does not write a pyproject.toml for a non-sql stack", () => {

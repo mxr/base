@@ -48,12 +48,20 @@ export interface PythonOptions {
 
   /**
    * How the repo is packaged and released. When set, BaseProject renders
-   * `.github/workflows/main.yml`, `.github/workflows/release.yml`, and the
-   * packaging-specific parts of `pyproject.toml` (lint and tox config is
-   * managed either way). Omit for a repo that base shouldn't release (e.g.
-   * a mirror with its own workflows).
+   * `.github/workflows/release.yml` and the packaging-specific parts of
+   * `pyproject.toml` (lint and tox config is managed either way). Omit for a
+   * repo that base shouldn't release (e.g. one with its own release
+   * workflow).
    */
   readonly packaging?: PythonPackaging;
+
+  /**
+   * Render `.github/workflows/main.yml`, which runs tox in CI, and the tox
+   * config in `pyproject.toml`. Turn off for a repo without tests to run.
+   *
+   * @default true
+   */
+  readonly ci?: boolean;
 
   /**
    * Run the type checkers (mypy, pyright, ty) in a GitHub Actions job via
@@ -69,6 +77,77 @@ export interface PythonOptions {
    * Required when `packaging` is `PythonPackaging.HOME_ASSISTANT`.
    */
   readonly homeAssistant?: HomeAssistantOptions;
+
+  /**
+   * Directory tox runs pytest on and mypy relaxes `disallow_untyped_defs` for.
+   *
+   * @default "tests"
+   */
+  readonly testsDir?: string;
+
+  /**
+   * Directories beyond the usual layout.
+   */
+  readonly extras?: PythonExtrasOptions;
+
+  /**
+   * File base merges its managed `pyproject.toml` tables into, for a repo
+   * whose `pyproject.toml` is itself rendered from a template (e.g. an
+   * openapi-generator `pyproject.mustache`).
+   *
+   * @default "pyproject.toml"
+   */
+  readonly pyprojectPath?: string;
+}
+
+export interface PythonExtrasOptions {
+  /**
+   * Directories of generated code (e.g. `"pkg/generated"`) that mypy,
+   * pyright, and ty skip. Rendered as an `ignore_errors` mypy override and as
+   * pyright and ty excludes.
+   */
+  readonly generated?: string[];
+
+  /**
+   * More test directories, run by tox after `testsDir` and relaxed in mypy
+   * like it.
+   */
+  readonly tests?: string[];
+}
+
+export interface PreCommitOptions {
+  /**
+   * Regexes for `.pre-commit-config.yaml`'s top-level `exclude`, e.g.
+   * generated code that no hook should touch.
+   */
+  readonly exclude?: string[];
+}
+
+export interface MergifyRule {
+  /**
+   * The rule's `name`.
+   */
+  readonly name: string;
+
+  /**
+   * The rule's `conditions`, e.g. `author=github-actions[bot]`.
+   */
+  readonly conditions: string[];
+}
+
+export interface MergifyOptions {
+  /**
+   * Config beyond base's own.
+   */
+  readonly extras?: MergifyExtrasOptions;
+}
+
+export interface MergifyExtrasOptions {
+  /**
+   * Squash-merge rules added after base's own (pre-commit.ci, renovate, and
+   * base updates), e.g. for PRs a repo's own workflows open.
+   */
+  readonly rules?: MergifyRule[];
 }
 
 export interface HomeAssistantOptions {
@@ -94,6 +173,16 @@ export interface BaseProjectOpt {
    * Options for `Stack.PYTHON`. Required when that stack is present.
    */
   readonly python?: PythonOptions;
+
+  /**
+   * Options for `.pre-commit-config.yaml`, for any stack.
+   */
+  readonly preCommit?: PreCommitOptions;
+
+  /**
+   * Options for `.github/mergify.yml`, for any stack.
+   */
+  readonly mergify?: MergifyOptions;
 }
 
 export interface BaseProjectOptions extends GitHubProjectOptions {
@@ -105,7 +194,8 @@ export interface BaseProjectOptions extends GitHubProjectOptions {
   readonly stack: Stack[];
 
   /**
-   * Per-stack options, keyed by stack name. Only stacks that need extra
+   * Per-stack options, keyed by stack name, plus stack-independent options
+   * for individual generated files. Only stacks that need extra
    * configuration to render their files have an entry here.
    */
   readonly opt?: BaseProjectOpt;
@@ -122,6 +212,10 @@ export class BaseProject extends GitHubProject {
   private readonly pythonMinVersion: string | undefined;
   private readonly pythonPackaging: PythonPackaging | undefined;
   private readonly license: string;
+  private readonly pyprojectPath: string;
+  private readonly testsDir: string | undefined;
+  private readonly extras: PythonExtrasOptions | undefined;
+  private readonly ci: boolean;
   private readonly newPreCommitRepoUrls: string[];
   private readonly newWorkflowActions = new Map<string, string[]>();
 
@@ -149,6 +243,10 @@ export class BaseProject extends GitHubProject {
       throw new Error(`PythonPackaging.HOME_ASSISTANT always uses python ${HOME_ASSISTANT_PYTHON}; omit opt.python.minVersion`);
     }
     this.pythonMinVersion = isHomeAssistant ? HOME_ASSISTANT_PYTHON : options.opt?.python?.minVersion;
+    this.pyprojectPath = options.opt?.python?.pyprojectPath ?? "pyproject.toml";
+    this.testsDir = options.opt?.python?.testsDir;
+    this.extras = options.opt?.python?.extras;
+    this.ci = options.opt?.python?.ci ?? true;
     if (this.stack.includes(Stack.PYTHON) && !this.pythonMinVersion) {
       throw new Error("Stack.PYTHON requires opt.python.minVersion to be set");
     }
@@ -169,6 +267,7 @@ export class BaseProject extends GitHubProject {
       ...(this.pythonMinVersion ? { pythonMinVersion: this.pythonMinVersion } : {}),
       existingRevs: Object.fromEntries(existingRevs),
       typeChecksInGithubActions: runTypeChecksInGithubActions,
+      ...(options.opt?.preCommit?.exclude ? { exclude: options.opt.preCommit.exclude } : {}),
     });
     this.newPreCommitRepoUrls = preCommitConfigFile.newRepoUrls;
 
@@ -193,15 +292,18 @@ export class BaseProject extends GitHubProject {
       });
     }
 
-    if (this.pythonMinVersion && this.pythonPackaging) {
+    if (this.pythonMinVersion && this.ci) {
       this.addWorkflow(
         "main.yml",
         pythonMainWorkflow({
-          packaging: this.pythonPackaging,
+          ...(this.pythonPackaging ? { packaging: this.pythonPackaging } : {}),
           minVersion: this.pythonMinVersion,
           stack: this.stack,
         }),
       );
+    }
+
+    if (this.pythonMinVersion && this.pythonPackaging) {
       this.addWorkflow(
         "release.yml",
         this.pythonPackaging === PythonPackaging.WHEEL ? wheelReleaseWorkflow(this.pythonMinVersion) : homeAssistantReleaseWorkflow(),
@@ -271,6 +373,15 @@ export class BaseProject extends GitHubProject {
     if (this.github) {
       // projen's Mergify component only writes root `.mergify.yml`, so write `.github/mergify.yml` directly.
       // pre-commit ci won't automerge on its own: https://github.com/pre-commit-ci/issues/issues/48
+      const mergifyRules: MergifyRule[] = [
+        {
+          name: "automatic merge for pre-commit ci updates",
+          conditions: ["author=pre-commit-ci[bot]", "title=[pre-commit.ci] pre-commit autoupdate"],
+        },
+        { name: "automatic merge for renovate updates", conditions: ["author=renovate[bot]"] },
+        { name: "automatic merge for base updates", conditions: ["author=mxr-base-sync[bot]"] },
+        ...(options.opt?.mergify?.extras?.rules ?? []),
+      ];
       new TextFile(this, ".github/mergify.yml", {
         marker: false,
         committed: true,
@@ -278,25 +389,14 @@ export class BaseProject extends GitHubProject {
           `# ${BANNER}`,
           "",
           "pull_request_rules:",
-          "- name: automatic merge for pre-commit ci updates",
-          "  conditions:",
-          "  - author=pre-commit-ci[bot]",
-          "  - title=[pre-commit.ci] pre-commit autoupdate",
-          "  actions:",
-          "    merge:",
-          "      method: squash",
-          "- name: automatic merge for renovate updates",
-          "  conditions:",
-          "  - author=renovate[bot]",
-          "  actions:",
-          "    merge:",
-          "      method: squash",
-          "- name: automatic merge for base updates",
-          "  conditions:",
-          "  - author=mxr-base-sync[bot]",
-          "  actions:",
-          "    merge:",
-          "      method: squash",
+          ...mergifyRules.flatMap(({ name, conditions }) => [
+            `- name: ${name}`,
+            "  conditions:",
+            ...conditions.map((condition) => `  - ${condition}`),
+            "  actions:",
+            "    merge:",
+            "      method: squash",
+          ]),
         ],
       });
     }
@@ -395,7 +495,7 @@ export class BaseProject extends GitHubProject {
       fs.rmSync(gitignorePath, { force: true });
     }
 
-    // pyproject.toml is otherwise owned by the downstream repo, so only base's tables and keys are managed
+    // pyproject.toml (or its template) is otherwise owned by the downstream repo, so only base's tables and keys are managed
     const partiallyManagedFiles: string[] = [];
     const python = this.pythonMinVersion
       ? managedPyproject({
@@ -403,11 +503,15 @@ export class BaseProject extends GitHubProject {
           minVersion: this.pythonMinVersion,
           name: this.name,
           license: this.license,
+          ...(this.testsDir ? { testsDir: this.testsDir } : {}),
+          extraTestsDirs: this.extras?.tests ?? [],
+          generatedDirs: this.extras?.generated ?? [],
+          ci: this.ci,
         })
       : undefined;
     const isSql = this.stack.includes(Stack.SQL);
     if (python || isSql) {
-      const pyprojectPath = path.join(this.outdir, "pyproject.toml");
+      const pyprojectPath = path.join(this.outdir, this.pyprojectPath);
       const existing = fs.existsSync(pyprojectPath) ? fs.readFileSync(pyprojectPath, "utf-8") : "";
       const tables: ManagedTable[] = [...(python?.tables ?? []), ...(isSql ? sqlfluffTables() : []), tombiTable()];
       fs.writeFileSync(
@@ -418,7 +522,7 @@ export class BaseProject extends GitHubProject {
           ...(isSql ? { ownedPrefixes: ["tool.sqlfluff"] } : {}),
         }),
       );
-      partiallyManagedFiles.push("pyproject.toml");
+      partiallyManagedFiles.push(this.pyprojectPath);
     }
 
     // `pre-commit run --all-files` skips untracked files, so stage new/renamed managed files.

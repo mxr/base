@@ -29,6 +29,11 @@ export interface PreCommitConfigFileOptions extends FileBaseOptions {
    * run in a GitHub Actions job instead.
    */
   readonly typeChecksInGithubActions?: boolean;
+
+  /**
+   * Regexes for the file's top-level `exclude`.
+   */
+  readonly exclude?: string[];
 }
 
 /**
@@ -39,6 +44,7 @@ export class PreCommitConfigFile extends FileBase {
   private readonly pythonMinVersion: string | undefined;
   private readonly existingRevs: ReadonlyMap<string, ExistingRev>;
   private readonly typeChecksInGithubActions: boolean;
+  private readonly exclude: string[];
 
   /**
    * Non-local repo urls newly added by this synth (i.e. not present in
@@ -53,6 +59,7 @@ export class PreCommitConfigFile extends FileBase {
     this.pythonMinVersion = options.pythonMinVersion;
     this.existingRevs = new Map(Object.entries(options.existingRevs ?? {}));
     this.typeChecksInGithubActions = options.typeChecksInGithubActions ?? false;
+    this.exclude = options.exclude ?? [];
     this.newRepoUrls = newRepoUrls(this.stack, this.existingRevs);
   }
 
@@ -68,6 +75,8 @@ export class PreCommitConfigFile extends FileBase {
       skips.length > 0
         ? [`ci:`, `  skip: [${skips.flatMap(({ hooks }) => hooks).join(", ")}] # ${skips.map(({ reason }) => reason).join("; ")}`, ""]
         : [];
-    return [`# ${BANNER}`, "", ...ciLines, renderPreCommitConfig(this.stack, this.pythonMinVersion, this.existingRevs)].join("\n");
+    return [`# ${BANNER}`, "", ...ciLines, renderPreCommitConfig(this.stack, this.pythonMinVersion, this.existingRevs, this.exclude)].join(
+      "\n",
+    );
   }
 }

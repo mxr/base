@@ -22,7 +22,7 @@ export const HOME_ASSISTANT_PYTHON = "3.14";
 const LATEST_PYPY = "3.12";
 
 export interface PythonPackagingOptions {
-  readonly packaging: PythonPackaging;
+  readonly packaging?: PythonPackaging;
   readonly minVersion: string;
   readonly stack: readonly Stack[];
 }
@@ -82,22 +82,24 @@ function toxJob(envs: readonly string[], os?: string): string {
 
 /**
  * `.github/workflows/main.yml`: tox across the supported versions, gated on
- * whether python project files changed.
+ * whether python project files changed. A home assistant integration only
+ * runs on Home Assistant's python, so it gets just that version and no
+ * windows job.
  */
 export function pythonMainWorkflow(options: PythonPackagingOptions): string[] {
-  const isWheel = options.packaging === PythonPackaging.WHEEL;
+  const isHomeAssistant = options.packaging === PythonPackaging.HOME_ASSISTANT;
   const pypy = minor(options.minVersion) <= minor(LATEST_PYPY) ? ["pypy3"] : [];
-  const envs = isWheel ? [...supportedToxEnvs(options.minVersion), ...pypy] : [toxEnv(options.minVersion)];
+  const envs = isHomeAssistant ? [toxEnv(options.minVersion)] : [...supportedToxEnvs(options.minVersion), ...pypy];
   const projectFiles = [
     ".github/workflows/main.yml",
     "'**/*.py'",
     ...(options.stack.includes(Stack.SQL) ? ["'**/*.sql'"] : []),
     "'**/*.toml'",
-    ...(isWheel ? [] : ["custom_components/*/manifest.json"]),
+    ...(isHomeAssistant ? ["custom_components/*/manifest.json"] : []),
   ];
   return workflow("main", "project_files", projectFiles, [
     gatedJob("main", "project_files", toxJob(envs)),
-    ...(isWheel ? [gatedJob("main-win", "project_files", toxJob([toxEnv(options.minVersion)], WINDOWS_RUNNER))] : []),
+    ...(isHomeAssistant ? [] : [gatedJob("main-win", "project_files", toxJob([toxEnv(options.minVersion)], WINDOWS_RUNNER))]),
   ]);
 }
 
@@ -162,6 +164,35 @@ export interface ManagedPyprojectOptions {
   readonly minVersion: string;
   readonly name: string;
   readonly license: string;
+
+  /**
+   * Directory tox runs pytest on and mypy relaxes `disallow_untyped_defs` for.
+   *
+   * @default "tests"
+   */
+  readonly testsDir?: string;
+
+  /**
+   * More test directories, treated like `testsDir`.
+   */
+  readonly extraTestsDirs?: readonly string[];
+
+  /**
+   * Directories of generated code the type checkers skip.
+   */
+  readonly generatedDirs?: readonly string[];
+
+  /**
+   * Whether tox runs in CI, which is all the tox config is for.
+   *
+   * @default true
+   */
+  readonly ci?: boolean;
+}
+
+// a directory as a mypy module glob, e.g. `pkg/gen` -> `pkg.gen.*`
+function moduleGlob(dir: string): string {
+  return `${dir.replace(/\/+$/, "").replaceAll("/", ".")}.*`;
 }
 
 /**
@@ -173,6 +204,10 @@ export interface ManagedPyprojectOptions {
 export function managedPyproject(options: ManagedPyprojectOptions): ManagedPyproject {
   const isWheel = options.packaging === PythonPackaging.WHEEL;
   const isHomeAssistant = options.packaging === PythonPackaging.HOME_ASSISTANT;
+  const testsDir = options.testsDir ?? "tests";
+  const testsDirs = [testsDir, ...(options.extraTestsDirs ?? [])];
+  const generatedDirs = [...(options.generatedDirs ?? [])];
+  const ci = options.ci ?? true;
   const table = (name: string, values: Parameters<typeof tomlEntries>[0], array?: boolean): ManagedTable => ({
     name,
     lines: tomlEntries(values),
@@ -192,7 +227,15 @@ export function managedPyproject(options: ManagedPyprojectOptions): ManagedPypro
       warn_unused_ignores: true,
     }),
     table("tool.mypy.overrides", { disallow_untyped_defs: false, module: "testing.*" }, true),
-    table("tool.mypy.overrides", { disallow_untyped_defs: false, module: "tests.*" }, true),
+    table(
+      "tool.mypy.overrides",
+      { disallow_untyped_defs: false, module: testsDirs.length > 1 ? testsDirs.map(moduleGlob) : moduleGlob(testsDir) },
+      true,
+    ),
+    ...(generatedDirs.length > 0
+      ? [table("tool.mypy.overrides", { ignore_errors: true, module: generatedDirs.map(moduleGlob) }, true)]
+      : []),
+    ...(generatedDirs.length > 0 ? [table("tool.pyright", { exclude: generatedDirs })] : []),
     table("tool.ruff", { "target-version": toxEnv(options.minVersion) }),
     {
       name: "tool.ruff.lint",
@@ -215,23 +258,35 @@ export function managedPyproject(options: ManagedPyprojectOptions): ManagedPypro
     }),
     ...(isWheel ? [table("tool.setuptools.packages", { find: {} })] : []),
     // bare local `tox`; CI passes `-e` per matrix entry (pypy, windows, each version), so this skips those
-    table("tool.tox", { env_list: ["py", "pre-commit"] }),
-    table("tool.tox.env.pre-commit", {
-      commands: [["pre-commit", "run", "--all-files", "--show-diff-on-failure"]],
-      deps: ["pre-commit-uv"],
-      skip_install: true,
-    }),
-    table("tool.tox.env_run_base", {
-      commands: [
-        ["coverage", "erase"],
-        ["coverage", "run", "-m", "pytest", "{posargs:tests}"],
-        ["coverage", "report"],
-      ],
-      ...(isHomeAssistant
-        ? { commands_pre: [["python", "-c", HOME_ASSISTANT_INSTALL_REQUIREMENTS]], dependency_groups: ["test"], skip_install: true }
-        : { dependency_groups: ["dev"] }),
-    }),
+    ...(ci
+      ? [
+          table("tool.tox", { env_list: ["py", "pre-commit"] }),
+          table("tool.tox.env.pre-commit", {
+            commands: [["pre-commit", "run", "--all-files", "--show-diff-on-failure"]],
+            deps: ["pre-commit-uv"],
+            skip_install: true,
+          }),
+          table("tool.tox.env_run_base", {
+            commands: [
+              ["coverage", "erase"],
+              [
+                "coverage",
+                "run",
+                "-m",
+                "pytest",
+                // a `{posargs:a b}` default would be one argument
+                testsDirs.length > 1 ? { replace: "posargs", default: testsDirs, extend: true } : `{posargs:${testsDir}}`,
+              ],
+              ["coverage", "report"],
+            ],
+            ...(isHomeAssistant
+              ? { commands_pre: [["python", "-c", HOME_ASSISTANT_INSTALL_REQUIREMENTS]], dependency_groups: ["test"], skip_install: true }
+              : { dependency_groups: ["dev"] }),
+          }),
+        ]
+      : []),
     table("tool.ty.rules", { all: "error" }),
+    ...(generatedDirs.length > 0 ? [table("tool.ty.src", { exclude: generatedDirs })] : []),
   ];
 
   return {

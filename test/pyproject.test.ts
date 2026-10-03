@@ -1,4 +1,4 @@
-import { MANAGED_MARKER, mergePyproject, renderTomlValue, sqlfluffTables } from "../src/pyproject";
+import { MANAGED_MARKER, mergePyproject, renderTomlValue, sortToolTables, sqlfluffTables } from "../src/pyproject";
 
 const M = MANAGED_MARKER;
 const RUFF = { name: "tool.ruff", lines: ['target-version = "py312"'] };
@@ -17,13 +17,13 @@ describe("mergePyproject", () => {
       name: "unmarked managed table",
       existing: '[tool.ruff]\ntarget-version = "py39"\n\n[tool.tox]\nenv_list = ["py"]\n',
       managed: { tables: [RUFF] },
-      expected: `[tool.tox]\nenv_list = ["py"]\n\n${RUFF_RENDERED}`,
+      expected: `${RUFF_RENDERED}\n[tool.tox]\nenv_list = ["py"]\n`,
     },
     {
       name: "marked table no longer managed",
       existing: `[tool.mypy]  ${M}\nstrict = true\n\n[tool.tox]\nenv_list = ["py"]\n`,
       managed: { tables: [RUFF] },
-      expected: `[tool.tox]\nenv_list = ["py"]\n\n${RUFF_RENDERED}`,
+      expected: `${RUFF_RENDERED}\n[tool.tox]\nenv_list = ["py"]\n`,
     },
     {
       name: "every array-of-tables entry",
@@ -36,7 +36,7 @@ describe("mergePyproject", () => {
       existing:
         '[tool.sqlfluff]\ndialect = "ansi"\n\n[tool.sqlfluff.layout.type.comma]\nline_position = "trailing"\n\n[tool.sqlfluffish]\na = 1\n',
       managed: { tables: [RUFF], ownedPrefixes: ["tool.sqlfluff"] },
-      expected: `[tool.sqlfluffish]\na = 1\n\n${RUFF_RENDERED}`,
+      expected: `${RUFF_RENDERED}\n[tool.sqlfluffish]\na = 1\n`,
     },
   ])("replaces managed tables for $name", ({ existing, managed, expected }) => {
     expect(mergePyproject(existing, managed)).toBe(expected);
@@ -46,7 +46,7 @@ describe("mergePyproject", () => {
     {
       name: "no [project] table",
       existing: "[tool.tox]\na = 1\n",
-      expected: `[tool.tox]\na = 1\n\n[project]\nlicense = "MIT"  ${M}\n`,
+      expected: `[project]\nlicense = "MIT"  ${M}\n\n[tool.tox]\na = 1\n`,
     },
     {
       name: "unmarked single-line key",
@@ -70,6 +70,33 @@ describe("mergePyproject", () => {
     },
   ])("replaces [project] keys for $name", ({ existing, expected }) => {
     expect(mergePyproject(existing, { tables: [], projectKeys: { license: "MIT" } })).toBe(expected);
+  });
+});
+
+describe("sortToolTables", () => {
+  it.each([
+    {
+      name: "tool tables by name after the rest",
+      content: "[tool.tox]\na = 1\n\n[project]\nname = 1\n\n[tool.tombi]\nb = 1\n\n[build-system]\nc = 1",
+      expected: "[project]\nname = 1\n\n[build-system]\nc = 1\n\n[tool.tombi]\nb = 1\n\n[tool.tox]\na = 1",
+    },
+    {
+      name: "subtables by segment",
+      content: "[tool.tox.env_run_base]\na = 1\n\n[tool.tox.env.pre-commit]\nb = 1\n\n[tool.tox]\nc = 1",
+      expected: "[tool.tox]\nc = 1\n\n[tool.tox.env.pre-commit]\nb = 1\n\n[tool.tox.env_run_base]\na = 1",
+    },
+    {
+      name: "array-of-tables entries in place",
+      content: '[[tool.mypy.overrides]]\nmodule = "b"\n\n[tool.mypy]\nstrict = true\n\n[[tool.mypy.overrides]]\nmodule = "a"',
+      expected: '[tool.mypy]\nstrict = true\n\n[[tool.mypy.overrides]]\nmodule = "b"\n\n[[tool.mypy.overrides]]\nmodule = "a"',
+    },
+    {
+      name: "comments above a header and template tags",
+      content: "[tool.tox]\n{{#x}}\na = 1\n{{/x}}\n# about ruff\n[tool.ruff]\nb = 1",
+      expected: "# about ruff\n[tool.ruff]\nb = 1\n\n[tool.tox]\n{{#x}}\na = 1\n{{/x}}",
+    },
+  ])("moves $name", ({ content, expected }) => {
+    expect(sortToolTables(content)).toBe(expected);
   });
 });
 

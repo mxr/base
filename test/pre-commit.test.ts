@@ -210,4 +210,8 @@ describe("renderPreCommitConfig", () => {
     expect(renderPreCommitConfig([Stack.PYTHON], "3.11")).toMatch(/^default_language_version:\n {2}python: python3\.11\nrepos:/);
     expect(renderPreCommitConfig([Stack.PYTHON])).not.toContain("default_language_version");
   });
+
+  it("omits the top-level exclude when empty", () => {
+    expect(renderPreCommitConfig([], undefined, undefined, [])).toMatch(/^repos:/);
+  });
 });

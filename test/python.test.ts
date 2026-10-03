@@ -113,6 +113,52 @@ describe("managedPyproject", () => {
     expect(pyproject.projectKeys).toBeUndefined();
   });
 
+  it("omits the tox config with ci off", () => {
+    const pyproject = managedPyproject({ minVersion: "3.11", name: "foo", license: "MIT", ci: false });
+    expect(pyproject.tables.map(({ name }) => name).filter((name) => name.startsWith("tool.tox"))).toEqual([]);
+  });
+
+  it("skips generated dirs in mypy, pyright, and ty", () => {
+    const pyproject = managedPyproject({ minVersion: "3.11", name: "foo", license: "MIT", generatedDirs: ["foo/gen", "test"] });
+    expect(pyproject.tables).toContainEqual({
+      name: "tool.mypy.overrides",
+      array: true,
+      lines: ["ignore_errors = true", 'module = ["foo.gen.*", "test.*"]'],
+    });
+    expect(pyproject.tables).toContainEqual({ name: "tool.pyright", lines: ['exclude = ["foo/gen", "test"]'] });
+    expect(pyproject.tables).toContainEqual({ name: "tool.ty.src", lines: ['exclude = ["foo/gen", "test"]'] });
+  });
+
+  it.each([
+    {
+      name: "default tests dir",
+      options: {},
+      module: '"tests.*"',
+      pytest: '["coverage", "run", "-m", "pytest", "{posargs:tests}"]',
+    },
+    {
+      name: "custom tests dir",
+      options: { testsDir: "test" },
+      module: '"test.*"',
+      pytest: '["coverage", "run", "-m", "pytest", "{posargs:test}"]',
+    },
+    {
+      name: "extra tests dirs",
+      options: { testsDir: "test", extraTestsDirs: ["test_custom"] },
+      module: '["test.*", "test_custom.*"]',
+      pytest: '["coverage", "run", "-m", "pytest", { replace = "posargs", default = ["test", "test_custom"], extend = true }]',
+    },
+  ])("tests and relaxes typing for $name", ({ options, module, pytest }) => {
+    const pyproject = managedPyproject({ minVersion: "3.11", name: "foo", license: "MIT", ...options });
+    expect(pyproject.tables).toContainEqual({
+      name: "tool.mypy.overrides",
+      array: true,
+      lines: ["disallow_untyped_defs = false", `module = ${module}`],
+    });
+    const runBase = pyproject.tables.find(({ name }) => name === "tool.tox.env_run_base");
+    expect(runBase?.lines[0]).toBe(`commands = [\n  ["coverage", "erase"],\n  ${pytest},\n  ["coverage", "report"],\n]`);
+  });
+
   it.each([
     { minVersion: "3.13", expected: ["force-single-line = true", 'required-imports = ["from __future__ import annotations"]'] },
     { minVersion: "3.14", expected: ["force-single-line = true"] },

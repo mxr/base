@@ -335,13 +335,26 @@ function toSnakeCaseKeys(value: unknown): unknown {
  * `pythonMinVersion` (e.g. `"3.11"`) sets the file's top-level
  * `default_language_version.python`, so individual Python hooks (mypy, ty,
  * etc.) don't need their own per-hook `language_version`.
+ *
+ * `exclude` regexes are combined into the file's top-level `exclude`, one
+ * alternative per line in a verbose regex.
  */
-export function renderPreCommitConfig(stack: Stack[], pythonMinVersion?: string, existingRevs?: ReadonlyMap<string, ExistingRev>): string {
+export function renderPreCommitConfig(
+  stack: Stack[],
+  pythonMinVersion?: string,
+  existingRevs?: ReadonlyMap<string, ExistingRev>,
+  exclude?: readonly string[],
+): string {
   const repos = toSnakeCaseKeys(buildPreCommitRepos(stack, existingRevs));
   const doc = new Document({
     ...(pythonMinVersion ? { default_language_version: { python: `python${pythonMinVersion}` } } : {}),
+    ...(exclude?.length ? { exclude: `(?x)^(\n${exclude.map((pattern) => `    ${pattern}`).join("|\n")}\n)$\n` } : {}),
     repos,
   });
+  const excludeNode = doc.get("exclude", true);
+  if (isScalar(excludeNode)) {
+    excludeNode.type = Scalar.BLOCK_LITERAL;
+  }
 
   visit(doc, {
     Map(_, node) {
