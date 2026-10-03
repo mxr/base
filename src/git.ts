@@ -1,4 +1,4 @@
-import { execFileSync } from "child_process";
+import { execFileSync } from "node:child_process";
 
 /**
  * Returns the year of the repo's first commit, so the LICENSE year reflects

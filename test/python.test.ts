@@ -26,7 +26,7 @@ describe("pythonMainWorkflow", () => {
     }).join("\n");
     expect(workflow).toContain(`      env: '${envs}'\n`);
     expect(workflow).toContain(`      env: '["${`py${minVersion.replace(".", "")}`}"]'\n      os: windows-2025\n`);
-    expect(workflow).toContain("        MAIN_WIN_REAL_RESULT: ${{ needs.main-win-real.result }}\n");
+    expect(workflow).toContain(`        MAIN_WIN_REAL_RESULT: \${{ needs.main-win-real.result }}\n`);
     expect(workflow).not.toContain("'**/*.sql'");
     expect(workflow).not.toContain("manifest.json");
     expect(workflow).not.toContain("typing");
@@ -49,7 +49,7 @@ describe("typingWorkflow", () => {
   it("runs the gated typing job when python or pre-commit config changes", () => {
     const workflow = typingWorkflow().join("\n");
     expect(workflow).toMatch(/^name: typing\n/);
-    expect(workflow).toContain("      typing_linting_files: ${{ steps.filter.outputs.typing_linting_files }}\n");
+    expect(workflow).toContain(`      typing_linting_files: \${{ steps.filter.outputs.typing_linting_files }}\n`);
     expect(workflow).toContain(
       "          typing_linting_files:\n            - .github/workflows/typing.yml\n            - '**/*.py'\n            - .pre-commit-config.yaml\n",
     );
