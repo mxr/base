@@ -1,10 +1,10 @@
-name: build
+name: main
 on:
   pull_request: {}
   workflow_dispatch: {}
   workflow_call: {}
 jobs:
-  build:
+  main:
     runs-on: ubuntu-26.04
     permissions:
       contents: read
