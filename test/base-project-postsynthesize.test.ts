@@ -362,7 +362,10 @@ describe("BaseProject.postSynthesize with a mocked git/pre-commit binary", () =>
   it("merges python and sqlfluff config into an existing pyproject.toml for a wheel", () => {
     const dir = outdir();
     realChildProcess.execFileSync("git", ["init", "-q"], { cwd: dir });
-    fs.writeFileSync(path.join(dir, "pyproject.toml"), '[project]\nlicense = "GPL"\nname = "x"\n\n[tool.ruff]\ntarget-version = "py39"\n');
+    fs.writeFileSync(
+      path.join(dir, "pyproject.toml"),
+      `[project]\nlicense = "GPL"\nname = "x"\n\n[tool.ruff]  ${MANAGED_MARKER}\ntarget-version = "py39"\n`,
+    );
     const project = new BaseProject({
       name: "test",
       stack: [Stack.PYTHON, Stack.SQL],
@@ -384,7 +387,8 @@ describe("BaseProject.postSynthesize with a mocked git/pre-commit binary", () =>
     expect(pyproject).toContain('name = "x"\n');
     expect(pyproject).not.toContain("GPL");
     expect(pyproject).not.toContain("py39");
-    expect(pyproject).toContain(`[tool.ruff]  ${MANAGED_MARKER}\ntarget-version = "py312"\n`);
+    expect(pyproject).toContain(`requires-python = ">=3.12"  ${MANAGED_MARKER}\n`);
+    expect(pyproject).not.toContain("[tool.ruff]");
     expect(pyproject).toContain(`[tool.sqlfluff.layout.type.comma]  ${MANAGED_MARKER}\n`);
   });
 

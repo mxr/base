@@ -279,6 +279,17 @@ describe("BaseProject python packaging", () => {
     expect(snapshot[".github/workflows/release.yml"]).toContain("uses: pypa/gh-action-pypi-publish@v0.0.0");
   });
 
+  it("leaves release.yml to the repo with opt.python.customRelease on", () => {
+    const project = new BaseProject({
+      name: "test",
+      stack: [Stack.PYTHON],
+      opt: { python: { minVersion: "3.12", packaging: PythonPackaging.WHEEL, customRelease: true } },
+    });
+    const snapshot = Testing.synth(project);
+    expect(snapshot[".github/workflows/main.yml"]).toContain("main-win-real:");
+    expect(snapshot[".github/workflows/release.yml"]).toBeUndefined();
+  });
+
   it("tests and publishes a wheel to PyPI", () => {
     const project = new BaseProject({
       name: "test",

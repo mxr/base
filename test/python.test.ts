@@ -66,12 +66,13 @@ describe("managedPyproject", () => {
     const names = pyproject.tables.map(({ name }) => name);
     expect(names).toEqual(expect.arrayContaining(["build-system", "project.urls", "tool.setuptools.packages"]));
     expect(pyproject.tables).toContainEqual({ name: "project.urls", lines: ['Homepage = "https://github.com/mxr/foo-bar"'] });
-    expect(pyproject.tables).toContainEqual({ name: "tool.ruff", lines: ['target-version = "py312"'] });
+    expect(names).not.toContain("tool.ruff");
     expect(pyproject.tables).toContainEqual({ name: "tool.tox", lines: ['env_list = ["py", "pre-commit"]'] });
     expect(pyproject.projectKeys).toEqual({
       authors: [{ name: "Max R", email: "mxr@users.noreply.github.com" }],
       license: "MIT",
       "license-files": ["LICENSE"],
+      "requires-python": ">=3.12",
     });
   });
 

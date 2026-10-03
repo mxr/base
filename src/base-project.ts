@@ -50,10 +50,18 @@ export interface PythonOptions {
    * How the repo is packaged and released. When set, BaseProject renders
    * `.github/workflows/release.yml` and the packaging-specific parts of
    * `pyproject.toml` (lint and tox config is managed either way). Omit for a
-   * repo that base shouldn't release (e.g. one with its own release
-   * workflow).
+   * repo that isn't packaged.
    */
   readonly packaging?: PythonPackaging;
+
+  /**
+   * Leave `.github/workflows/release.yml` to the repo, for one with its own
+   * release workflow. The packaging-specific parts of `pyproject.toml` are
+   * still managed.
+   *
+   * @default false
+   */
+  readonly customRelease?: boolean;
 
   /**
    * Render `.github/workflows/main.yml`, which runs tox in CI, and the tox
@@ -216,6 +224,7 @@ export class BaseProject extends GitHubProject {
   private readonly testsDir: string | undefined;
   private readonly extras: PythonExtrasOptions | undefined;
   private readonly ci: boolean;
+  private readonly customRelease: boolean;
   private readonly newPreCommitRepoUrls: string[];
   private readonly newWorkflowActions = new Map<string, string[]>();
 
@@ -247,6 +256,7 @@ export class BaseProject extends GitHubProject {
     this.testsDir = options.opt?.python?.testsDir;
     this.extras = options.opt?.python?.extras;
     this.ci = options.opt?.python?.ci ?? true;
+    this.customRelease = options.opt?.python?.customRelease ?? false;
     if (this.stack.includes(Stack.PYTHON) && !this.pythonMinVersion) {
       throw new Error("Stack.PYTHON requires opt.python.minVersion to be set");
     }
@@ -303,7 +313,7 @@ export class BaseProject extends GitHubProject {
       );
     }
 
-    if (this.pythonMinVersion && this.pythonPackaging) {
+    if (this.pythonMinVersion && this.pythonPackaging && !this.customRelease) {
       this.addWorkflow(
         "release.yml",
         this.pythonPackaging === PythonPackaging.WHEEL ? wheelReleaseWorkflow(this.pythonMinVersion) : homeAssistantReleaseWorkflow(),

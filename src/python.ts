@@ -236,7 +236,8 @@ export function managedPyproject(options: ManagedPyprojectOptions): ManagedPypro
       ? [table("tool.mypy.overrides", { ignore_errors: true, module: generatedDirs.map(moduleGlob) }, true)]
       : []),
     ...(generatedDirs.length > 0 ? [table("tool.pyright", { exclude: generatedDirs })] : []),
-    table("tool.ruff", { "target-version": toxEnv(options.minVersion) }),
+    // a wheel's `requires-python` gives ruff its target version
+    ...(isWheel ? [] : [table("tool.ruff", { "target-version": toxEnv(options.minVersion) })]),
     {
       name: "tool.ruff.lint",
       lines: [
@@ -297,6 +298,7 @@ export function managedPyproject(options: ManagedPyprojectOptions): ManagedPypro
             authors: [{ name: "Max R", email: "mxr@users.noreply.github.com" }],
             license: options.license,
             "license-files": ["LICENSE"],
+            "requires-python": `>=${options.minVersion}`,
           },
         }
       : {}),
