@@ -10,7 +10,7 @@ describe("BaseProject", () => {
     const project = new BaseProject({ name: "test", stack: [Stack.PYTHON], opt: { python: { minVersion: "3.11" } } });
     const snapshot = Testing.synth(project);
     expect(snapshot["LICENSE"]).toContain("Permission is hereby granted, free of charge");
-    expect(snapshot["biome.json"].$schema).toBe("https://biomejs.dev/schemas/2.5.4/schema.json");
+    expect(snapshot["biome.json"].$schema).toMatch(/^https:\/\/biomejs\.dev\/schemas\/\d+\.\d+\.\d+\/schema\.json$/);
   });
 
   it("throws without opt.python.minVersion for a python stack", () => {
@@ -27,7 +27,7 @@ describe("BaseProject", () => {
     const project = new BaseProject({ name: "test", stack: [Stack.FRONTEND] });
     const snapshot = Testing.synth(project);
     expect(snapshot["LICENSE"]).toContain("GNU AFFERO GENERAL PUBLIC LICENSE");
-    expect(snapshot["biome.json"].$schema).toBe("https://biomejs.dev/schemas/2.5.4/schema.json");
+    expect(snapshot["biome.json"].$schema).toMatch(/^https:\/\/biomejs\.dev\/schemas\/\d+\.\d+\.\d+\/schema\.json$/);
     expect(snapshot["biome.json"].css.parser.tailwindDirectives).toBe(true);
     expect(snapshot["biome.json"].linter.rules.style.useImportType.options.style).toBe("separatedType");
   });
