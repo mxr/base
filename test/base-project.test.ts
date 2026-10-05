@@ -311,7 +311,7 @@ describe("BaseProject python packaging", () => {
     const snapshot = Testing.synth(project);
     expect(snapshot[".github/workflows/main.yml"]).toContain(`env: '["py314"]'`);
     expect(snapshot[".pre-commit-config.yaml"]).toContain("default_language_version:\n  python: python3.14\n");
-    expect(snapshot[".github/workflows/release.yml"]).toContain("uses: mxr/workflows/.github/workflows/github-release.yml@v0.0.0");
+    expect(snapshot[".github/workflows/release.yml"]).toContain('gh release create "$GITHUB_REF_NAME" --verify-tag --generate-notes');
     expect(snapshot["hacs.json"]).toEqual({ content_in_root: false, homeassistant: "2026.4.0", name: "Foo" });
   });
 
