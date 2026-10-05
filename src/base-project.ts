@@ -579,8 +579,8 @@ export class BaseProject extends GitHubProject {
     runTasksInParallelIgnoringFailure([...pinactTasks, configTask], this.outdir);
 
     // first pass may fail from formatter fixes; still open the PR if the second fails
-    if (!runIgnoringFailure(["pre-commit", "run", "--all-files"], this.outdir)) {
-      runIgnoringFailure(["pre-commit", "run", "--all-files"], this.outdir);
+    if (!runIgnoringFailure("pre-commit", ["run", "--all-files"], this.outdir)) {
+      runIgnoringFailure("pre-commit", ["run", "--all-files"], this.outdir);
     }
   }
 }
@@ -598,11 +598,7 @@ function isGitRepo(outdir: string): boolean {
   }
 }
 
-function runIgnoringFailure(command: readonly string[], cwd: string): boolean {
-  const [file, ...args] = command;
-  if (!file) {
-    return false;
-  }
+function runIgnoringFailure(file: string, args: readonly string[], cwd: string): boolean {
   try {
     execFileSync(file, args, { cwd, stdio: "inherit" });
     return true;
@@ -622,8 +618,8 @@ function runTasksInParallelIgnoringFailure(tasks: readonly (readonly (readonly s
   const quote = (command: readonly string[]): string => command.map(shQuote).join(" ");
   const pids = tasks.map((_, i) => `pid${i}`);
   const script = [
-    ...tasks.map((task, i) => `{ ${task.length > 0 ? task.map((step) => `${quote(step)} ;`).join(" ") : ": ;"} } & ${pids[i]}=$!`),
+    ...tasks.map((task, i) => `{ ${task.map((step) => `${quote(step)} ;`).join(" ")} } & ${pids[i]}=$!`),
     `wait ${pids.map((pid) => `$${pid}`).join(" ")}`,
   ].join("\n");
-  runIgnoringFailure(["sh", "-c", script], cwd);
+  runIgnoringFailure("sh", ["-c", script], cwd);
 }

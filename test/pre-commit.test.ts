@@ -1,4 +1,7 @@
+import { Project, Testing } from "projen";
+import { BANNER } from "../src/banner";
 import { buildPreCommitRepos, mergeRepos, newRepoUrls, readExistingRevs, renderPreCommitConfig } from "../src/pre-commit";
+import { PreCommitConfigFile } from "../src/pre-commit-config-file";
 import { Stack } from "../src/stack";
 
 describe("readExistingRevs", () => {
@@ -14,8 +17,12 @@ describe("readExistingRevs", () => {
     expect(revs).toEqual(new Map([["https://x", { rev: "abc123", comment: "frozen: v1.2.3" }]]));
   });
 
-  it("returns an empty map for a config with no repos", () => {
-    expect(readExistingRevs("repos: []")).toEqual(new Map());
+  it.each([
+    { name: "no repos", configYaml: "repos: []" },
+    { name: "a non-list repos", configYaml: "repos: x" },
+    { name: "a non-mapping repo entry", configYaml: "repos:\n- x" },
+  ])("returns an empty map for a config with $name", ({ configYaml }) => {
+    expect(readExistingRevs(configYaml)).toEqual(new Map());
   });
 });
 
@@ -221,5 +228,14 @@ describe("renderPreCommitConfig", () => {
 
   it("omits the top-level exclude when empty", () => {
     expect(renderPreCommitConfig([], undefined, undefined, [])).toMatch(/^repos:/);
+  });
+});
+
+describe("PreCommitConfigFile", () => {
+  it("defaults to no existing revs, no ci skips, and no excludes", () => {
+    const project = new Project({ name: "test" });
+    const file = new PreCommitConfigFile(project, { stack: [] });
+    expect(file.newRepoUrls).toEqual(newRepoUrls([], new Map()));
+    expect(Testing.synth(project)[".pre-commit-config.yaml"]).toBe(`# ${BANNER}\n\n${renderPreCommitConfig([])}`);
   });
 });
