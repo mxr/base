@@ -101,6 +101,11 @@ describe("sortToolTables", () => {
       expected: '[tool.mypy]\nstrict = true\n\n[[tool.mypy.overrides]]\nmodule = "b"\n\n[[tool.mypy.overrides]]\nmodule = "a"',
     },
     {
+      name: "keys before the first header to the top",
+      content: "#:schema x\nname = 1\n\n[tool.ruff]\nb = 1\n\n[project]\nc = 1",
+      expected: "#:schema x\nname = 1\n\n[project]\nc = 1\n\n[tool.ruff]\nb = 1",
+    },
+    {
       name: "comments above a header and template tags",
       content: "[tool.tox]\n{{#x}}\na = 1\n{{/x}}\n# about ruff\n[tool.ruff]\nb = 1",
       expected: "# about ruff\n[tool.ruff]\nb = 1\n\n[tool.tox]\n{{#x}}\na = 1\n{{/x}}",

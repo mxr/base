@@ -72,6 +72,30 @@ describe("BaseProject.postSynthesize with a mocked git/pre-commit binary", () =>
     }
   });
 
+  it("reruns pre-commit when the first run fails, e.g. from formatter fixes", () => {
+    const dir = outdir();
+    realChildProcess.execFileSync("git", ["init", "-q"], { cwd: dir });
+    const project = new BaseProject({ name: "test", stack: [], outdir: dir });
+
+    execFileSyncMock.mockImplementation((cmd, args) => {
+      if (cmd === "git") {
+        return realChildProcess.execFileSync(cmd, args as string[], { cwd: dir });
+      }
+      if (cmd === "pre-commit") {
+        throw new Error("simulated pre-commit failure");
+      }
+      return "";
+    });
+
+    project.synth();
+
+    const preCommitRuns = execFileSyncMock.mock.calls.filter(([cmd]) => cmd === "pre-commit");
+    expect(preCommitRuns).toEqual([
+      ["pre-commit", ["run", "--all-files"], { cwd: dir, stdio: "inherit" }],
+      ["pre-commit", ["run", "--all-files"], { cwd: dir, stdio: "inherit" }],
+    ]);
+  });
+
   it("skips autoupdate when every hook already has a pinned rev", () => {
     const dir = outdir();
     realChildProcess.execFileSync("git", ["init", "-q"], { cwd: dir });
@@ -425,7 +449,9 @@ describe("BaseProject.postSynthesize with a mocked git/pre-commit binary", () =>
     const project = new BaseProject({
       name: "test",
       stack: [Stack.PYTHON],
-      opt: { python: { minVersion: "3.12", pyprojectPath: "templates/pyproject.mustache", extras: { generated: ["gen"] } } },
+      opt: {
+        python: { minVersion: "3.12", pyprojectPath: "templates/pyproject.mustache", testsDir: "test", extras: { generated: ["gen"] } },
+      },
       outdir: dir,
     });
 
@@ -442,9 +468,29 @@ describe("BaseProject.postSynthesize with a mocked git/pre-commit binary", () =>
     expect(merged).toMatch(new RegExp(`^${escapeRegExp(template)}\\n\\[tool\\.coverage\\.run\\]  ${MANAGED_MARKER}\\n`));
     expect(merged).toContain(`[tool.ruff]  ${MANAGED_MARKER}\ntarget-version = "py312"\n`);
     expect(merged).toContain(`[[tool.mypy.overrides]]  ${MANAGED_MARKER}\nignore_errors = true\nmodule = ["gen.*"]\n`);
+    expect(merged).toContain('module = "test.*"');
     expect(fs.readFileSync(path.join(dir, "pyproject.toml"), "utf-8")).toBe('[project]\nversion = "1.0.0"\n');
     const staged = realChildProcess.execFileSync("git", ["diff", "--cached", "--name-only"], { cwd: dir, encoding: "utf-8" });
     expect(staged.split("\n")).toContain("templates/pyproject.mustache");
+  });
+
+  it("writes a pyproject.toml for a sql stack without one", () => {
+    const dir = outdir();
+    realChildProcess.execFileSync("git", ["init", "-q"], { cwd: dir });
+    const project = new BaseProject({ name: "test", stack: [Stack.SQL], outdir: dir });
+
+    execFileSyncMock.mockImplementation((cmd, args) => {
+      if (cmd === "git") {
+        return realChildProcess.execFileSync(cmd, args as string[], { cwd: dir });
+      }
+      return "";
+    });
+
+    project.synth();
+
+    expect(fs.readFileSync(path.join(dir, "pyproject.toml"), "utf-8")).toMatch(
+      new RegExp(`^\\[tool\\.sqlfluff\\.layout\\.type\\.comma\\]  ${MANAGED_MARKER}\\n`),
+    );
   });
 
   it("does not write a pyproject.toml for a non-sql stack", () => {
