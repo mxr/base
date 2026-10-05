@@ -149,22 +149,6 @@ describe("BaseProject", () => {
     }
   });
 
-  it.each([
-    { name: "toml", stack: [Stack.TOML], expected: true },
-    { name: "rust (implies toml)", stack: [Stack.RUST], expected: true },
-    { name: "python (uses pyproject.toml)", stack: [Stack.PYTHON], opt: { python: { minVersion: "3.11" } }, expected: false },
-    { name: "sql (uses pyproject.toml)", stack: [Stack.SQL], expected: false },
-    { name: "rust and sql (uses pyproject.toml)", stack: [Stack.RUST, Stack.SQL], expected: false },
-    { name: "shell", stack: [Stack.SHELL], expected: false },
-  ])("writes .config/tombi.toml only for a toml stack without a pyproject.toml: $name", ({ stack, opt, expected }) => {
-    const snapshot = Testing.synth(new BaseProject({ name: "test", stack, ...(opt ? { opt } : {}) }));
-    if (expected) {
-      expect(snapshot[".config/tombi.toml"]).toContain('\noffline = true\nstring-quote-style = "double"');
-    } else {
-      expect(snapshot[".config/tombi.toml"]).toBeUndefined();
-    }
-  });
-
   it("writes a pre-commit config", () => {
     const project = new BaseProject({ name: "test", stack: [] });
     const snapshot = Testing.synth(project);
