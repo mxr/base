@@ -96,8 +96,13 @@ ${githubReleaseStep("dist/*")}`);
  * releases, so a release is all there is to publish.
  */
 export function homeAssistantReleaseWorkflow(): string[] {
-  return releaseWorkflow(`    uses: mxr/workflows/.github/workflows/github-release.yml@v0.0.0
+  return releaseWorkflow(`    runs-on: ${RUNNER}
+    timeout-minutes: 10
     permissions:
       contents: write
-`);
+    steps:
+    - uses: actions/checkout@v0.0.0
+      with:
+        persist-credentials: false
+${githubReleaseStep()}`);
 }
