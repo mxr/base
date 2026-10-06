@@ -32,3 +32,14 @@ export enum PythonPackaging {
   HOME_ASSISTANT = "home-assistant",
   WHEEL = "wheel",
 }
+
+/**
+ * A Renovate built-in custom manager preset a `Stack.GITHUB_ACTIONS` repo can
+ * opt into.
+ *
+ * `GITHUB_ACTIONS_VERSIONS` updates `*_VERSION` env vars in workflow files
+ * annotated with a `# renovate: datasource=... depName=...` comment.
+ */
+export enum RenovateCustomManager {
+  GITHUB_ACTIONS_VERSIONS = "github-actions-versions",
+}

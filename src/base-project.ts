@@ -10,7 +10,7 @@ import { PreCommitConfigFile } from "./pre-commit-config-file";
 import { mergePyproject, sqlfluffTables } from "./pyproject";
 import { HOME_ASSISTANT_PYTHON, managedPyproject, pythonMainWorkflow, typingWorkflow } from "./python";
 import { cargoReleaseWorkflow, homeAssistantReleaseWorkflow, wheelReleaseWorkflow } from "./release";
-import { PythonPackaging, Stack } from "./stack";
+import { PythonPackaging, RenovateCustomManager, Stack } from "./stack";
 import { applyExistingActionRefs, RUNNER, readExistingActionRefs } from "./workflow-actions";
 import type { GitHubProjectOptions } from "projen/lib/github";
 import type { ExistingRev } from "./pre-commit";
@@ -19,6 +19,10 @@ import type { ManagedTable } from "./pyproject";
 function readResource(name: string): string {
   return fs.readFileSync(path.join(__dirname, "resources", name), "utf-8");
 }
+
+const RENOVATE_CUSTOM_MANAGER_PRESETS: Record<RenovateCustomManager, string> = {
+  [RenovateCustomManager.GITHUB_ACTIONS_VERSIONS]: "customManagers:githubActionsVersions",
+};
 
 export interface MirrorOptions {
   /**
@@ -122,6 +126,14 @@ export interface PythonExtrasOptions {
   readonly tests?: string[];
 }
 
+export interface GithubActionsOptions {
+  /**
+   * Renovate built-in custom manager presets added to `.github/renovate.jsonc`'s
+   * `extends`.
+   */
+  readonly customManagers?: RenovateCustomManager[];
+}
+
 export interface PreCommitOptions {
   /**
    * Regexes for `.pre-commit-config.yaml`'s top-level `exclude`, e.g.
@@ -180,6 +192,11 @@ export interface BaseProjectOpt {
    * Options for `Stack.PYTHON`. Required when that stack is present.
    */
   readonly python?: PythonOptions;
+
+  /**
+   * Options for `Stack.GITHUB_ACTIONS`.
+   */
+  readonly githubActions?: GithubActionsOptions;
 
   /**
    * Options for `.pre-commit-config.yaml`, for any stack.
@@ -403,6 +420,10 @@ export class BaseProject extends GitHubProject {
       });
     }
 
+    const customManagers = options.opt?.githubActions?.customManagers ?? [];
+    if (customManagers.length > 0 && !expandStacks(this.stack).includes(Stack.GITHUB_ACTIONS)) {
+      throw new Error("opt.githubActions requires Stack.GITHUB_ACTIONS");
+    }
     const renovateConfig = {
       $schema: "https://docs.renovatebot.com/renovate-schema.json",
       commitMessageAction: "weekly",
@@ -421,7 +442,11 @@ export class BaseProject extends GitHubProject {
             ],
           }
         : {}),
-      extends: ["config:recommended", ":disableDependencyDashboard"],
+      extends: [
+        "config:recommended",
+        ":disableDependencyDashboard",
+        ...customManagers.map((manager) => RENOVATE_CUSTOM_MANAGER_PRESETS[manager]),
+      ],
       groupSingleUpdates: true,
       minimumReleaseAge: "7 days",
       packageRules: [
