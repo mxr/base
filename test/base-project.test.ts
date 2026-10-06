@@ -3,7 +3,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { Testing } from "projen";
 import { BaseProject } from "../src/base-project";
-import { PythonPackaging, Stack } from "../src/stack";
+import { PythonPackaging, RenovateCustomManager, Stack } from "../src/stack";
 
 describe("BaseProject", () => {
   it("uses MIT for a non-frontend stack, and still adds biome.json", () => {
@@ -174,6 +174,32 @@ describe("BaseProject", () => {
 
     const nonPython = Testing.synth(new BaseProject({ name: "test", stack: [] }));
     expect(nonPython[".github/renovate.jsonc"].customManagers).toBeUndefined();
+  });
+});
+
+describe("BaseProject github-actions stack", () => {
+  it.each([
+    { name: "without opt", customManagers: undefined, extends: ["config:recommended", ":disableDependencyDashboard"] },
+    {
+      name: "with github-actions-versions",
+      customManagers: [RenovateCustomManager.GITHUB_ACTIONS_VERSIONS],
+      extends: ["config:recommended", ":disableDependencyDashboard", "customManagers:githubActionsVersions"],
+    },
+  ])("renders renovate extends $name", ({ customManagers, extends: expected }) => {
+    const project = new BaseProject({ name: "test", stack: [Stack.GITHUB_ACTIONS], opt: { githubActions: { customManagers } } });
+    const snapshot = Testing.synth(project);
+    expect(snapshot[".github/renovate.jsonc"].extends).toEqual(expected);
+  });
+
+  it("throws with opt.githubActions.customManagers without a github-actions stack", () => {
+    expect(
+      () =>
+        new BaseProject({
+          name: "test",
+          stack: [],
+          opt: { githubActions: { customManagers: [RenovateCustomManager.GITHUB_ACTIONS_VERSIONS] } },
+        }),
+    ).toThrow("opt.githubActions requires Stack.GITHUB_ACTIONS");
   });
 });
 
