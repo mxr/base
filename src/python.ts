@@ -10,6 +10,12 @@ import type { ManagedPyproject, ManagedTable } from "./pyproject";
 const LATEST_PYTHON = "3.15";
 
 /**
+ * Newest GA CPython, used where a workflow needs one python to run tooling.
+ * Renovate bumps setup-python but not this, so update it on each release.
+ */
+export const STABLE_PYTHON = "3.14";
+
+/**
  * The only CPython Home Assistant runs on, so a home assistant integration
  * is pinned to it instead of taking a `minVersion`.
  */
