@@ -294,7 +294,7 @@ describe("BaseProject python packaging", () => {
     });
     const snapshot = Testing.synth(project);
     expect(snapshot[".github/workflows/main.yml"]).toContain(`env: '["py312", "py313", "py314", "py315", "pypy3"]'`);
-    expect(snapshot[".github/workflows/release.yml"]).toContain("python-version: '3.12'");
+    expect(snapshot[".github/workflows/release.yml"]).toContain("python-version: '3.14'");
     expect(snapshot[".github/workflows/release.yml"]).toContain("uses: pypa/gh-action-pypi-publish@v0.0.0");
     expect(snapshot[".github/workflows/release.yml"]).toContain(
       'gh release create "$GITHUB_REF_NAME" dist/* --verify-tag --generate-notes',

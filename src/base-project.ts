@@ -308,7 +308,7 @@ export class BaseProject extends GitHubProject {
     if (this.pythonMinVersion && this.pythonPackaging && !this.customRelease) {
       this.addWorkflow(
         "release.yml",
-        this.pythonPackaging === PythonPackaging.WHEEL ? wheelReleaseWorkflow(this.pythonMinVersion) : homeAssistantReleaseWorkflow(),
+        this.pythonPackaging === PythonPackaging.WHEEL ? wheelReleaseWorkflow() : homeAssistantReleaseWorkflow(),
       );
     }
 

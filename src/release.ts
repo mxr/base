@@ -1,3 +1,4 @@
+import { STABLE_PYTHON } from "./python";
 import { RUNNER } from "./workflow-actions";
 
 /**
@@ -65,7 +66,7 @@ ${githubReleaseStep()}`);
  * Builds an sdist and wheel, publishes them to PyPI, then attaches them to a
  * GitHub release.
  */
-export function wheelReleaseWorkflow(pythonVersion: string): string[] {
+export function wheelReleaseWorkflow(): string[] {
   return releaseWorkflow(`    runs-on: ${RUNNER}
     timeout-minutes: 10
     environment:
@@ -79,7 +80,7 @@ export function wheelReleaseWorkflow(pythonVersion: string): string[] {
         persist-credentials: false
     - uses: actions/setup-python@v0.0.0
       with:
-        python-version: '${pythonVersion}'
+        python-version: '${STABLE_PYTHON}'
     - name: Install build tooling
       run: python -m pip install build
     - name: Build distributions
