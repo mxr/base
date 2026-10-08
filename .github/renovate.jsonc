@@ -21,6 +21,10 @@
       "enabled": false,
       "matchPackageNames": ["typescript"],
       "matchUpdateTypes": ["major"]
+    },
+    {
+      "matchDepTypes": ["peerDependencies"],
+      "rangeStrategy": "bump"
     }
   ],
   "prBodyTemplate": "{{{table}}}",
