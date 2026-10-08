@@ -101,7 +101,7 @@
   },
   "peerDependencies": {
     "constructs": "^10.8.1",
-    "projen": "^0.103.22"
+    "projen": "^0.103.27"
   },
   "publishConfig": {
     "registry": "https://npm.pkg.github.com/"
