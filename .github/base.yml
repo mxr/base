@@ -1,1 +1,4 @@
 stack: [shell, typescript]
+opt:
+  github-actions:
+    custom-managers: [github-actions-versions]
