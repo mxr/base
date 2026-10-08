@@ -151,6 +151,14 @@ describe("buildPreCommitRepos", () => {
     );
   });
 
+  it.each([
+    { name: "mirror", stack: [Stack.MIRROR], exclude: "^(\\.pre-commit-hooks\\.yaml)$" },
+    { name: "shell", stack: [Stack.SHELL], exclude: undefined },
+  ])("sets pretty-format-yaml exclude for $name stack", ({ stack, exclude }) => {
+    const repo = buildPreCommitRepos(stack).find((r) => r.repo === "https://github.com/macisamuele/language-formatters-pre-commit-hooks");
+    expect(repo?.hooks.find((h) => h.id === "pretty-format-yaml")?.exclude).toBe(exclude);
+  });
+
   it("pulls in github-actions hooks for a mirror stack", () => {
     const repos = buildPreCommitRepos([Stack.MIRROR]);
     expect(repos.map((r) => r.repo)).toEqual(

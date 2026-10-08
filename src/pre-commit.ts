@@ -200,12 +200,19 @@ export function expandStacks(stack: Stack[]): Stack[] {
 }
 
 /**
- * Generated toml lockfiles that tombi-format should skip, to avoid diff
- * noise.
+ * Generated files that a formatter hook should skip, keyed by hook id then
+ * stack, to avoid diff noise, e.g. toml lockfiles for tombi-format, and the
+ * pre-commit-mirror-maker-rendered `.pre-commit-hooks.yaml` (whose style
+ * pretty-format-yaml would otherwise flip on every mirror release).
  */
-const TOML_LOCKFILES: Partial<Record<Stack, string[]>> = {
-  [Stack.PYTHON]: ["uv.lock"],
-  [Stack.RUST]: ["Cargo.lock"],
+const GENERATED_FILES: Record<string, Partial<Record<Stack, string[]>>> = {
+  "tombi-format": {
+    [Stack.PYTHON]: ["uv.lock"],
+    [Stack.RUST]: ["Cargo.lock"],
+  },
+  "pretty-format-yaml": {
+    [Stack.MIRROR]: [".pre-commit-hooks.yaml"],
+  },
 };
 
 /**
@@ -294,14 +301,15 @@ export function buildPreCommitRepos(stack: Stack[], existingRevs?: ReadonlyMap<s
   // guards against a future stack being added to one without the other
   const entries = [...DEFAULT, ...expandStacks(stack).flatMap((name) => STACK_REPOS[name] ?? /* v8 ignore next */ [])];
   const repos = mergeRepos(entries, existingRevs);
-  const lockfiles = stack.flatMap((name) => TOML_LOCKFILES[name] ?? []);
-  if (lockfiles.length === 0) {
-    return repos;
-  }
-  const exclude = `^(${lockfiles.map((file) => file.replaceAll(".", "\\.")).join("|")})$`;
   return repos.map((repo) => ({
     ...repo,
-    hooks: repo.hooks.map((hook) => (hook.id === "tombi-format" ? { ...hook, exclude } : hook)),
+    hooks: repo.hooks.map((hook) => {
+      const files = stack.flatMap((name) => GENERATED_FILES[hook.id]?.[name] ?? []);
+      if (files.length === 0) {
+        return hook;
+      }
+      return { ...hook, exclude: `^(${files.map((file) => file.replaceAll(".", "\\.")).join("|")})$` };
+    }),
   }));
 }
 
