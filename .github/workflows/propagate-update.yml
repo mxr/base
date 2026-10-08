@@ -12,6 +12,12 @@ on:
 
 permissions: {}
 
+env:
+  # renovate: datasource=pypi depName=pre-commit
+  PRE_COMMIT_VERSION: 4.6.2
+  # renovate: datasource=pypi depName=pre-commit-uv
+  PRE_COMMIT_UV_VERSION: 4.3.0
+
 jobs:
   build:
     if: github.event_name == 'push'
@@ -107,6 +113,7 @@ jobs:
 
     # fetches base.yml once, then installs pinact and pre-commit concurrently
     - name: install tools
+      id: tools
       env:
         APP_TOKEN: ${{ steps.app-token.outputs.token }}
         GH_TOKEN: ${{ github.token }}
@@ -114,6 +121,9 @@ jobs:
       run: |
         set -euo pipefail
         base_yml="$(GH_TOKEN="$APP_TOKEN" gh api "repos/${REPO}/contents/.github/base.yml" --jq '.content' | base64 -d)"
+        # keys the pre-commit cache below; a repo without a config yet hashes the empty string
+        pre_commit_config="$(GH_TOKEN="$APP_TOKEN" gh api "repos/${REPO}/contents/.pre-commit-config.yaml" --jq '.content' 2>/dev/null | base64 -d || true)"
+        echo "pre-commit-config-hash=$(sha256sum <<< "$pre_commit_config" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
         # home assistant packaging omits min-version; keep in sync with HOME_ASSISTANT_PYTHON in src/python.ts
         if [ "$(yq '.opt.python.packaging // ""' - <<< "$base_yml")" = "home-assistant" ]; then
           python_version="3.14"
@@ -140,11 +150,12 @@ jobs:
         # matches pre-commit's own interpreter instead of pre-commit having to
         # search PATH for it
         install_pre_commit() {
+          # pre-commit-uv installs python hook envs with uv instead of pip
+          args=("pre-commit==${PRE_COMMIT_VERSION}" --with "pre-commit-uv==${PRE_COMMIT_UV_VERSION}")
           if [ -n "$python_version" ]; then
-            uv tool install pre-commit --python "$python_version"
-          else
-            uv tool install pre-commit
+            args+=(--python "$python_version")
           fi
+          uv tool install "${args[@]}"
           uv tool dir --bin >> "$GITHUB_PATH"
         }
 
@@ -158,6 +169,17 @@ jobs:
           wait "$pid" || status=1
         done
         exit "$status"
+
+    # keyed on the downstream repo's current config: synth only installs hook
+    # envs for new revs, which become that key's contents once the base-update
+    # PR merges. falls back to the repo's, then any repo's, latest cache
+    - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0 # zizmor: ignore[cache-poisoning] only hook envs for synthing downstream repos; publish never restores it
+      with:
+        path: ~/.cache/pre-commit
+        key: pre-commit/${{ runner.os }}/${{ matrix.repo }}/${{ steps.tools.outputs.pre-commit-config-hash }}
+        restore-keys: |
+          pre-commit/${{ runner.os }}/${{ matrix.repo }}/
+          pre-commit/${{ runner.os }}/
 
     - name: update downstream repo
       env:
