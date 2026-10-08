@@ -449,6 +449,8 @@ export class BaseProject extends GitHubProject {
       ],
       groupSingleUpdates: true,
       minimumReleaseAge: "7 days",
+      // npm 12 refuses registry tarballs of packages with bundleDependencies (e.g. projen, tailwind oxide) unless remote fetches are allowed
+      ...([Stack.FRONTEND, Stack.TYPESCRIPT].some((s) => this.stack.includes(s)) ? { npmrc: "allow-remote=all" } : {}),
       packageRules: [
         { commitMessageExtra: " ", groupName: "update", matchPackageNames: ["*"] },
         // github-runners has no release timestamps, so minimumReleaseAge would otherwise block every runner update

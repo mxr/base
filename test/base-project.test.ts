@@ -175,6 +175,16 @@ describe("BaseProject", () => {
     const nonPython = Testing.synth(new BaseProject({ name: "test", stack: [] }));
     expect(nonPython[".github/renovate.jsonc"].customManagers).toBeUndefined();
   });
+
+  it.each([
+    { stack: [Stack.FRONTEND], npmrc: "allow-remote=all" },
+    { stack: [Stack.TYPESCRIPT], npmrc: "allow-remote=all" },
+    { stack: [Stack.JAVASCRIPT], npmrc: undefined },
+    { stack: [], npmrc: undefined },
+  ])("renders renovate npmrc $npmrc for stack $stack", ({ stack, npmrc }) => {
+    const snapshot = Testing.synth(new BaseProject({ name: "test", stack }));
+    expect(snapshot[".github/renovate.jsonc"].npmrc).toEqual(npmrc);
+  });
 });
 
 describe("BaseProject github-actions stack", () => {
