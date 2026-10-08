@@ -6,6 +6,7 @@
   "extends": ["config:recommended", ":disableDependencyDashboard"],
   "groupSingleUpdates": true,
   "minimumReleaseAge": "7 days",
+  "npmrc": "allow-remote=all",
   "packageRules": [
     {
       "commitMessageExtra": " ",
