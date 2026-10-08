@@ -457,7 +457,11 @@ export class BaseProject extends GitHubProject {
         { matchDatasources: ["github-runners"], minimumReleaseAgeBehaviour: "timestamp-optional" },
         // jsii pins the typescript major it supports
         ...(this.stack.includes(Stack.TYPESCRIPT)
-          ? [{ enabled: false, matchPackageNames: ["typescript"], matchUpdateTypes: ["major"] }]
+          ? [
+              { enabled: false, matchPackageNames: ["typescript"], matchUpdateTypes: ["major"] },
+              // the default widen strategy leaves peer ranges behind the devDependency pins (and chains `||` ranges on 0.x)
+              { matchDepTypes: ["peerDependencies"], rangeStrategy: "bump" },
+            ]
           : []),
       ],
       prBodyTemplate: "{{{table}}}",
