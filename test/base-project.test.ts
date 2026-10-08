@@ -39,7 +39,7 @@ describe("BaseProject", () => {
     expect(snapshot["biome.json"]).toBeUndefined();
   });
 
-  it("uses MIT and adds a typescript-specific biome.json and renovate rule for a typescript stack", () => {
+  it("uses MIT and adds a typescript-specific biome.json and renovate rules for a typescript stack", () => {
     const project = new BaseProject({ name: "test", stack: [Stack.TYPESCRIPT] });
     const snapshot = Testing.synth(project);
     expect(snapshot["LICENSE"]).toContain("Permission is hereby granted, free of charge");
@@ -49,6 +49,7 @@ describe("BaseProject", () => {
       matchPackageNames: ["typescript"],
       matchUpdateTypes: ["major"],
     });
+    expect(snapshot[".github/renovate.jsonc"].packageRules).toContainEqual({ matchDepTypes: ["peerDependencies"], rangeStrategy: "bump" });
   });
 
   it("writes the mergify and renovate config", () => {
