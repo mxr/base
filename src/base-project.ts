@@ -609,12 +609,19 @@ export class BaseProject extends GitHubProject {
     ];
     runTasksInParallelIgnoringFailure([...pinactTasks, configTask], this.outdir);
 
-    // first pass may fail from formatter fixes; still open the PR if the second fails
-    if (!runIgnoringFailure("pre-commit", ["run", "--all-files"], this.outdir)) {
-      runIgnoringFailure("pre-commit", ["run", "--all-files"], this.outdir);
+    // first pass may fail from formatter fixes; still open the PR if the second fails, but flag it
+    // so propagate-repo.sh can fail the job when there's no PR to surface the failure
+    if (
+      !runIgnoringFailure("pre-commit", ["run", "--all-files"], this.outdir) &&
+      !runIgnoringFailure("pre-commit", ["run", "--all-files"], this.outdir)
+    ) {
+      process.exitCode = PRE_COMMIT_FAILED_EXIT_CODE;
     }
   }
 }
+
+// kept in sync with propagate-repo.sh
+const PRE_COMMIT_FAILED_EXIT_CODE = 42;
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");

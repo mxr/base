@@ -159,7 +159,13 @@ step "running npm install"
 (cd "$workdir" && npm install)
 
 step "synthing via generated .projenrc.js"
-(cd "$workdir" && node .projenrc.js)
+# 42 is PRE_COMMIT_FAILED_EXIT_CODE in base-project.ts: synth finished but
+# pre-commit still failed on its second pass
+synth_status=0
+(cd "$workdir" && node .projenrc.js) || synth_status=$?
+if [ "$synth_status" -ne 0 ] && [ "$synth_status" -ne 42 ]; then
+	exit "$synth_status"
+fi
 
 # scaffolding was only ever a means to synth; strip it back out so only
 # .github/base.yml plus the generated files get committed, restoring
@@ -185,6 +191,12 @@ step "checking for changes"
 git -C "$workdir" add -A
 if git -C "$workdir" diff --cached --quiet; then
 	echo "no changes"
+	# with changes, the PR's CI surfaces a pre-commit failure; without
+	# one, main itself is broken, so fail the job instead of passing silently
+	if [ "$synth_status" -eq 42 ]; then
+		echo "pre-commit failed on unchanged repo" >&2
+		exit 1
+	fi
 	exit 0
 fi
 
