@@ -77,23 +77,58 @@ describe("BaseProject.postSynthesize with a mocked git/pre-commit binary", () =>
     realChildProcess.execFileSync("git", ["init", "-q"], { cwd: dir });
     const project = new BaseProject({ name: "test", stack: [], outdir: dir });
 
-    execFileSyncMock.mockImplementation((cmd, args) => {
+    let preCommitRuns = 0;
+    execFileSyncMock.mockImplementation((cmd, args, opts) => {
       if (cmd === "git") {
-        return realChildProcess.execFileSync(cmd, args as string[], { cwd: dir });
+        return realChildProcess.execFileSync(cmd, args as string[], { cwd: dir, stdio: opts?.stdio });
       }
-      if (cmd === "pre-commit") {
-        throw new Error("simulated pre-commit failure");
+      if (cmd === "pre-commit" && ++preCommitRuns === 1) {
+        throw new Error("simulated formatter fix");
       }
       return "";
     });
 
     project.synth();
 
-    const preCommitRuns = execFileSyncMock.mock.calls.filter(([cmd]) => cmd === "pre-commit");
-    expect(preCommitRuns).toEqual([
+    const calls = execFileSyncMock.mock.calls.filter(([cmd]) => cmd === "pre-commit");
+    expect(calls).toEqual([
       ["pre-commit", ["run", "--all-files"], { cwd: dir, stdio: "inherit" }],
       ["pre-commit", ["run", "--all-files"], { cwd: dir, stdio: "inherit" }],
     ]);
+  });
+
+  it.each([
+    { name: "throws when the second run fails without changing files", changesFiles: false, throws: true },
+    { name: "does not throw when the second run fails but still changes files", changesFiles: true, throws: false },
+  ])("$name", ({ changesFiles, throws }) => {
+    const dir = outdir();
+    realChildProcess.execFileSync("git", ["init", "-q"], { cwd: dir });
+    fs.writeFileSync(path.join(dir, "README.md"), "# test\n");
+    realChildProcess.execFileSync("git", ["add", "README.md"], { cwd: dir });
+    const project = new BaseProject({ name: "test", stack: [], outdir: dir });
+
+    let preCommitRuns = 0;
+    execFileSyncMock.mockImplementation((cmd, args, opts) => {
+      if (cmd === "git") {
+        return realChildProcess.execFileSync(cmd, args as string[], { cwd: dir, stdio: opts?.stdio });
+      }
+      if (cmd === "pre-commit" && args?.[1] === "--all-files") {
+        preCommitRuns++;
+        if (preCommitRuns === 2 && changesFiles) {
+          fs.appendFileSync(path.join(dir, "README.md"), "fixed\n");
+        }
+        throw new Error("simulated pre-commit failure");
+      }
+      return "";
+    });
+
+    const synth = () => project.synth();
+    if (throws) {
+      expect(synth).toThrow("pre-commit failed without changing any files");
+    } else {
+      expect(synth).not.toThrow();
+    }
+    expect(preCommitRuns).toBe(2);
   });
 
   it("skips autoupdate when every hook already has a pinned rev", () => {
