@@ -35,7 +35,6 @@ function shCallScript(mock: jest.Mock): string {
 describe("BaseProject.postSynthesize with a mocked git/pre-commit binary", () => {
   afterEach(() => {
     execFileSyncMock.mockReset();
-    process.exitCode = undefined;
   });
 
   it("cleans up projen scaffolding and runs pre-commit inside a git repo", () => {
@@ -60,7 +59,6 @@ describe("BaseProject.postSynthesize with a mocked git/pre-commit binary", () =>
     expect(fs.existsSync(path.join(dir, ".projen"))).toBe(false);
     expect(execFileSyncMock).toHaveBeenCalledWith("chmod", ["-R", "u+w", dir]);
     expect(execFileSyncMock).toHaveBeenCalledWith("pre-commit", ["run", "--all-files"], { cwd: dir, stdio: "inherit" });
-    expect(process.exitCode).toBeUndefined();
     // no pre-existing .pre-commit-config.yaml, so every default repo counts
     // as newly added and gets scoped into autoupdate --freeze, run via the
     // gather-style `sh -c` script (see runTasksInParallelIgnoringFailure)
@@ -79,35 +77,10 @@ describe("BaseProject.postSynthesize with a mocked git/pre-commit binary", () =>
     realChildProcess.execFileSync("git", ["init", "-q"], { cwd: dir });
     const project = new BaseProject({ name: "test", stack: [], outdir: dir });
 
-    execFileSyncMock.mockImplementation((cmd, args) => {
-      if (cmd === "git") {
-        return realChildProcess.execFileSync(cmd, args as string[], { cwd: dir });
-      }
-      if (cmd === "pre-commit") {
-        throw new Error("simulated pre-commit failure");
-      }
-      return "";
-    });
-
-    project.synth();
-
-    const preCommitRuns = execFileSyncMock.mock.calls.filter(([cmd]) => cmd === "pre-commit");
-    expect(preCommitRuns).toEqual([
-      ["pre-commit", ["run", "--all-files"], { cwd: dir, stdio: "inherit" }],
-      ["pre-commit", ["run", "--all-files"], { cwd: dir, stdio: "inherit" }],
-    ]);
-    expect(process.exitCode).toBe(42);
-  });
-
-  it("does not flag a failure when only the first pre-commit run fails", () => {
-    const dir = outdir();
-    realChildProcess.execFileSync("git", ["init", "-q"], { cwd: dir });
-    const project = new BaseProject({ name: "test", stack: [], outdir: dir });
-
     let preCommitRuns = 0;
-    execFileSyncMock.mockImplementation((cmd, args) => {
+    execFileSyncMock.mockImplementation((cmd, args, opts) => {
       if (cmd === "git") {
-        return realChildProcess.execFileSync(cmd, args as string[], { cwd: dir });
+        return realChildProcess.execFileSync(cmd, args as string[], { cwd: dir, stdio: opts?.stdio });
       }
       if (cmd === "pre-commit" && ++preCommitRuns === 1) {
         throw new Error("simulated formatter fix");
@@ -117,8 +90,45 @@ describe("BaseProject.postSynthesize with a mocked git/pre-commit binary", () =>
 
     project.synth();
 
+    const calls = execFileSyncMock.mock.calls.filter(([cmd]) => cmd === "pre-commit");
+    expect(calls).toEqual([
+      ["pre-commit", ["run", "--all-files"], { cwd: dir, stdio: "inherit" }],
+      ["pre-commit", ["run", "--all-files"], { cwd: dir, stdio: "inherit" }],
+    ]);
+  });
+
+  it.each([
+    { name: "throws when the second run fails without changing files", changesFiles: false, throws: true },
+    { name: "does not throw when the second run fails but still changes files", changesFiles: true, throws: false },
+  ])("$name", ({ changesFiles, throws }) => {
+    const dir = outdir();
+    realChildProcess.execFileSync("git", ["init", "-q"], { cwd: dir });
+    fs.writeFileSync(path.join(dir, "README.md"), "# test\n");
+    realChildProcess.execFileSync("git", ["add", "README.md"], { cwd: dir });
+    const project = new BaseProject({ name: "test", stack: [], outdir: dir });
+
+    let preCommitRuns = 0;
+    execFileSyncMock.mockImplementation((cmd, args, opts) => {
+      if (cmd === "git") {
+        return realChildProcess.execFileSync(cmd, args as string[], { cwd: dir, stdio: opts?.stdio });
+      }
+      if (cmd === "pre-commit" && args?.[1] === "--all-files") {
+        preCommitRuns++;
+        if (preCommitRuns === 2 && changesFiles) {
+          fs.appendFileSync(path.join(dir, "README.md"), "fixed\n");
+        }
+        throw new Error("simulated pre-commit failure");
+      }
+      return "";
+    });
+
+    const synth = () => project.synth();
+    if (throws) {
+      expect(synth).toThrow("pre-commit failed without changing any files");
+    } else {
+      expect(synth).not.toThrow();
+    }
     expect(preCommitRuns).toBe(2);
-    expect(process.exitCode).toBeUndefined();
   });
 
   it("skips autoupdate when every hook already has a pinned rev", () => {
