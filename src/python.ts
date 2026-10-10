@@ -4,8 +4,8 @@ import { RUNNER, WINDOWS_RUNNER } from "./workflow-actions";
 import type { ManagedPyproject, ManagedTable } from "./pyproject";
 
 /**
- * Newest CPython a wheel is tested against; asottile/workflows' tox.yml runs
- * it from deadsnakes until it's released.
+ * Newest CPython a wheel is tested against; uv runs a prerelease of it until
+ * it's released.
  */
 const LATEST_PYTHON = "3.15";
 
@@ -22,7 +22,7 @@ export const STABLE_PYTHON = "3.14";
 export const HOME_ASSISTANT_PYTHON = "3.14";
 
 /**
- * Newest python version PyPy implements, so `pypy3` is only tested when a
+ * Newest python version PyPy implements, so PyPy is only tested when a
  * wheel's `minVersion` is at or below it.
  */
 const LATEST_PYPY = "3.12";
@@ -58,10 +58,11 @@ export function supportedToxEnvs(minVersion: string): string[] {
 }
 
 /**
- * {@link supportedToxEnvs} plus `pypy3` when PyPy implements `minVersion`.
+ * {@link supportedToxEnvs} plus PyPy on `minVersion` (e.g. `pypy311`) when PyPy
+ * implements it. Versioned since a bare `pypy3` gets uv's newest PyPy.
  */
 export function pythonToxEnvs(minVersion: string): string[] {
-  return [...supportedToxEnvs(minVersion), ...(minor(minVersion) <= minor(LATEST_PYPY) ? ["pypy3"] : [])];
+  return [...supportedToxEnvs(minVersion), ...(minor(minVersion) <= minor(LATEST_PYPY) ? [`pypy${minVersion.replace(".", "")}`] : [])];
 }
 
 // a `<name>-real` job plus the `<name>` gate that branch protection requires,
@@ -91,10 +92,11 @@ ${real}
 `;
 }
 
-function toxJob(envs: readonly string[], os?: string): string {
-  return `    uses: asottile/workflows/.github/workflows/tox.yml@v0.0.0
+function toxJob(envs: readonly string[], os: string): string {
+  return `    uses: mxr/workflows/.github/workflows/tox-uv.yml@v0.0.0
     with:
-      env: '${JSON.stringify(envs).replace(/,/g, ", ")}'${os ? `\n      os: ${os}` : ""}`;
+      env: '${JSON.stringify(envs).replace(/,/g, ", ")}'
+      os: ${os}`;
 }
 
 /**
@@ -109,10 +111,11 @@ export function pythonMainWorkflow(options: PythonPackagingOptions): string[] {
     "'**/*.py'",
     ...(options.stack.includes(Stack.SQL) ? ["'**/*.sql'"] : []),
     "'**/*.toml'",
+    "uv.lock",
     ...(isHomeAssistant ? ["custom_components/*/manifest.json"] : []),
   ];
   return workflow("main", "project_files", projectFiles, [
-    gatedJob("main", "project_files", toxJob(options.envs)),
+    gatedJob("main", "project_files", toxJob(options.envs, RUNNER)),
     ...(isHomeAssistant ? [] : [gatedJob("main-win", "project_files", toxJob(options.envs.slice(0, 1), WINDOWS_RUNNER))]),
   ]);
 }
@@ -170,7 +173,7 @@ import subprocess
 import sys
 
 manifest = json.loads(next(pathlib.Path("custom_components").glob("*/manifest.json")).read_text())
-subprocess.check_call([sys.executable, "-m", "pip", "install", *manifest["requirements"]])
+subprocess.check_call(["uv", "pip", "install", "--python", sys.executable, *manifest["requirements"]])
 `;
 
 export interface ManagedPyprojectOptions {
@@ -202,6 +205,14 @@ export interface ManagedPyprojectOptions {
    * @default true
    */
   readonly ci?: boolean;
+
+  /**
+   * Whether the repo ships a `<name>` console script at `<module>._main:main`,
+   * and tox installs from `uv.lock` via tox-uv's `uv-venv-lock-runner`.
+   *
+   * @default false
+   */
+  readonly consoleScript?: boolean;
 }
 
 // a directory as a mypy module glob, e.g. `pkg/gen` -> `pkg.gen.*`
@@ -222,6 +233,7 @@ export function managedPyproject(options: ManagedPyprojectOptions): ManagedPypro
   const testsDirs = [testsDir, ...(options.extraTestsDirs ?? [])];
   const generatedDirs = [...(options.generatedDirs ?? [])];
   const ci = options.ci ?? true;
+  const consoleScript = options.consoleScript ?? false;
   const table = (name: string, values: Parameters<typeof tomlEntries>[0], array?: boolean): ManagedTable => ({
     name,
     lines: tomlEntries(values),
@@ -231,6 +243,7 @@ export function managedPyproject(options: ManagedPyprojectOptions): ManagedPypro
   const tables: ManagedTable[] = [
     ...(isWheel ? [table("build-system", { requires: ["setuptools"], "build-backend": "setuptools.build_meta" })] : []),
     ...(isWheel ? [table("project.urls", { Homepage: `https://github.com/mxr/${options.name}` })] : []),
+    ...(consoleScript ? [table("project.scripts", { [options.name]: `${options.name.replaceAll("-", "_")}._main:main` })] : []),
     table("tool.coverage.run", { plugins: ["covdefaults"] }),
     table("tool.mypy", {
       check_untyped_defs: true,
@@ -279,6 +292,8 @@ export function managedPyproject(options: ManagedPyprojectOptions): ManagedPypro
           table("tool.tox.env.pre-commit", {
             commands: [["pre-commit", "run", "--all-files", "--show-diff-on-failure"]],
             deps: ["pre-commit-uv"],
+            // the lock runner would sync the project and skip `deps`
+            ...(consoleScript ? { runner: "uv-venv-runner" } : {}),
             skip_install: true,
           }),
           table("tool.tox.env_run_base", {
@@ -297,6 +312,7 @@ export function managedPyproject(options: ManagedPyprojectOptions): ManagedPypro
             ...(isHomeAssistant
               ? { commands_pre: [["python", "-c", HOME_ASSISTANT_INSTALL_REQUIREMENTS]], dependency_groups: ["test"], skip_install: true }
               : { dependency_groups: ["dev"] }),
+            ...(consoleScript ? { runner: "uv-venv-lock-runner" } : {}),
           }),
         ]
       : []),

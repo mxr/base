@@ -75,6 +75,16 @@ export interface PythonOptions {
   readonly ci?: boolean;
 
   /**
+   * The repo ships a console script named after it, at `<module>._main:main`
+   * (e.g. `foo-bar = "foo_bar._main:main"`), rendered as `[project.scripts]`.
+   * It also commits a `uv.lock` that tox installs from via tox-uv's
+   * `uv-venv-lock-runner`. BaseProject runs `uv lock` to create or update it.
+   *
+   * @default false
+   */
+  readonly consoleScript?: boolean;
+
+  /**
    * Run the type checkers (mypy, pyright, ty) in a GitHub Actions job via
    * mxr/workflows' pre-commit-typing workflow instead of on pre-commit.ci,
    * whose environment is too small for a big project venv. Writes
@@ -240,6 +250,7 @@ export class BaseProject extends GitHubProject {
   private readonly testsDir: string | undefined;
   private readonly extras: PythonExtrasOptions | undefined;
   private readonly ci: boolean;
+  private readonly consoleScript: boolean;
   private readonly customRelease: boolean;
   private readonly newPreCommitRepoUrls: string[];
   private readonly newWorkflowActions = new Map<string, string[]>();
@@ -272,6 +283,7 @@ export class BaseProject extends GitHubProject {
     this.testsDir = options.opt?.python?.testsDir;
     this.extras = options.opt?.python?.extras;
     this.ci = options.opt?.python?.ci ?? true;
+    this.consoleScript = options.opt?.python?.consoleScript ?? false;
     this.customRelease = options.opt?.python?.customRelease ?? false;
     if (this.stack.includes(Stack.PYTHON) && !this.pythonMinVersion) {
       throw new Error("Stack.PYTHON requires opt.python.minVersion to be set");
@@ -567,6 +579,7 @@ export class BaseProject extends GitHubProject {
           extraTestsDirs: this.extras?.tests ?? [],
           generatedDirs: this.extras?.generated ?? [],
           ci: this.ci,
+          consoleScript: this.consoleScript,
         })
       : undefined;
     const isSql = this.stack.includes(Stack.SQL);
@@ -583,6 +596,10 @@ export class BaseProject extends GitHubProject {
         }),
       );
       partiallyManagedFiles.push(this.pyprojectPath);
+    }
+    if (python && this.consoleScript) {
+      execFileSync("uv", ["lock"], { cwd: this.outdir, stdio: "inherit" });
+      partiallyManagedFiles.push("uv.lock");
     }
 
     // `pre-commit run --all-files` skips untracked files, so stage new/renamed managed files.

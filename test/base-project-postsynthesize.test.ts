@@ -474,6 +474,38 @@ describe("BaseProject.postSynthesize with a mocked git/pre-commit binary", () =>
     expect(pyproject).toContain(`[tool.sqlfluff.layout.type.comma]  ${MANAGED_MARKER}\n`);
   });
 
+  it.each([
+    { name: "locks and stages uv.lock for a console script", consoleScript: true, locked: true },
+    { name: "does not lock without a console script", consoleScript: false, locked: false },
+  ])("$name", ({ consoleScript, locked }) => {
+    const dir = outdir();
+    realChildProcess.execFileSync("git", ["init", "-q"], { cwd: dir });
+    fs.writeFileSync(path.join(dir, "pyproject.toml"), '[project]\nname = "x"\n');
+    const project = new BaseProject({
+      name: "test",
+      stack: [Stack.PYTHON],
+      opt: { python: { minVersion: "3.12", consoleScript } },
+      outdir: dir,
+    });
+
+    execFileSyncMock.mockImplementation((cmd, args) => {
+      if (cmd === "git") {
+        return realChildProcess.execFileSync(cmd, args as string[], { cwd: dir });
+      }
+      if (cmd === "uv") {
+        fs.writeFileSync(path.join(dir, "uv.lock"), "version = 1\n");
+      }
+      return "";
+    });
+
+    project.synth();
+
+    const uvLockCalls = execFileSyncMock.mock.calls.filter(([cmd, args]) => cmd === "uv" && (args as string[])[0] === "lock");
+    expect(uvLockCalls).toEqual(locked ? [["uv", ["lock"], { cwd: dir, stdio: "inherit" }]] : []);
+    const staged = realChildProcess.execFileSync("git", ["diff", "--cached", "--name-only"], { cwd: dir, encoding: "utf-8" });
+    expect(staged.split("\n").includes("uv.lock")).toBe(locked);
+  });
+
   it("merges python config into opt.python.pyprojectPath instead of pyproject.toml", () => {
     const dir = outdir();
     realChildProcess.execFileSync("git", ["init", "-q"], { cwd: dir });
