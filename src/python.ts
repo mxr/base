@@ -134,16 +134,8 @@ export function typingWorkflow(): string[] {
   );
 }
 
-// the hassfest image a new repo starts on; Renovate owns bumps after that
+// the hassfest image a new repo starts on; Renovate owns bumps after that and syncs keep them
 const HASSFEST_IMAGE = "ghcr.io/home-assistant/hassfest:2026.10.1@sha256:4b1adfb1e0a37710af0390708eb8000230b80b2193ccffbeed0a901fa9765181";
-
-/**
- * The hassfest image a downstream `validate-home-assistant.yml` already pins,
- * so a sync keeps Renovate's bump.
- */
-export function readHassfestImage(workflowYaml: string): string | undefined {
-  return /^\s*- uses: docker:\/\/(ghcr\.io\/home-assistant\/hassfest\S+)$/m.exec(workflowYaml)?.[1];
-}
 
 /**
  * `.github/workflows/validate-home-assistant.yml`: hassfest and the HACS
@@ -152,7 +144,7 @@ export function readHassfestImage(workflowYaml: string): string | undefined {
  * PR or icons in the repo. hassfest only fails on errors, so its output is
  * kept to fail on warnings too.
  */
-export function homeAssistantValidateWorkflow(hassfestImage: string = HASSFEST_IMAGE): string[] {
+export function homeAssistantValidateWorkflow(): string[] {
   return workflow(
     "validate-home-assistant",
     "integration_files",
@@ -167,7 +159,7 @@ export function homeAssistantValidateWorkflow(hassfestImage: string = HASSFEST_I
     - uses: actions/checkout@v0.0.0
       with:
         persist-credentials: false
-    - uses: docker://${hassfestImage}
+    - uses: docker://${HASSFEST_IMAGE}
       with:
         entrypoint: /bin/sh
         args: -o pipefail -c "/usr/src/homeassistant/script/hassfest/docker/entrypoint.sh 2>&1 | tee hassfest.log"

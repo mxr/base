@@ -3,7 +3,6 @@ import {
   managedPyproject,
   pythonMainWorkflow,
   pythonToxEnvs,
-  readHassfestImage,
   supportedToxEnvs,
   typingWorkflow,
 } from "../src/python";
@@ -72,17 +71,6 @@ describe("homeAssistantValidateWorkflow", () => {
     );
     expect(workflow).toContain(`        HASSFEST_REAL_RESULT: \${{ needs.hassfest-real.result }}\n`);
     expect(workflow).toContain(`        HACS_REAL_RESULT: \${{ needs.hacs-real.result }}\n`);
-  });
-
-  it.each([
-    {
-      name: "the pinned image",
-      yaml: homeAssistantValidateWorkflow("ghcr.io/home-assistant/hassfest:2026.11.0@sha256:abc").join("\n"),
-      expected: "ghcr.io/home-assistant/hassfest:2026.11.0@sha256:abc",
-    },
-    { name: "nothing without a pin", yaml: "name: validate-home-assistant\n", expected: undefined },
-  ])("reads $name", ({ yaml, expected }) => {
-    expect(readHassfestImage(yaml)).toBe(expected);
   });
 });
 
