@@ -134,7 +134,7 @@ export function typingWorkflow(): string[] {
   );
 }
 
-// the hassfest image a new repo starts on; Renovate owns bumps after that, which syncs keep
+// the hassfest image a new repo starts on; Renovate owns bumps after that and syncs keep them
 const HASSFEST_IMAGE = "ghcr.io/home-assistant/hassfest:2026.10.1@sha256:4b1adfb1e0a37710af0390708eb8000230b80b2193ccffbeed0a901fa9765181";
 
 /**
