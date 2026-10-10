@@ -134,6 +134,46 @@ export function typingWorkflow(): string[] {
   );
 }
 
+/**
+ * `.github/workflows/validate.yml`: hassfest and the HACS action, which check
+ * the manifest, translations, and repo layout that tox can't see. hassfest is
+ * pinned to a `master` commit since home-assistant/actions' only tag predates
+ * its docker image, so `pinact -u` would pick that.
+ */
+export function homeAssistantValidateWorkflow(): string[] {
+  return workflow(
+    "validate",
+    "integration_files",
+    [".github/workflows/validate.yml", "custom_components/**", "hacs.json"],
+    [
+      gatedJob(
+        "hassfest",
+        "integration_files",
+        `    runs-on: ${RUNNER}
+    timeout-minutes: 10
+    steps:
+    - uses: actions/checkout@v0.0.0
+      with:
+        persist-credentials: false
+    - uses: home-assistant/actions/hassfest@06749dd8c0b54f350bc69c8752456cee498808a3 # master
+`,
+      ),
+      gatedJob(
+        "hacs",
+        "integration_files",
+        `    runs-on: ${RUNNER}
+    timeout-minutes: 10
+    steps:
+    - uses: hacs/action@v0.0.0
+      with:
+        category: integration
+        comment: false
+`,
+      ),
+    ],
+  );
+}
+
 // a PR/push workflow whose jobs are gated on a `changes` job's paths filter
 function workflow(name: string, output: string, files: readonly string[], jobs: readonly string[]): string[] {
   const changes = `  changes:

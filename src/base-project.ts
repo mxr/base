@@ -8,7 +8,15 @@ import { firstCommitYear } from "./git";
 import { expandStacks, readExistingRevs } from "./pre-commit";
 import { PreCommitConfigFile } from "./pre-commit-config-file";
 import { mergePyproject, sqlfluffTables } from "./pyproject";
-import { HOME_ASSISTANT_PYTHON, managedPyproject, pythonMainWorkflow, pythonToxEnvs, toxEnv, typingWorkflow } from "./python";
+import {
+  HOME_ASSISTANT_PYTHON,
+  homeAssistantValidateWorkflow,
+  managedPyproject,
+  pythonMainWorkflow,
+  pythonToxEnvs,
+  toxEnv,
+  typingWorkflow,
+} from "./python";
 import { cargoReleaseWorkflow, homeAssistantReleaseWorkflow, wheelReleaseWorkflow } from "./release";
 import { PythonPackaging, RenovateCustomManager, Stack } from "./stack";
 import { applyExistingActionRefs, RUNNER, readExistingActionRefs } from "./workflow-actions";
@@ -348,6 +356,7 @@ export class BaseProject extends GitHubProject {
     if (homeAssistant && this.pythonPackaging === PythonPackaging.HOME_ASSISTANT) {
       const hacs = { content_in_root: false, homeassistant: homeAssistant.minVersion, name: homeAssistant.name };
       new TextFile(this, "hacs.json", { marker: false, lines: JSON.stringify(hacs, null, 2).split("\n") });
+      this.addWorkflow("validate.yml", homeAssistantValidateWorkflow());
     }
 
     if (this.stack.includes(Stack.MIRROR)) {

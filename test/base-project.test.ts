@@ -299,6 +299,7 @@ describe("BaseProject python packaging", () => {
     expect(snapshot[".github/workflows/main.yml"]).toContain("main-win-real:");
     expect(snapshot[".github/workflows/release.yml"]).toBeUndefined();
     expect(snapshot["hacs.json"]).toBeUndefined();
+    expect(snapshot[".github/workflows/validate.yml"]).toBeUndefined();
   });
 
   it("skips main.yml with opt.python.ci off", () => {
@@ -337,6 +338,7 @@ describe("BaseProject python packaging", () => {
       'gh release create "$GITHUB_REF_NAME" dist/* --verify-tag --generate-notes',
     );
     expect(snapshot["hacs.json"]).toBeUndefined();
+    expect(snapshot[".github/workflows/validate.yml"]).toBeUndefined();
   });
 
   it("releases a home assistant integration through GitHub and writes hacs.json", () => {
@@ -350,6 +352,7 @@ describe("BaseProject python packaging", () => {
     expect(snapshot[".pre-commit-config.yaml"]).toContain("default_language_version:\n  python: python3.14\n");
     expect(snapshot[".github/workflows/release.yml"]).toContain('gh release create "$GITHUB_REF_NAME" --verify-tag --generate-notes');
     expect(snapshot["hacs.json"]).toEqual({ content_in_root: false, homeassistant: "2026.4.0", name: "Foo" });
+    expect(snapshot[".github/workflows/validate.yml"]).toContain("hassfest-real:");
   });
 
   it.each([

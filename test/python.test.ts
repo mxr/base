@@ -1,4 +1,11 @@
-import { managedPyproject, pythonMainWorkflow, pythonToxEnvs, supportedToxEnvs, typingWorkflow } from "../src/python";
+import {
+  homeAssistantValidateWorkflow,
+  managedPyproject,
+  pythonMainWorkflow,
+  pythonToxEnvs,
+  supportedToxEnvs,
+  typingWorkflow,
+} from "../src/python";
 import { PythonPackaging, Stack } from "../src/stack";
 
 describe("supportedToxEnvs", () => {
@@ -45,6 +52,19 @@ describe("pythonMainWorkflow", () => {
     expect(workflow).not.toContain("windows-2025");
     expect(workflow).toContain("            - '**/*.sql'\n");
     expect(workflow).toContain("            - custom_components/*/manifest.json");
+  });
+});
+
+describe("homeAssistantValidateWorkflow", () => {
+  it("runs hassfest and the HACS action when integration files change", () => {
+    const workflow = homeAssistantValidateWorkflow().join("\n");
+    expect(workflow).toContain(
+      "          integration_files:\n            - .github/workflows/validate.yml\n            - custom_components/**\n            - hacs.json\n",
+    );
+    expect(workflow).toContain("    - uses: home-assistant/actions/hassfest@06749dd8c0b54f350bc69c8752456cee498808a3 # master\n");
+    expect(workflow).toContain("    - uses: hacs/action@v0.0.0\n      with:\n        category: integration\n        comment: false\n");
+    expect(workflow).toContain(`        HASSFEST_REAL_RESULT: \${{ needs.hassfest-real.result }}\n`);
+    expect(workflow).toContain(`        HACS_REAL_RESULT: \${{ needs.hacs-real.result }}\n`);
   });
 });
 
