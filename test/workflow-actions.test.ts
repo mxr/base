@@ -8,12 +8,14 @@ describe("readExistingActionRefs", () => {
         "      uses: actions/setup-node@def456",
         "    - uses: taiki-e/install-action@v0.0.0",
         "    uses: mxr/workflows/.github/workflows/pre-commit-typing.yml@ghi789 # v2",
+        "    - uses: docker://ghcr.io/foo/bar:1.2.3@sha256:aaa",
       ].join("\n"),
     );
     expect([...refs]).toEqual([
       ["actions/checkout", { ref: "abc123", comment: "v4.1.0" }],
       ["actions/setup-node", { ref: "def456", comment: undefined }],
       ["mxr/workflows/.github/workflows/pre-commit-typing.yml", { ref: "ghi789", comment: "v2" }],
+      ["docker://ghcr.io/foo/bar", { ref: ":1.2.3@sha256:aaa" }],
     ]);
   });
 });
@@ -42,5 +44,21 @@ describe("applyExistingActionRefs", () => {
       "run: x",
     ]);
     expect(result.newActions).toEqual(["taiki-e/install-action"]);
+  });
+
+  it.each([
+    {
+      name: "keeps an existing docker tag and digest",
+      existing: new Map([["docker://ghcr.io/foo/bar", { ref: ":2.0.0@sha256:bbb" }]]),
+      expected: "    - uses: docker://ghcr.io/foo/bar:2.0.0@sha256:bbb",
+    },
+    {
+      name: "keeps the template's docker pin for a new step",
+      existing: new Map(),
+      expected: "    - uses: docker://ghcr.io/foo/bar:1.2.3@sha256:aaa",
+    },
+  ])("$name", ({ existing, expected }) => {
+    const result = applyExistingActionRefs(["    - uses: docker://ghcr.io/foo/bar:1.2.3@sha256:aaa"], existing);
+    expect(result).toEqual({ lines: [expected], newActions: [] });
   });
 });

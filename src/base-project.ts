@@ -14,7 +14,6 @@ import {
   managedPyproject,
   pythonMainWorkflow,
   pythonToxEnvs,
-  readHassfestImage,
   toxEnv,
   typingWorkflow,
 } from "./python";
@@ -357,9 +356,7 @@ export class BaseProject extends GitHubProject {
     if (homeAssistant && this.pythonPackaging === PythonPackaging.HOME_ASSISTANT) {
       const hacs = { content_in_root: false, homeassistant: homeAssistant.minVersion, name: homeAssistant.name };
       new TextFile(this, "hacs.json", { marker: false, lines: JSON.stringify(hacs, null, 2).split("\n") });
-      const validatePath = path.join(this.outdir, ".github/workflows/validate-home-assistant.yml");
-      const hassfestImage = fs.existsSync(validatePath) ? readHassfestImage(fs.readFileSync(validatePath, "utf-8")) : undefined;
-      this.addWorkflow("validate-home-assistant.yml", homeAssistantValidateWorkflow(hassfestImage));
+      this.addWorkflow("validate-home-assistant.yml", homeAssistantValidateWorkflow());
     }
 
     if (this.stack.includes(Stack.MIRROR)) {
