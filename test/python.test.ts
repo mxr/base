@@ -61,7 +61,10 @@ describe("homeAssistantValidateWorkflow", () => {
     expect(workflow).toContain(
       "          integration_files:\n            - .github/workflows/validate-home-assistant.yml\n            - custom_components/**\n            - hacs.json\n",
     );
-    expect(workflow).toContain("    - uses: home-assistant/actions/hassfest@06749dd8c0b54f350bc69c8752456cee498808a3 # master\n");
+    expect(workflow).toContain(
+      'docker run --rm -v "$GITHUB_WORKSPACE:/github/workspace" ghcr.io/home-assistant/hassfest 2>&1 | tee hassfest.log',
+    );
+    expect(workflow).toContain("        if grep -q '^\\* \\[WARNING\\]' hassfest.log; then\n          status=1\n");
     expect(workflow).toContain(
       "    - uses: hacs/action@v0.0.0\n      with:\n        category: integration\n        comment: false\n        ignore: brands\n",
     );

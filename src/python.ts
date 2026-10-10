@@ -138,8 +138,8 @@ export function typingWorkflow(): string[] {
  * `.github/workflows/validate-home-assistant.yml`: hassfest and the HACS action, which check
  * the manifest, translations, and repo layout that tox can't see. HACS skips
  * its brands check, which needs a home-assistant/brands PR or icons in the
- * repo. hassfest is pinned to a `master` commit since home-assistant/actions'
- * only tag predates its docker image, so `pinact -u` would pick that.
+ * repo. hassfest runs its docker image directly instead of through
+ * home-assistant/actions, which only fails on errors, so warnings fail too.
  */
 export function homeAssistantValidateWorkflow(): string[] {
   return workflow(
@@ -156,7 +156,14 @@ export function homeAssistantValidateWorkflow(): string[] {
     - uses: actions/checkout@v0.0.0
       with:
         persist-credentials: false
-    - uses: home-assistant/actions/hassfest@06749dd8c0b54f350bc69c8752456cee498808a3 # master
+    - run: |
+        status=0
+        docker run --rm -v "$GITHUB_WORKSPACE:/github/workspace" ghcr.io/home-assistant/hassfest 2>&1 | tee hassfest.log || status=$?
+        sed -nE 's/^\\* \\[(ERROR|WARNING)\\] /::error::/p' hassfest.log
+        if grep -q '^\\* \\[WARNING\\]' hassfest.log; then
+          status=1
+        fi
+        exit "$status"
 `,
       ),
       gatedJob(
