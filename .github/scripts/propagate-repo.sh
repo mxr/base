@@ -97,7 +97,7 @@ opt_json="$(
 
 # BaseProject runs `pinact` for these stacks (see postSynthesize in
 # base-project.ts); propagate-update.yml installs it under the same condition
-needs_pinact="$(yq '((.stack // []) | (contains(["rust"]) or contains(["frontend"]) or contains(["mirror"]))) or (((.stack // []) | contains(["python"])) and ((.opt.python.packaging != null) or (.opt.python.run-type-checks-in-github-actions == true)))' "$base_yml")"
+needs_pinact="$(yq '((.stack // []) | (contains(["rust"]) or contains(["frontend"]) or contains(["mirror"]))) or (((.stack // []) | contains(["python"])) and ((.opt.python.ci != false) or (.opt.python.packaging != null) or (.opt.python.run-type-checks-in-github-actions == true)))' "$base_yml")"
 if [ "$needs_pinact" = "true" ]; then
 	command -v pinact >/dev/null || {
 		echo "missing required command: pinact" >&2

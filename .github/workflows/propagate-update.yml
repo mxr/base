@@ -131,9 +131,9 @@ jobs:
           python_version="$(yq '.opt.python.min-version // ""' - <<< "$base_yml")"
         fi
         # mirrors BaseProject's own condition for running pinact: Stack.RUST,
-        # Stack.FRONTEND, Stack.MIRROR, or
-        # Stack.PYTHON with opt.python.packaging or opt.python.runTypeChecksInGithubActions set
-        needs_pinact="$(yq '((.stack // []) | (contains(["rust"]) or contains(["frontend"]) or contains(["mirror"]))) or (((.stack // []) | contains(["python"])) and ((.opt.python.packaging != null) or (.opt.python.run-type-checks-in-github-actions == true)))' - <<< "$base_yml")"
+        # Stack.FRONTEND, Stack.MIRROR, or Stack.PYTHON with opt.python.ci (on by
+        # default), opt.python.packaging, or opt.python.runTypeChecksInGithubActions set
+        needs_pinact="$(yq '((.stack // []) | (contains(["rust"]) or contains(["frontend"]) or contains(["mirror"]))) or (((.stack // []) | contains(["python"])) and ((.opt.python.ci != false) or (.opt.python.packaging != null) or (.opt.python.run-type-checks-in-github-actions == true)))' - <<< "$base_yml")"
 
         install_pinact() {
           dir="$RUNNER_TEMP/pinact"
