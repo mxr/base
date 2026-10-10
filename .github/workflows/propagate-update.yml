@@ -131,9 +131,9 @@ jobs:
           python_version="$(yq '.opt.python.min-version // ""' - <<< "$base_yml")"
         fi
         # mirrors BaseProject's own condition for running pinact: Stack.RUST,
-        # Stack.FRONTEND, Stack.MIRROR, or
-        # Stack.PYTHON with opt.python.packaging or opt.python.runTypeChecksInGithubActions set
-        needs_pinact="$(yq '((.stack // []) | (contains(["rust"]) or contains(["frontend"]) or contains(["mirror"]))) or (((.stack // []) | contains(["python"])) and ((.opt.python.packaging != null) or (.opt.python.run-type-checks-in-github-actions == true)))' - <<< "$base_yml")"
+        # Stack.FRONTEND, Stack.MIRROR, or Stack.PYTHON with opt.python.ci (on by
+        # default), opt.python.packaging, or opt.python.runTypeChecksInGithubActions set
+        needs_pinact="$(yq '((.stack // []) | (contains(["rust"]) or contains(["frontend"]) or contains(["mirror"]))) or (((.stack // []) | contains(["python"])) and ((.opt.python.ci != false) or (.opt.python.packaging != null) or (.opt.python.run-type-checks-in-github-actions == true)))' - <<< "$base_yml")"
 
         install_pinact() {
           dir="$RUNNER_TEMP/pinact"
@@ -183,7 +183,7 @@ jobs:
 
     - name: update downstream repo
       env:
-        GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
         # GitHub App installation tokens can't read packages owned by a personal
         # account (only orgs), so a PAT is needed just for the npm registry auth
         GH_PACKAGES_READ_TOKEN: ${{ secrets.GH_PACKAGES_READ_TOKEN }}

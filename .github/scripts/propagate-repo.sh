@@ -6,7 +6,8 @@
 # Required env:
 #   REPO                    owner/name of the downstream repo
 #   VERSION                 @mxr/base version to synth against (e.g. 1.2.3, or a local tarball path if LOCAL_TARBALL=1)
-#   GH_TOKEN                token with contents:write, pull-requests:write on REPO (push/PR skipped in dry run)
+#   GITHUB_TOKEN            token with contents:write, pull-requests:write on REPO (push/PR skipped in dry run);
+#                           used by gh, git, and pinact
 # Optional env:
 #   DRY_RUN                 defaults to true (print diff, exit before push/PR); set to "false" to push/PR for real
 #   LOCAL_TARBALL           if set, VERSION is treated as a path to a local tarball instead of a registry version
@@ -15,7 +16,7 @@
 #                           (handy for testing config changes before they're committed downstream)
 #
 # Example: dry-run a local @mxr/base build against mxr/dotfiles
-#   REPO=mxr/dotfiles VERSION="$(pwd)/$(npm pack --silent)" LOCAL_TARBALL=1 GH_TOKEN=$(gh auth token) .github/scripts/propagate-repo.sh
+#   REPO=mxr/dotfiles VERSION="$(pwd)/$(npm pack --silent)" LOCAL_TARBALL=1 GITHUB_TOKEN=$(gh auth token) .github/scripts/propagate-repo.sh
 set -euo pipefail
 
 step() {
@@ -33,12 +34,12 @@ done
 
 : "${REPO:?REPO is required}"
 : "${VERSION:?VERSION is required}"
-: "${GH_TOKEN:?GH_TOKEN is required}"
+: "${GITHUB_TOKEN:?GITHUB_TOKEN is required}"
 if [ -z "${LOCAL_TARBALL:-}" ]; then
 	: "${GH_PACKAGES_READ_TOKEN:?GH_PACKAGES_READ_TOKEN is required unless LOCAL_TARBALL is set}"
 fi
 
-# tokens (GH_TOKEN, GH_PACKAGES_READ_TOKEN) are deliberately left out
+# tokens (GITHUB_TOKEN, GH_PACKAGES_READ_TOKEN) are deliberately left out
 step "args"
 echo "REPO=${REPO}"
 echo "VERSION=${VERSION}"
@@ -57,7 +58,7 @@ workdir="$(mktemp -d)"
 trap 'rm -rf "$workdir"' EXIT
 
 step "cloning ${REPO}"
-git clone --quiet "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git" "$workdir"
+git clone --quiet "https://x-access-token:${GITHUB_TOKEN}@github.com/${REPO}.git" "$workdir"
 
 git -C "$workdir" config user.name "mxr-base-sync[bot]"
 git -C "$workdir" config user.email "306625798+mxr-base-sync[bot]@users.noreply.github.com"
@@ -97,7 +98,7 @@ opt_json="$(
 
 # BaseProject runs `pinact` for these stacks (see postSynthesize in
 # base-project.ts); propagate-update.yml installs it under the same condition
-needs_pinact="$(yq '((.stack // []) | (contains(["rust"]) or contains(["frontend"]) or contains(["mirror"]))) or (((.stack // []) | contains(["python"])) and ((.opt.python.packaging != null) or (.opt.python.run-type-checks-in-github-actions == true)))' "$base_yml")"
+needs_pinact="$(yq '((.stack // []) | (contains(["rust"]) or contains(["frontend"]) or contains(["mirror"]))) or (((.stack // []) | contains(["python"])) and ((.opt.python.ci != false) or (.opt.python.packaging != null) or (.opt.python.run-type-checks-in-github-actions == true)))' "$base_yml")"
 if [ "$needs_pinact" = "true" ]; then
 	command -v pinact >/dev/null || {
 		echo "missing required command: pinact" >&2
