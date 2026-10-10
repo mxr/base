@@ -522,9 +522,27 @@ export class BaseProject extends GitHubProject {
     }
 
     const gitignorePath = path.join(this.outdir, ".gitignore");
-    if (this.stack.includes(Stack.RUST)) {
+    const ignores = [
+      ...(this.stack.includes(Stack.RUST) ? ["/target/"] : []),
+      ...(this.stack.includes(Stack.PYTHON)
+        ? [
+            "*.egg-info/",
+            "*.pyc",
+            ".coverage",
+            ".mypy_cache/",
+            ".pytest_cache/",
+            ".ruff_cache/",
+            ".tox/",
+            ".venv/",
+            "/build/",
+            "/dist/",
+            "__pycache__/",
+          ]
+        : []),
+    ].sort();
+    if (ignores.length > 0) {
       fs.rmSync(gitignorePath, { force: true });
-      fs.writeFileSync(gitignorePath, `# ${BANNER}\n/target/\n`);
+      fs.writeFileSync(gitignorePath, [`# ${BANNER}`, ...ignores, ""].join("\n"));
     } else if (this.stack.includes(Stack.FRONTEND)) {
       fs.chmodSync(gitignorePath, 0o644);
       fs.appendFileSync(

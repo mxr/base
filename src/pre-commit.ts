@@ -189,7 +189,7 @@ const IMPLIED_STACKS: Partial<Record<Stack, Stack[]>> = {
   [Stack.FRONTEND]: [Stack.GITHUB_ACTIONS, Stack.GITIGNORE],
   [Stack.JAVASCRIPT]: [Stack.GITHUB_ACTIONS],
   [Stack.MIRROR]: [Stack.GITHUB_ACTIONS],
-  [Stack.PYTHON]: [Stack.TOML, Stack.GITHUB_ACTIONS],
+  [Stack.PYTHON]: [Stack.TOML, Stack.GITHUB_ACTIONS, Stack.GITIGNORE],
   [Stack.RUST]: [Stack.TOML, Stack.GITHUB_ACTIONS, Stack.GITIGNORE],
   [Stack.SQL]: [Stack.TOML],
   [Stack.TYPESCRIPT]: [Stack.GITHUB_ACTIONS, Stack.GITIGNORE],
