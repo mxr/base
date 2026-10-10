@@ -134,13 +134,8 @@ describe("buildPreCommitRepos", () => {
     expect(tombi?.hooks.find((h) => h.id === "tombi-format")?.exclude).toBe(exclude);
   });
 
-  it("includes gitignore-tidy for a rust stack", () => {
-    const repos = buildPreCommitRepos([Stack.RUST]);
-    expect(repos.map((r) => r.repo)).toContain("https://github.com/lorenzwalthert/gitignore-tidy");
-  });
-
-  it("includes gitignore-tidy for a frontend stack", () => {
-    const repos = buildPreCommitRepos([Stack.FRONTEND]);
+  it.each([Stack.RUST, Stack.FRONTEND, Stack.PYTHON])("includes gitignore-tidy for a %s stack", (stack) => {
+    const repos = buildPreCommitRepos([stack]);
     expect(repos.map((r) => r.repo)).toContain("https://github.com/lorenzwalthert/gitignore-tidy");
   });
 

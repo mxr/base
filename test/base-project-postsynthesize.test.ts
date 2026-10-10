@@ -158,10 +158,17 @@ describe("BaseProject.postSynthesize with a mocked git/pre-commit binary", () =>
     expect(fs.readFileSync(path.join(dir, ".pre-commit-config.yaml"), "utf-8")).toContain("rev: v9.9.9");
   });
 
-  it("writes a /target/ gitignore for a rust stack, and runs pinact", () => {
+  it.each([
+    { name: "rust", options: { stack: [Stack.RUST] }, expected: "/target/\n" },
+    {
+      name: "python",
+      options: { stack: [Stack.PYTHON], opt: { python: { minVersion: "3.12" } } },
+      expected: "*.egg-info/\n*.pyc\n.coverage\n.mypy_cache/\n.pytest_cache/\n.ruff_cache/\n.tox/\n.venv/\n/build/\n/dist/\n__pycache__/\n",
+    },
+  ])("writes a standard gitignore for a $name stack, and runs pinact", ({ options, expected }) => {
     const dir = outdir();
     realChildProcess.execFileSync("git", ["init", "-q"], { cwd: dir });
-    const project = new BaseProject({ name: "test", stack: [Stack.RUST], outdir: dir });
+    const project = new BaseProject({ name: "test", ...options, outdir: dir });
 
     execFileSyncMock.mockImplementation((cmd, args) => {
       if (cmd === "git") {
@@ -172,7 +179,7 @@ describe("BaseProject.postSynthesize with a mocked git/pre-commit binary", () =>
 
     project.synth();
 
-    expect(fs.readFileSync(path.join(dir, ".gitignore"), "utf-8")).toBe(`# ${BANNER}\n/target/\n`);
+    expect(fs.readFileSync(path.join(dir, ".gitignore"), "utf-8")).toBe(`# ${BANNER}\n${expected}`);
     expect(shCallScript(execFileSyncMock)).toContain("'pinact' 'run' '-u' '-i' '^actions/checkout$'");
   });
 
