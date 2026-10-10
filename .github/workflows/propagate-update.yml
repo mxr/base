@@ -183,9 +183,8 @@ jobs:
 
     - name: update downstream repo
       env:
-        GH_TOKEN: ${{ steps.app-token.outputs.token }}
-        # pinact reads GITHUB_TOKEN, not GH_TOKEN; unauthenticated it hits the
-        # 60 requests/hour API limit shared by the runner's IP
+        # GITHUB_TOKEN rather than GH_TOKEN since pinact only reads the former;
+        # gh falls back to it
         GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
         # GitHub App installation tokens can't read packages owned by a personal
         # account (only orgs), so a PAT is needed just for the npm registry auth
