@@ -356,7 +356,7 @@ export class BaseProject extends GitHubProject {
     if (homeAssistant && this.pythonPackaging === PythonPackaging.HOME_ASSISTANT) {
       const hacs = { content_in_root: false, homeassistant: homeAssistant.minVersion, name: homeAssistant.name };
       new TextFile(this, "hacs.json", { marker: false, lines: JSON.stringify(hacs, null, 2).split("\n") });
-      this.addWorkflow("validate.yml", homeAssistantValidateWorkflow());
+      this.addWorkflow("validate-home-assistant.yml", homeAssistantValidateWorkflow());
     }
 
     if (this.stack.includes(Stack.MIRROR)) {

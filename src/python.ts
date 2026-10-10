@@ -135,7 +135,7 @@ export function typingWorkflow(): string[] {
 }
 
 /**
- * `.github/workflows/validate.yml`: hassfest and the HACS action, which check
+ * `.github/workflows/validate-home-assistant.yml`: hassfest and the HACS action, which check
  * the manifest, translations, and repo layout that tox can't see. HACS skips
  * its brands check, which needs a home-assistant/brands PR or icons in the
  * repo. hassfest is pinned to a `master` commit since home-assistant/actions'
@@ -143,9 +143,9 @@ export function typingWorkflow(): string[] {
  */
 export function homeAssistantValidateWorkflow(): string[] {
   return workflow(
-    "validate",
+    "validate-home-assistant",
     "integration_files",
-    [".github/workflows/validate.yml", "custom_components/**", "hacs.json"],
+    [".github/workflows/validate-home-assistant.yml", "custom_components/**", "hacs.json"],
     [
       gatedJob(
         "hassfest",
