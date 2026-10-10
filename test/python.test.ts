@@ -62,7 +62,9 @@ describe("homeAssistantValidateWorkflow", () => {
       "          integration_files:\n            - .github/workflows/validate.yml\n            - custom_components/**\n            - hacs.json\n",
     );
     expect(workflow).toContain("    - uses: home-assistant/actions/hassfest@06749dd8c0b54f350bc69c8752456cee498808a3 # master\n");
-    expect(workflow).toContain("    - uses: hacs/action@v0.0.0\n      with:\n        category: integration\n        comment: false\n");
+    expect(workflow).toContain(
+      "    - uses: hacs/action@v0.0.0\n      with:\n        category: integration\n        comment: false\n        ignore: brands\n",
+    );
     expect(workflow).toContain(`        HASSFEST_REAL_RESULT: \${{ needs.hassfest-real.result }}\n`);
     expect(workflow).toContain(`        HACS_REAL_RESULT: \${{ needs.hacs-real.result }}\n`);
   });

@@ -136,9 +136,10 @@ export function typingWorkflow(): string[] {
 
 /**
  * `.github/workflows/validate.yml`: hassfest and the HACS action, which check
- * the manifest, translations, and repo layout that tox can't see. hassfest is
- * pinned to a `master` commit since home-assistant/actions' only tag predates
- * its docker image, so `pinact -u` would pick that.
+ * the manifest, translations, and repo layout that tox can't see. HACS skips
+ * its brands check, which needs a home-assistant/brands PR or icons in the
+ * repo. hassfest is pinned to a `master` commit since home-assistant/actions'
+ * only tag predates its docker image, so `pinact -u` would pick that.
  */
 export function homeAssistantValidateWorkflow(): string[] {
   return workflow(
@@ -168,6 +169,7 @@ export function homeAssistantValidateWorkflow(): string[] {
       with:
         category: integration
         comment: false
+        ignore: brands
 `,
       ),
     ],
