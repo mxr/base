@@ -16,7 +16,7 @@ describe("supportedToxEnvs", () => {
 
 describe("pythonMainWorkflow", () => {
   it.each([
-    { minVersion: "3.12", envs: '["py312", "py313", "py314", "py315", "pypy3"]' },
+    { minVersion: "3.12", envs: '["py312", "py313", "py314", "py315", "pypy312"]' },
     { minVersion: "3.13", envs: '["py313", "py314", "py315"]' },
   ])("tests a $minVersion wheel on every supported version, pypy if it supports $minVersion, and windows", ({ minVersion, envs }) => {
     const workflow = pythonMainWorkflow({
@@ -24,7 +24,10 @@ describe("pythonMainWorkflow", () => {
       envs: pythonToxEnvs(minVersion),
       stack: [Stack.PYTHON],
     }).join("\n");
-    expect(workflow).toContain(`      env: '${envs}'\n`);
+    expect(workflow).toContain(
+      `    uses: mxr/workflows/.github/workflows/tox-uv.yml@v0.0.0\n    with:\n      env: '${envs}'\n      os: ubuntu-26.04\n`,
+    );
+    expect(workflow).toContain("            - uv.lock\n");
     expect(workflow).toContain(`      env: '["${`py${minVersion.replace(".", "")}`}"]'\n      os: windows-2025\n`);
     expect(workflow).toContain(`        MAIN_WIN_REAL_RESULT: \${{ needs.main-win-real.result }}\n`);
     expect(workflow).not.toContain("'**/*.sql'");
@@ -90,6 +93,9 @@ describe("managedPyproject", () => {
     const runBase = pyproject.tables.find(({ name }) => name === "tool.tox.env_run_base");
     expect(runBase?.lines).toContainEqual(
       expect.stringMatching(/^commands_pre = \[\n {2}\[\n {4}"python",\n {4}"-c",\n {4}'''\nimport json\n.*manifest\["requirements"\]/s),
+    );
+    expect(runBase?.lines).toContainEqual(
+      expect.stringContaining('subprocess.check_call(["uv", "pip", "install", "--python", sys.executable, *manifest["requirements"]])'),
     );
     expect(runBase?.lines).toContain('dependency_groups = ["test"]');
     expect(runBase?.lines).toContain("skip_install = true");
@@ -171,5 +177,28 @@ describe("managedPyproject", () => {
   ])("requires the __future__ annotations import only below 3.14 ($minVersion)", ({ minVersion, expected }) => {
     const pyproject = managedPyproject({ minVersion, name: "foo", license: "MIT" });
     expect(pyproject.tables).toContainEqual({ name: "tool.ruff.lint.isort", lines: expected });
+  });
+
+  it.each([
+    {
+      name: "renders the console script and installs from uv.lock for a console script",
+      consoleScript: true,
+      scripts: [{ name: "project.scripts", lines: ['foo-bar = "foo_bar._main:main"'] }],
+      runBaseRunner: ['runner = "uv-venv-lock-runner"'],
+      preCommitRunner: ['runner = "uv-venv-runner"'],
+    },
+    {
+      name: "uses tox-uv's default runner without a console script",
+      consoleScript: false,
+      scripts: [],
+      runBaseRunner: [],
+      preCommitRunner: [],
+    },
+  ])("$name", ({ consoleScript, scripts, runBaseRunner, preCommitRunner }) => {
+    const pyproject = managedPyproject({ minVersion: "3.11", name: "foo-bar", license: "MIT", consoleScript });
+    const lines = (table: string): string[] => pyproject.tables.find(({ name }) => name === table)?.lines ?? [];
+    expect(pyproject.tables.filter(({ name }) => name === "project.scripts")).toEqual(scripts);
+    expect(lines("tool.tox.env_run_base").filter((line) => line.startsWith("runner = "))).toEqual(runBaseRunner);
+    expect(lines("tool.tox.env.pre-commit").filter((line) => line.startsWith("runner = "))).toEqual(preCommitRunner);
   });
 });

@@ -295,7 +295,7 @@ describe("BaseProject python packaging", () => {
 
   it("tests but doesn't release or write hacs.json without opt.python.packaging", () => {
     const snapshot = Testing.synth(new BaseProject({ name: "test", stack: [Stack.PYTHON], opt: { python: { minVersion: "3.12" } } }));
-    expect(snapshot[".github/workflows/main.yml"]).toContain(`env: '["py312", "py313", "py314", "py315", "pypy3"]'`);
+    expect(snapshot[".github/workflows/main.yml"]).toContain(`env: '["py312", "py313", "py314", "py315", "pypy312"]'`);
     expect(snapshot[".github/workflows/main.yml"]).toContain("main-win-real:");
     expect(snapshot[".github/workflows/release.yml"]).toBeUndefined();
     expect(snapshot["hacs.json"]).toBeUndefined();
@@ -330,7 +330,7 @@ describe("BaseProject python packaging", () => {
       opt: { python: { minVersion: "3.12", packaging: PythonPackaging.WHEEL } },
     });
     const snapshot = Testing.synth(project);
-    expect(snapshot[".github/workflows/main.yml"]).toContain(`env: '["py312", "py313", "py314", "py315", "pypy3"]'`);
+    expect(snapshot[".github/workflows/main.yml"]).toContain(`env: '["py312", "py313", "py314", "py315", "pypy312"]'`);
     expect(snapshot[".github/workflows/release.yml"]).toContain("python-version: '3.14'");
     expect(snapshot[".github/workflows/release.yml"]).toContain("uses: pypa/gh-action-pypi-publish@v0.0.0");
     expect(snapshot[".github/workflows/release.yml"]).toContain(
