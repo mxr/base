@@ -233,8 +233,7 @@ export interface BaseProjectOptions extends GitHubProjectOptions {
  */
 export class BaseProject extends GitHubProject {
   public readonly stack: Stack[];
-  // oldest python the project supports; for a home assistant integration, the only one
-  private readonly pythonVersion: string | undefined;
+  private readonly pythonMinVersion: string | undefined;
   private readonly pythonPackaging: PythonPackaging | undefined;
   private readonly license: string;
   private readonly pyprojectPath: string;
@@ -268,13 +267,13 @@ export class BaseProject extends GitHubProject {
     if (isHomeAssistant && options.opt?.python?.minVersion) {
       throw new Error(`PythonPackaging.HOME_ASSISTANT always uses python ${HOME_ASSISTANT_PYTHON}; omit opt.python.minVersion`);
     }
-    this.pythonVersion = isHomeAssistant ? HOME_ASSISTANT_PYTHON : options.opt?.python?.minVersion;
+    this.pythonMinVersion = isHomeAssistant ? HOME_ASSISTANT_PYTHON : options.opt?.python?.minVersion;
     this.pyprojectPath = options.opt?.python?.pyprojectPath ?? "pyproject.toml";
     this.testsDir = options.opt?.python?.testsDir;
     this.extras = options.opt?.python?.extras;
     this.ci = options.opt?.python?.ci ?? true;
     this.customRelease = options.opt?.python?.customRelease ?? false;
-    if (this.stack.includes(Stack.PYTHON) && !this.pythonVersion) {
+    if (this.stack.includes(Stack.PYTHON) && !this.pythonMinVersion) {
       throw new Error("Stack.PYTHON requires opt.python.minVersion to be set");
     }
     const homeAssistant = options.opt?.python?.homeAssistant;
@@ -291,7 +290,7 @@ export class BaseProject extends GitHubProject {
 
     const preCommitConfigFile = new PreCommitConfigFile(this, {
       stack: this.stack,
-      ...(this.pythonVersion ? { pythonVersion: this.pythonVersion } : {}),
+      ...(this.pythonMinVersion ? { pythonMinVersion: this.pythonMinVersion } : {}),
       existingRevs: Object.fromEntries(existingRevs),
       typeChecksInGithubActions: runTypeChecksInGithubActions,
       ...(options.opt?.preCommit?.exclude ? { exclude: options.opt.preCommit.exclude } : {}),
@@ -312,18 +311,18 @@ export class BaseProject extends GitHubProject {
       this.addWorkflow("release.yml", cargoReleaseWorkflow());
     }
 
-    if (this.pythonVersion && this.ci) {
+    if (this.pythonMinVersion && this.ci) {
       this.addWorkflow(
         "main.yml",
         pythonMainWorkflow({
           ...(this.pythonPackaging ? { packaging: this.pythonPackaging } : {}),
-          envs: isHomeAssistant ? [toxEnv(HOME_ASSISTANT_PYTHON)] : pythonToxEnvs(this.pythonVersion),
+          envs: isHomeAssistant ? [toxEnv(HOME_ASSISTANT_PYTHON)] : pythonToxEnvs(this.pythonMinVersion),
           stack: this.stack,
         }),
       );
     }
 
-    if (this.pythonVersion && this.pythonPackaging && !this.customRelease) {
+    if (this.pythonMinVersion && this.pythonPackaging && !this.customRelease) {
       this.addWorkflow(
         "release.yml",
         this.pythonPackaging === PythonPackaging.WHEEL ? wheelReleaseWorkflow() : homeAssistantReleaseWorkflow(),
@@ -558,10 +557,10 @@ export class BaseProject extends GitHubProject {
 
     // pyproject.toml (or its template) is otherwise owned by the downstream repo, so only base's tables and keys are managed
     const partiallyManagedFiles: string[] = [];
-    const python = this.pythonVersion
+    const python = this.pythonMinVersion
       ? managedPyproject({
           ...(this.pythonPackaging ? { packaging: this.pythonPackaging } : {}),
-          pythonVersion: this.pythonVersion,
+          minVersion: this.pythonMinVersion,
           name: this.name,
           license: this.license,
           ...(this.testsDir ? { testsDir: this.testsDir } : {}),

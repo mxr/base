@@ -175,11 +175,7 @@ subprocess.check_call([sys.executable, "-m", "pip", "install", *manifest["requir
 
 export interface ManagedPyprojectOptions {
   readonly packaging?: PythonPackaging;
-
-  /**
-   * Oldest python the project supports; for a home assistant integration, the only one.
-   */
-  readonly pythonVersion: string;
+  readonly minVersion: string;
   readonly name: string;
   readonly license: string;
 
@@ -255,7 +251,7 @@ export function managedPyproject(options: ManagedPyprojectOptions): ManagedPypro
       : []),
     ...(generatedDirs.length > 0 ? [table("tool.pyright", { exclude: generatedDirs })] : []),
     // a wheel's `requires-python` gives ruff its target version
-    ...(isWheel ? [] : [table("tool.ruff", { "target-version": toxEnv(options.pythonVersion) })]),
+    ...(isWheel ? [] : [table("tool.ruff", { "target-version": toxEnv(options.minVersion) })]),
     {
       name: "tool.ruff.lint",
       lines: [
@@ -273,7 +269,7 @@ export function managedPyproject(options: ManagedPyprojectOptions): ManagedPypro
     table("tool.ruff.lint.isort", {
       "force-single-line": true,
       // 3.14 evaluates annotations lazily (PEP 649), so the import is only needed below it
-      ...(Number(options.pythonVersion.split(".")[1]) < 14 ? { "required-imports": ["from __future__ import annotations"] } : {}),
+      ...(Number(options.minVersion.split(".")[1]) < 14 ? { "required-imports": ["from __future__ import annotations"] } : {}),
     }),
     ...(isWheel ? [table("tool.setuptools.packages", { find: {} })] : []),
     // bare local `tox`; CI passes `-e` per matrix entry (pypy, windows, each version), so this skips those
@@ -314,7 +310,7 @@ export function managedPyproject(options: ManagedPyprojectOptions): ManagedPypro
       ? {
           projectKeys: {
             // tombi's order, for keys new to `[project]`
-            "requires-python": `>=${options.pythonVersion}`,
+            "requires-python": `>=${options.minVersion}`,
             license: options.license,
             "license-files": ["LICENSE"],
             authors: [{ name: "Max R", email: "mxr@users.noreply.github.com" }],

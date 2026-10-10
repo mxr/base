@@ -14,7 +14,7 @@ export interface PreCommitConfigFileOptions extends FileBaseOptions {
    * `default_language_version.python`. Required when `stack` includes
    * `Stack.PYTHON`.
    */
-  readonly pythonVersion?: string;
+  readonly pythonMinVersion?: string;
 
   /**
    * `repo` url -> `rev` (and its inline comment) from the downstream repo's current
@@ -41,7 +41,7 @@ export interface PreCommitConfigFileOptions extends FileBaseOptions {
  */
 export class PreCommitConfigFile extends FileBase {
   private readonly stack: Stack[];
-  private readonly pythonVersion: string | undefined;
+  private readonly pythonMinVersion: string | undefined;
   private readonly existingRevs: ReadonlyMap<string, ExistingRev>;
   private readonly typeChecksInGithubActions: boolean;
   private readonly exclude: string[];
@@ -56,7 +56,7 @@ export class PreCommitConfigFile extends FileBase {
   constructor(scope: IConstruct, options: PreCommitConfigFileOptions) {
     super(scope, ".pre-commit-config.yaml", { ...options, marker: false });
     this.stack = options.stack;
-    this.pythonVersion = options.pythonVersion;
+    this.pythonMinVersion = options.pythonMinVersion;
     this.existingRevs = new Map(Object.entries(options.existingRevs ?? {}));
     this.typeChecksInGithubActions = options.typeChecksInGithubActions ?? false;
     this.exclude = options.exclude ?? [];
@@ -75,7 +75,7 @@ export class PreCommitConfigFile extends FileBase {
       skips.length > 0
         ? [`ci:`, `  skip: [${skips.flatMap(({ hooks }) => hooks).join(", ")}] # ${skips.map(({ reason }) => reason).join("; ")}`, ""]
         : [];
-    return [`# ${BANNER}`, "", ...ciLines, renderPreCommitConfig(this.stack, this.pythonVersion, this.existingRevs, this.exclude)].join(
+    return [`# ${BANNER}`, "", ...ciLines, renderPreCommitConfig(this.stack, this.pythonMinVersion, this.existingRevs, this.exclude)].join(
       "\n",
     );
   }
