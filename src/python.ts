@@ -29,7 +29,11 @@ const LATEST_PYPY = "3.12";
 
 export interface PythonPackagingOptions {
   readonly packaging?: PythonPackaging;
-  readonly minVersion: string;
+
+  /**
+   * Tox envs CI runs, oldest first; windows runs only the first.
+   */
+  readonly envs: readonly string[];
   readonly stack: readonly Stack[];
 }
 
@@ -37,7 +41,7 @@ function minor(version: string): number {
   return Number(version.split(".")[1]);
 }
 
-function toxEnv(version: string): string {
+export function toxEnv(version: string): string {
   return `py${version.replace(".", "")}`;
 }
 
@@ -51,6 +55,13 @@ export function supportedToxEnvs(minVersion: string): string[] {
     throw new Error(`unsupported python version: ${minVersion}`);
   }
   return Array.from({ length: latestMinor - minor + 1 }, (_, i) => toxEnv(`${major}.${minor + i}`));
+}
+
+/**
+ * {@link supportedToxEnvs} plus `pypy3` when PyPy implements `minVersion`.
+ */
+export function pythonToxEnvs(minVersion: string): string[] {
+  return [...supportedToxEnvs(minVersion), ...(minor(minVersion) <= minor(LATEST_PYPY) ? ["pypy3"] : [])];
 }
 
 // a `<name>-real` job plus the `<name>` gate that branch protection requires,
@@ -87,15 +98,12 @@ function toxJob(envs: readonly string[], os?: string): string {
 }
 
 /**
- * `.github/workflows/main.yml`: tox across the supported versions, gated on
- * whether python project files changed. A home assistant integration only
- * runs on Home Assistant's python, so it gets just that version and no
- * windows job.
+ * `.github/workflows/main.yml`: tox across `envs`, gated on whether python
+ * project files changed. A home assistant integration only runs on Linux, so
+ * it gets no windows job.
  */
 export function pythonMainWorkflow(options: PythonPackagingOptions): string[] {
   const isHomeAssistant = options.packaging === PythonPackaging.HOME_ASSISTANT;
-  const pypy = minor(options.minVersion) <= minor(LATEST_PYPY) ? ["pypy3"] : [];
-  const envs = isHomeAssistant ? [toxEnv(options.minVersion)] : [...supportedToxEnvs(options.minVersion), ...pypy];
   const projectFiles = [
     ".github/workflows/main.yml",
     "'**/*.py'",
@@ -104,8 +112,8 @@ export function pythonMainWorkflow(options: PythonPackagingOptions): string[] {
     ...(isHomeAssistant ? ["custom_components/*/manifest.json"] : []),
   ];
   return workflow("main", "project_files", projectFiles, [
-    gatedJob("main", "project_files", toxJob(envs)),
-    ...(isHomeAssistant ? [] : [gatedJob("main-win", "project_files", toxJob([toxEnv(options.minVersion)], WINDOWS_RUNNER))]),
+    gatedJob("main", "project_files", toxJob(options.envs)),
+    ...(isHomeAssistant ? [] : [gatedJob("main-win", "project_files", toxJob(options.envs.slice(0, 1), WINDOWS_RUNNER))]),
   ]);
 }
 
@@ -167,7 +175,11 @@ subprocess.check_call([sys.executable, "-m", "pip", "install", *manifest["requir
 
 export interface ManagedPyprojectOptions {
   readonly packaging?: PythonPackaging;
-  readonly minVersion: string;
+
+  /**
+   * Oldest python the project supports; for a home assistant integration, the only one.
+   */
+  readonly pythonVersion: string;
   readonly name: string;
   readonly license: string;
 
@@ -243,7 +255,7 @@ export function managedPyproject(options: ManagedPyprojectOptions): ManagedPypro
       : []),
     ...(generatedDirs.length > 0 ? [table("tool.pyright", { exclude: generatedDirs })] : []),
     // a wheel's `requires-python` gives ruff its target version
-    ...(isWheel ? [] : [table("tool.ruff", { "target-version": toxEnv(options.minVersion) })]),
+    ...(isWheel ? [] : [table("tool.ruff", { "target-version": toxEnv(options.pythonVersion) })]),
     {
       name: "tool.ruff.lint",
       lines: [
@@ -261,7 +273,7 @@ export function managedPyproject(options: ManagedPyprojectOptions): ManagedPypro
     table("tool.ruff.lint.isort", {
       "force-single-line": true,
       // 3.14 evaluates annotations lazily (PEP 649), so the import is only needed below it
-      ...(Number(options.minVersion.split(".")[1]) < 14 ? { "required-imports": ["from __future__ import annotations"] } : {}),
+      ...(Number(options.pythonVersion.split(".")[1]) < 14 ? { "required-imports": ["from __future__ import annotations"] } : {}),
     }),
     ...(isWheel ? [table("tool.setuptools.packages", { find: {} })] : []),
     // bare local `tox`; CI passes `-e` per matrix entry (pypy, windows, each version), so this skips those
@@ -302,7 +314,7 @@ export function managedPyproject(options: ManagedPyprojectOptions): ManagedPypro
       ? {
           projectKeys: {
             // tombi's order, for keys new to `[project]`
-            "requires-python": `>=${options.minVersion}`,
+            "requires-python": `>=${options.pythonVersion}`,
             license: options.license,
             "license-files": ["LICENSE"],
             authors: [{ name: "Max R", email: "mxr@users.noreply.github.com" }],

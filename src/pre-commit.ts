@@ -342,7 +342,7 @@ function toSnakeCaseKeys(value: unknown): unknown {
  * inlining short scalar lists (e.g. `args: [--fix]`) and leaving longer or
  * non-scalar ones as block lists.
  *
- * `pythonMinVersion` (e.g. `"3.11"`) sets the file's top-level
+ * `pythonVersion` (e.g. `"3.11"`) sets the file's top-level
  * `default_language_version.python`, so individual Python hooks (mypy, ty,
  * etc.) don't need their own per-hook `language_version`.
  *
@@ -351,13 +351,13 @@ function toSnakeCaseKeys(value: unknown): unknown {
  */
 export function renderPreCommitConfig(
   stack: Stack[],
-  pythonMinVersion?: string,
+  pythonVersion?: string,
   existingRevs?: ReadonlyMap<string, ExistingRev>,
   exclude?: readonly string[],
 ): string {
   const repos = toSnakeCaseKeys(buildPreCommitRepos(stack, existingRevs));
   const doc = new Document({
-    ...(pythonMinVersion ? { default_language_version: { python: `python${pythonMinVersion}` } } : {}),
+    ...(pythonVersion ? { default_language_version: { python: `python${pythonVersion}` } } : {}),
     ...(exclude?.length ? { exclude: `(?x)^(\n${exclude.map((pattern) => `    ${pattern}`).join("|\n")}\n)$\n` } : {}),
     repos,
   });

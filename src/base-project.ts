@@ -8,7 +8,7 @@ import { firstCommitYear } from "./git";
 import { expandStacks, readExistingRevs } from "./pre-commit";
 import { PreCommitConfigFile } from "./pre-commit-config-file";
 import { mergePyproject, sqlfluffTables } from "./pyproject";
-import { HOME_ASSISTANT_PYTHON, managedPyproject, pythonMainWorkflow, typingWorkflow } from "./python";
+import { HOME_ASSISTANT_PYTHON, managedPyproject, pythonMainWorkflow, pythonToxEnvs, toxEnv, typingWorkflow } from "./python";
 import { cargoReleaseWorkflow, homeAssistantReleaseWorkflow, wheelReleaseWorkflow } from "./release";
 import { PythonPackaging, RenovateCustomManager, Stack } from "./stack";
 import { applyExistingActionRefs, RUNNER, readExistingActionRefs } from "./workflow-actions";
@@ -233,7 +233,8 @@ export interface BaseProjectOptions extends GitHubProjectOptions {
  */
 export class BaseProject extends GitHubProject {
   public readonly stack: Stack[];
-  private readonly pythonMinVersion: string | undefined;
+  // oldest python the project supports; for a home assistant integration, the only one
+  private readonly pythonVersion: string | undefined;
   private readonly pythonPackaging: PythonPackaging | undefined;
   private readonly license: string;
   private readonly pyprojectPath: string;
@@ -267,13 +268,13 @@ export class BaseProject extends GitHubProject {
     if (isHomeAssistant && options.opt?.python?.minVersion) {
       throw new Error(`PythonPackaging.HOME_ASSISTANT always uses python ${HOME_ASSISTANT_PYTHON}; omit opt.python.minVersion`);
     }
-    this.pythonMinVersion = isHomeAssistant ? HOME_ASSISTANT_PYTHON : options.opt?.python?.minVersion;
+    this.pythonVersion = isHomeAssistant ? HOME_ASSISTANT_PYTHON : options.opt?.python?.minVersion;
     this.pyprojectPath = options.opt?.python?.pyprojectPath ?? "pyproject.toml";
     this.testsDir = options.opt?.python?.testsDir;
     this.extras = options.opt?.python?.extras;
     this.ci = options.opt?.python?.ci ?? true;
     this.customRelease = options.opt?.python?.customRelease ?? false;
-    if (this.stack.includes(Stack.PYTHON) && !this.pythonMinVersion) {
+    if (this.stack.includes(Stack.PYTHON) && !this.pythonVersion) {
       throw new Error("Stack.PYTHON requires opt.python.minVersion to be set");
     }
     const homeAssistant = options.opt?.python?.homeAssistant;
@@ -290,7 +291,7 @@ export class BaseProject extends GitHubProject {
 
     const preCommitConfigFile = new PreCommitConfigFile(this, {
       stack: this.stack,
-      ...(this.pythonMinVersion ? { pythonMinVersion: this.pythonMinVersion } : {}),
+      ...(this.pythonVersion ? { pythonVersion: this.pythonVersion } : {}),
       existingRevs: Object.fromEntries(existingRevs),
       typeChecksInGithubActions: runTypeChecksInGithubActions,
       ...(options.opt?.preCommit?.exclude ? { exclude: options.opt.preCommit.exclude } : {}),
@@ -311,18 +312,18 @@ export class BaseProject extends GitHubProject {
       this.addWorkflow("release.yml", cargoReleaseWorkflow());
     }
 
-    if (this.pythonMinVersion && this.ci) {
+    if (this.pythonVersion && this.ci) {
       this.addWorkflow(
         "main.yml",
         pythonMainWorkflow({
           ...(this.pythonPackaging ? { packaging: this.pythonPackaging } : {}),
-          minVersion: this.pythonMinVersion,
+          envs: isHomeAssistant ? [toxEnv(HOME_ASSISTANT_PYTHON)] : pythonToxEnvs(this.pythonVersion),
           stack: this.stack,
         }),
       );
     }
 
-    if (this.pythonMinVersion && this.pythonPackaging && !this.customRelease) {
+    if (this.pythonVersion && this.pythonPackaging && !this.customRelease) {
       this.addWorkflow(
         "release.yml",
         this.pythonPackaging === PythonPackaging.WHEEL ? wheelReleaseWorkflow() : homeAssistantReleaseWorkflow(),
@@ -557,10 +558,10 @@ export class BaseProject extends GitHubProject {
 
     // pyproject.toml (or its template) is otherwise owned by the downstream repo, so only base's tables and keys are managed
     const partiallyManagedFiles: string[] = [];
-    const python = this.pythonMinVersion
+    const python = this.pythonVersion
       ? managedPyproject({
           ...(this.pythonPackaging ? { packaging: this.pythonPackaging } : {}),
-          minVersion: this.pythonMinVersion,
+          pythonVersion: this.pythonVersion,
           name: this.name,
           license: this.license,
           ...(this.testsDir ? { testsDir: this.testsDir } : {}),

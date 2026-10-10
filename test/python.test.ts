@@ -1,4 +1,4 @@
-import { managedPyproject, pythonMainWorkflow, supportedToxEnvs, typingWorkflow } from "../src/python";
+import { managedPyproject, pythonMainWorkflow, pythonToxEnvs, supportedToxEnvs, typingWorkflow } from "../src/python";
 import { PythonPackaging, Stack } from "../src/stack";
 
 describe("supportedToxEnvs", () => {
@@ -21,7 +21,7 @@ describe("pythonMainWorkflow", () => {
   ])("tests a $minVersion wheel on every supported version, pypy if it supports $minVersion, and windows", ({ minVersion, envs }) => {
     const workflow = pythonMainWorkflow({
       packaging: PythonPackaging.WHEEL,
-      minVersion,
+      envs: pythonToxEnvs(minVersion),
       stack: [Stack.PYTHON],
     }).join("\n");
     expect(workflow).toContain(`      env: '${envs}'\n`);
@@ -32,10 +32,10 @@ describe("pythonMainWorkflow", () => {
     expect(workflow).not.toContain("typing");
   });
 
-  it("tests a home assistant integration on its min version only", () => {
+  it("tests a home assistant integration on its envs without windows", () => {
     const workflow = pythonMainWorkflow({
       packaging: PythonPackaging.HOME_ASSISTANT,
-      minVersion: "3.14",
+      envs: ["py314"],
       stack: [Stack.PYTHON, Stack.SQL],
     }).join("\n");
     expect(workflow).toContain(`      env: '["py314"]'\n`);
@@ -62,7 +62,7 @@ describe("typingWorkflow", () => {
 
 describe("managedPyproject", () => {
   it("manages PyPI metadata and build config for a wheel", () => {
-    const pyproject = managedPyproject({ packaging: PythonPackaging.WHEEL, minVersion: "3.12", name: "foo-bar", license: "MIT" });
+    const pyproject = managedPyproject({ packaging: PythonPackaging.WHEEL, pythonVersion: "3.12", name: "foo-bar", license: "MIT" });
     const names = pyproject.tables.map(({ name }) => name);
     expect(names).toEqual(expect.arrayContaining(["build-system", "project.urls", "tool.setuptools.packages"]));
     expect(pyproject.tables).toContainEqual({ name: "project.urls", lines: ['Homepage = "https://github.com/mxr/foo-bar"'] });
@@ -77,7 +77,12 @@ describe("managedPyproject", () => {
   });
 
   it("installs manifest requirements and skips PyPI metadata for a home assistant integration", () => {
-    const pyproject = managedPyproject({ packaging: PythonPackaging.HOME_ASSISTANT, minVersion: "3.14", name: "ha-foo", license: "MIT" });
+    const pyproject = managedPyproject({
+      packaging: PythonPackaging.HOME_ASSISTANT,
+      pythonVersion: "3.14",
+      name: "ha-foo",
+      license: "MIT",
+    });
     const names = pyproject.tables.map(({ name }) => name);
     expect(names).not.toContain("build-system");
     expect(names).not.toContain("project.urls");
@@ -91,7 +96,7 @@ describe("managedPyproject", () => {
   });
 
   it("manages only lint and tox config without packaging", () => {
-    const pyproject = managedPyproject({ minVersion: "3.11", name: "mirrors-foo", license: "MIT" });
+    const pyproject = managedPyproject({ pythonVersion: "3.11", name: "mirrors-foo", license: "MIT" });
     expect(pyproject.tables.map(({ name }) => name)).toEqual([
       "tool.coverage.run",
       "tool.mypy",
@@ -115,12 +120,12 @@ describe("managedPyproject", () => {
   });
 
   it("omits the tox config with ci off", () => {
-    const pyproject = managedPyproject({ minVersion: "3.11", name: "foo", license: "MIT", ci: false });
+    const pyproject = managedPyproject({ pythonVersion: "3.11", name: "foo", license: "MIT", ci: false });
     expect(pyproject.tables.map(({ name }) => name).filter((name) => name.startsWith("tool.tox"))).toEqual([]);
   });
 
   it("skips generated dirs in mypy, pyright, and ty", () => {
-    const pyproject = managedPyproject({ minVersion: "3.11", name: "foo", license: "MIT", generatedDirs: ["foo/gen", "test"] });
+    const pyproject = managedPyproject({ pythonVersion: "3.11", name: "foo", license: "MIT", generatedDirs: ["foo/gen", "test"] });
     expect(pyproject.tables).toContainEqual({
       name: "tool.mypy.overrides",
       array: true,
@@ -150,7 +155,7 @@ describe("managedPyproject", () => {
       pytest: '["coverage", "run", "-m", "pytest", { replace = "posargs", default = ["test", "test_custom"], extend = true }]',
     },
   ])("tests and relaxes typing for $name", ({ options, module, pytest }) => {
-    const pyproject = managedPyproject({ minVersion: "3.11", name: "foo", license: "MIT", ...options });
+    const pyproject = managedPyproject({ pythonVersion: "3.11", name: "foo", license: "MIT", ...options });
     expect(pyproject.tables).toContainEqual({
       name: "tool.mypy.overrides",
       array: true,
@@ -164,7 +169,7 @@ describe("managedPyproject", () => {
     { minVersion: "3.13", expected: ["force-single-line = true", 'required-imports = ["from __future__ import annotations"]'] },
     { minVersion: "3.14", expected: ["force-single-line = true"] },
   ])("requires the __future__ annotations import only below 3.14 ($minVersion)", ({ minVersion, expected }) => {
-    const pyproject = managedPyproject({ minVersion, name: "foo", license: "MIT" });
+    const pyproject = managedPyproject({ pythonVersion: minVersion, name: "foo", license: "MIT" });
     expect(pyproject.tables).toContainEqual({ name: "tool.ruff.lint.isort", lines: expected });
   });
 });
