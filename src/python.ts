@@ -29,7 +29,11 @@ const LATEST_PYPY = "3.12";
 
 export interface PythonPackagingOptions {
   readonly packaging?: PythonPackaging;
-  readonly minVersion: string;
+
+  /**
+   * Tox envs CI runs, oldest first; windows runs only the first.
+   */
+  readonly envs: readonly string[];
   readonly stack: readonly Stack[];
 }
 
@@ -37,7 +41,7 @@ function minor(version: string): number {
   return Number(version.split(".")[1]);
 }
 
-function toxEnv(version: string): string {
+export function toxEnv(version: string): string {
   return `py${version.replace(".", "")}`;
 }
 
@@ -51,6 +55,13 @@ export function supportedToxEnvs(minVersion: string): string[] {
     throw new Error(`unsupported python version: ${minVersion}`);
   }
   return Array.from({ length: latestMinor - minor + 1 }, (_, i) => toxEnv(`${major}.${minor + i}`));
+}
+
+/**
+ * {@link supportedToxEnvs} plus `pypy3` when PyPy implements `minVersion`.
+ */
+export function pythonToxEnvs(minVersion: string): string[] {
+  return [...supportedToxEnvs(minVersion), ...(minor(minVersion) <= minor(LATEST_PYPY) ? ["pypy3"] : [])];
 }
 
 // a `<name>-real` job plus the `<name>` gate that branch protection requires,
@@ -87,15 +98,12 @@ function toxJob(envs: readonly string[], os?: string): string {
 }
 
 /**
- * `.github/workflows/main.yml`: tox across the supported versions, gated on
- * whether python project files changed. A home assistant integration only
- * runs on Home Assistant's python, so it gets just that version and no
- * windows job.
+ * `.github/workflows/main.yml`: tox across `envs`, gated on whether python
+ * project files changed. A home assistant integration only runs on Linux, so
+ * it gets no windows job.
  */
 export function pythonMainWorkflow(options: PythonPackagingOptions): string[] {
   const isHomeAssistant = options.packaging === PythonPackaging.HOME_ASSISTANT;
-  const pypy = minor(options.minVersion) <= minor(LATEST_PYPY) ? ["pypy3"] : [];
-  const envs = isHomeAssistant ? [toxEnv(options.minVersion)] : [...supportedToxEnvs(options.minVersion), ...pypy];
   const projectFiles = [
     ".github/workflows/main.yml",
     "'**/*.py'",
@@ -104,8 +112,8 @@ export function pythonMainWorkflow(options: PythonPackagingOptions): string[] {
     ...(isHomeAssistant ? ["custom_components/*/manifest.json"] : []),
   ];
   return workflow("main", "project_files", projectFiles, [
-    gatedJob("main", "project_files", toxJob(envs)),
-    ...(isHomeAssistant ? [] : [gatedJob("main-win", "project_files", toxJob([toxEnv(options.minVersion)], WINDOWS_RUNNER))]),
+    gatedJob("main", "project_files", toxJob(options.envs)),
+    ...(isHomeAssistant ? [] : [gatedJob("main-win", "project_files", toxJob(options.envs.slice(0, 1), WINDOWS_RUNNER))]),
   ]);
 }
 

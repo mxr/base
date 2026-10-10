@@ -8,7 +8,7 @@ import { firstCommitYear } from "./git";
 import { expandStacks, readExistingRevs } from "./pre-commit";
 import { PreCommitConfigFile } from "./pre-commit-config-file";
 import { mergePyproject, sqlfluffTables } from "./pyproject";
-import { HOME_ASSISTANT_PYTHON, managedPyproject, pythonMainWorkflow, typingWorkflow } from "./python";
+import { HOME_ASSISTANT_PYTHON, managedPyproject, pythonMainWorkflow, pythonToxEnvs, toxEnv, typingWorkflow } from "./python";
 import { cargoReleaseWorkflow, homeAssistantReleaseWorkflow, wheelReleaseWorkflow } from "./release";
 import { PythonPackaging, RenovateCustomManager, Stack } from "./stack";
 import { applyExistingActionRefs, RUNNER, readExistingActionRefs } from "./workflow-actions";
@@ -316,7 +316,7 @@ export class BaseProject extends GitHubProject {
         "main.yml",
         pythonMainWorkflow({
           ...(this.pythonPackaging ? { packaging: this.pythonPackaging } : {}),
-          minVersion: this.pythonMinVersion,
+          envs: isHomeAssistant ? [toxEnv(HOME_ASSISTANT_PYTHON)] : pythonToxEnvs(this.pythonMinVersion),
           stack: this.stack,
         }),
       );

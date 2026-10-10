@@ -1,4 +1,4 @@
-import { managedPyproject, pythonMainWorkflow, supportedToxEnvs, typingWorkflow } from "../src/python";
+import { managedPyproject, pythonMainWorkflow, pythonToxEnvs, supportedToxEnvs, typingWorkflow } from "../src/python";
 import { PythonPackaging, Stack } from "../src/stack";
 
 describe("supportedToxEnvs", () => {
@@ -21,7 +21,7 @@ describe("pythonMainWorkflow", () => {
   ])("tests a $minVersion wheel on every supported version, pypy if it supports $minVersion, and windows", ({ minVersion, envs }) => {
     const workflow = pythonMainWorkflow({
       packaging: PythonPackaging.WHEEL,
-      minVersion,
+      envs: pythonToxEnvs(minVersion),
       stack: [Stack.PYTHON],
     }).join("\n");
     expect(workflow).toContain(`      env: '${envs}'\n`);
@@ -32,10 +32,10 @@ describe("pythonMainWorkflow", () => {
     expect(workflow).not.toContain("typing");
   });
 
-  it("tests a home assistant integration on its min version only", () => {
+  it("tests a home assistant integration on its envs without windows", () => {
     const workflow = pythonMainWorkflow({
       packaging: PythonPackaging.HOME_ASSISTANT,
-      minVersion: "3.14",
+      envs: ["py314"],
       stack: [Stack.PYTHON, Stack.SQL],
     }).join("\n");
     expect(workflow).toContain(`      env: '["py314"]'\n`);
@@ -77,7 +77,12 @@ describe("managedPyproject", () => {
   });
 
   it("installs manifest requirements and skips PyPI metadata for a home assistant integration", () => {
-    const pyproject = managedPyproject({ packaging: PythonPackaging.HOME_ASSISTANT, minVersion: "3.14", name: "ha-foo", license: "MIT" });
+    const pyproject = managedPyproject({
+      packaging: PythonPackaging.HOME_ASSISTANT,
+      minVersion: "3.14",
+      name: "ha-foo",
+      license: "MIT",
+    });
     const names = pyproject.tables.map(({ name }) => name);
     expect(names).not.toContain("build-system");
     expect(names).not.toContain("project.urls");
