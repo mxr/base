@@ -3,6 +3,7 @@ import {
   managedPyproject,
   pythonMainWorkflow,
   pythonToxEnvs,
+  readHassfestImage,
   supportedToxEnvs,
   typingWorkflow,
 } from "../src/python";
@@ -61,12 +62,27 @@ describe("homeAssistantValidateWorkflow", () => {
     expect(workflow).toContain(
       "          integration_files:\n            - .github/workflows/validate-home-assistant.yml\n            - custom_components/**\n            - hacs.json\n",
     );
-    expect(workflow).toContain("    - uses: home-assistant/actions/hassfest@06749dd8c0b54f350bc69c8752456cee498808a3 # master\n");
+    expect(workflow).toContain(
+      "    - uses: docker://ghcr.io/home-assistant/hassfest:2026.10.1@sha256:4b1adfb1e0a37710af0390708eb8000230b80b2193ccffbeed0a901fa9765181\n      with:\n        entrypoint: /bin/sh\n",
+    );
+    expect(workflow).toContain("| tee hassfest.log");
+    expect(workflow).toContain("        ! grep -q '^\\* \\[WARNING\\]' hassfest.log\n");
     expect(workflow).toContain(
       "    - uses: hacs/action@v0.0.0\n      with:\n        category: integration\n        comment: false\n        ignore: brands\n",
     );
     expect(workflow).toContain(`        HASSFEST_REAL_RESULT: \${{ needs.hassfest-real.result }}\n`);
     expect(workflow).toContain(`        HACS_REAL_RESULT: \${{ needs.hacs-real.result }}\n`);
+  });
+
+  it.each([
+    {
+      name: "the pinned image",
+      yaml: homeAssistantValidateWorkflow("ghcr.io/home-assistant/hassfest:2026.11.0@sha256:abc").join("\n"),
+      expected: "ghcr.io/home-assistant/hassfest:2026.11.0@sha256:abc",
+    },
+    { name: "nothing without a pin", yaml: "name: validate-home-assistant\n", expected: undefined },
+  ])("reads $name", ({ yaml, expected }) => {
+    expect(readHassfestImage(yaml)).toBe(expected);
   });
 });
 

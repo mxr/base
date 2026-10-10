@@ -353,6 +353,37 @@ describe("BaseProject python packaging", () => {
     expect(snapshot[".github/workflows/release.yml"]).toContain('gh release create "$GITHUB_REF_NAME" --verify-tag --generate-notes');
     expect(snapshot["hacs.json"]).toEqual({ content_in_root: false, homeassistant: "2026.4.0", name: "Foo" });
     expect(snapshot[".github/workflows/validate-home-assistant.yml"]).toContain("hassfest-real:");
+    expect(snapshot[".github/renovate.jsonc"].packageRules).toContainEqual({
+      matchDepNames: ["ghcr.io/home-assistant/hassfest"],
+      minimumReleaseAgeBehaviour: "timestamp-optional",
+    });
+  });
+
+  it.each([
+    {
+      name: "keeps an existing hassfest pin",
+      existing: "    - uses: docker://ghcr.io/home-assistant/hassfest:2027.1.0@sha256:abc\n",
+      expected: "ghcr.io/home-assistant/hassfest:2027.1.0@sha256:abc",
+    },
+    {
+      name: "pins hassfest without an existing workflow",
+      existing: undefined,
+      expected: "ghcr.io/home-assistant/hassfest:2026.10.1@sha256:4b1adfb1e0a37710af0390708eb8000230b80b2193ccffbeed0a901fa9765181",
+    },
+  ])("$name", ({ existing, expected }) => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "base-projen-hassfest-"));
+    if (existing) {
+      fs.mkdirSync(path.join(dir, ".github/workflows"), { recursive: true });
+      fs.writeFileSync(path.join(dir, ".github/workflows/validate-home-assistant.yml"), existing);
+    }
+    const project = new BaseProject({
+      name: "test",
+      stack: [Stack.PYTHON],
+      outdir: dir,
+      opt: { python: { packaging: PythonPackaging.HOME_ASSISTANT, homeAssistant } },
+    });
+    const snapshot = Testing.synth(project);
+    expect(snapshot[".github/workflows/validate-home-assistant.yml"]).toContain(`    - uses: docker://${expected}\n`);
   });
 
   it.each([

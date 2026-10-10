@@ -14,6 +14,7 @@ import {
   managedPyproject,
   pythonMainWorkflow,
   pythonToxEnvs,
+  readHassfestImage,
   toxEnv,
   typingWorkflow,
 } from "./python";
@@ -356,7 +357,9 @@ export class BaseProject extends GitHubProject {
     if (homeAssistant && this.pythonPackaging === PythonPackaging.HOME_ASSISTANT) {
       const hacs = { content_in_root: false, homeassistant: homeAssistant.minVersion, name: homeAssistant.name };
       new TextFile(this, "hacs.json", { marker: false, lines: JSON.stringify(hacs, null, 2).split("\n") });
-      this.addWorkflow("validate-home-assistant.yml", homeAssistantValidateWorkflow());
+      const validatePath = path.join(this.outdir, ".github/workflows/validate-home-assistant.yml");
+      const hassfestImage = fs.existsSync(validatePath) ? readHassfestImage(fs.readFileSync(validatePath, "utf-8")) : undefined;
+      this.addWorkflow("validate-home-assistant.yml", homeAssistantValidateWorkflow(hassfestImage));
     }
 
     if (this.stack.includes(Stack.MIRROR)) {
@@ -476,6 +479,10 @@ export class BaseProject extends GitHubProject {
         { commitMessageExtra: " ", groupName: "update", matchPackageNames: ["*"] },
         // github-runners has no release timestamps, so minimumReleaseAge would otherwise block every runner update
         { matchDatasources: ["github-runners"], minimumReleaseAgeBehaviour: "timestamp-optional" },
+        // nor does ghcr, for validate-home-assistant.yml's hassfest image
+        ...(this.pythonPackaging === PythonPackaging.HOME_ASSISTANT
+          ? [{ matchDepNames: ["ghcr.io/home-assistant/hassfest"], minimumReleaseAgeBehaviour: "timestamp-optional" }]
+          : []),
         // jsii pins the typescript major it supports
         ...(this.stack.includes(Stack.TYPESCRIPT)
           ? [
