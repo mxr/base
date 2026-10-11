@@ -4,25 +4,26 @@ import { RUNNER, WINDOWS_RUNNER } from "./workflow-actions";
 import type { ManagedPyproject, ManagedTable } from "./pyproject";
 
 /**
- * Newest CPython a wheel is tested against; uv runs a prerelease of it until
- * it's released.
+ * Newest CPython a wheel is tested against. uv runs a prerelease of that
+ * version until it's released.
  */
 const LATEST_PYTHON = "3.15";
 
 /**
- * Newest GA CPython, used where a workflow needs one python to run tooling.
- * Renovate bumps setup-python but not this, so update it on each release.
+ * Newest GA CPython, for workflows that need one Python to run tooling.
+ * Renovate bumps setup-python but not this constant, so update it on each
+ * CPython release.
  */
 export const STABLE_PYTHON = "3.14";
 
 /**
- * The only CPython Home Assistant runs on, so a home assistant integration
- * is pinned to it instead of taking a `minVersion`.
+ * The one CPython that Home Assistant runs on. A Home Assistant integration is
+ * pinned to it instead of taking a `minVersion`.
  */
 export const HOME_ASSISTANT_PYTHON = "3.14";
 
 /**
- * Newest python version PyPy implements, so PyPy is only tested when a
+ * Newest Python version that PyPy implements. PyPy is tested only when a
  * wheel's `minVersion` is at or below it.
  */
 const LATEST_PYPY = "3.12";
@@ -31,7 +32,7 @@ export interface PythonPackagingOptions {
   readonly packaging?: PythonPackaging;
 
   /**
-   * Tox envs CI runs, oldest first; windows runs only the first.
+   * Tox envs that CI runs, oldest first. Windows runs only the first.
    */
   readonly envs: readonly string[];
   readonly stack: readonly Stack[];
@@ -58,15 +59,16 @@ export function supportedToxEnvs(minVersion: string): string[] {
 }
 
 /**
- * {@link supportedToxEnvs} plus PyPy on `minVersion` (e.g. `pypy311`) when PyPy
- * implements it. Versioned since a bare `pypy3` gets uv's newest PyPy.
+ * {@link supportedToxEnvs} plus PyPy on `minVersion`, such as `pypy311`, when
+ * PyPy implements that version. The env is versioned because a bare `pypy3`
+ * gets uv's newest PyPy.
  */
 export function pythonToxEnvs(minVersion: string): string[] {
   return [...supportedToxEnvs(minVersion), ...(minor(minVersion) <= minor(LATEST_PYPY) ? [`pypy${minVersion.replace(".", "")}`] : [])];
 }
 
-// a `<name>-real` job plus the `<name>` gate that branch protection requires,
-// which passes when `<output>` is false so the check still reports when skipped
+// a `<name>-real` job plus the `<name>` gate job that branch protection requires.
+// The gate passes when `<output>` is false, so the check still reports when the real job is skipped
 function gatedJob(name: string, output: string, real: string): string {
   const env = (job: string): string => `${job.toUpperCase().replace(/-/g, "_")}_RESULT`;
   const outputEnv = output.toUpperCase();
@@ -100,8 +102,8 @@ function toxJob(envs: readonly string[], os: string): string {
 }
 
 /**
- * `.github/workflows/main.yml`: tox across `envs`, gated on whether python
- * project files changed. A home assistant integration only runs on Linux, so
+ * `.github/workflows/main.yml`: tox across `envs`, gated on whether Python
+ * project files changed. A Home Assistant integration runs only on Linux, so
  * it gets no windows job.
  */
 export function pythonMainWorkflow(options: PythonPackagingOptions): string[] {
@@ -122,8 +124,8 @@ export function pythonMainWorkflow(options: PythonPackagingOptions): string[] {
 
 /**
  * `.github/workflows/typing.yml`: the typing pre-commit hooks, which
- * pre-commit.ci skips since the project venv is too big for it. Its own file,
- * so it doesn't depend on base owning `main.yml`.
+ * pre-commit.ci skips because the project venv is too big for it. The
+ * workflow is a separate file, so it works when base doesn't own `main.yml`.
  */
 export function typingWorkflow(): string[] {
   return workflow(
@@ -134,15 +136,15 @@ export function typingWorkflow(): string[] {
   );
 }
 
-// the hassfest image a new repo starts on; Renovate owns bumps after that and syncs keep them
+// the hassfest image a new repo starts on. Renovate bumps it after that, and syncs keep the bumped pin
 const HASSFEST_IMAGE = "ghcr.io/home-assistant/hassfest:2026.10.1@sha256:4b1adfb1e0a37710af0390708eb8000230b80b2193ccffbeed0a901fa9765181";
 
 /**
  * `.github/workflows/validate-home-assistant.yml`: hassfest and the HACS
  * action, which check the manifest, translations, and repo layout that tox
  * can't see. HACS skips its brands check, which needs a home-assistant/brands
- * PR or icons in the repo. hassfest only fails on errors, so its output is
- * kept to fail on warnings too.
+ * PR or icons in the repo. hassfest fails only on errors, so the job saves its
+ * output and also fails on warnings.
  */
 export function homeAssistantValidateWorkflow(): string[] {
   return workflow(
@@ -186,7 +188,7 @@ export function homeAssistantValidateWorkflow(): string[] {
   );
 }
 
-// a PR/push workflow whose jobs are gated on a `changes` job's paths filter
+// a pull_request and push workflow whose jobs are gated on a `changes` job's paths filter
 function workflow(name: string, output: string, files: readonly string[], jobs: readonly string[]): string[] {
   const changes = `  changes:
     runs-on: ${RUNNER}
@@ -252,7 +254,7 @@ export interface ManagedPyprojectOptions {
   readonly generatedDirs?: readonly string[];
 
   /**
-   * Whether tox runs in CI, which is all the tox config is for.
+   * Whether tox runs in CI. The tox config exists only for CI.
    *
    * @default true
    */
@@ -267,15 +269,14 @@ export interface ManagedPyprojectOptions {
   readonly consoleScript?: boolean;
 }
 
-// a directory as a mypy module glob, e.g. `pkg/gen` -> `pkg.gen.*`
+// a directory as a mypy module glob, such as `pkg/gen` -> `pkg.gen.*`
 function moduleGlob(dir: string): string {
   return `${dir.replace(/\/+$/, "").replaceAll("/", ".")}.*`;
 }
 
 /**
- * Lint, typing, and tox config shared by every python repo regardless of
- * packaging, plus PyPI metadata for a wheel and manifest-driven installs for a
- * home assistant integration. `pytest` and the rest of `[project]` differ per
+ * Lint, typing, and tox config shared by every Python repo, plus PyPI metadata
+ * for a wheel and manifest-driven installs for a Home Assistant integration. `pytest` and the rest of `[project]` differ per
  * repo, so they stay downstream.
  */
 export function managedPyproject(options: ManagedPyprojectOptions): ManagedPyproject {
@@ -337,7 +338,7 @@ export function managedPyproject(options: ManagedPyprojectOptions): ManagedPypro
       ...(Number(options.minVersion.split(".")[1]) < 14 ? { "required-imports": ["from __future__ import annotations"] } : {}),
     }),
     ...(isWheel ? [table("tool.setuptools.packages", { find: {} })] : []),
-    // bare local `tox`; CI passes `-e` per matrix entry (pypy, windows, each version), so this skips those
+    // env_list is for a bare local `tox`. CI passes `-e` for each matrix entry (pypy, windows, each version)
     ...(ci
       ? [
           table("tool.tox", { env_list: ["py", "pre-commit"] }),

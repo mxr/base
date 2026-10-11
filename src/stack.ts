@@ -1,11 +1,12 @@
 /**
- * A recognized technology stack. Each entry drives which pre-commit hooks
- * get added and, for `FRONTEND`/`JAVASCRIPT`, which license text is used.
+ * A technology stack. Each stack decides which hooks, workflows, and config
+ * files base generates. `FRONTEND` and `JAVASCRIPT` also switch the license
+ * to AGPL-3.0-or-later.
  *
- * `FRONTEND` is for a Next.js app deployed to Vercel; `JAVASCRIPT` is for
- * other browser JS/TS (e.g. a Tampermonkey userscript) that doesn't want the
- * Next.js starters or Vercel deploy workflow. `TYPESCRIPT` is for a
- * TypeScript/jsii library built with npm, like this repo.
+ * `FRONTEND` is a Next.js app deployed to Vercel. `JAVASCRIPT` is other
+ * browser JavaScript or TypeScript, such as a Tampermonkey userscript, that
+ * doesn't want the Next.js starters or the Vercel deploy workflow.
+ * `TYPESCRIPT` is a jsii library built with npm, like this repo.
  */
 export enum Stack {
   FRONTEND = "frontend",
@@ -24,9 +25,9 @@ export enum Stack {
 /**
  * How a `Stack.PYTHON` repo is packaged and released.
  *
- * `WHEEL` builds an sdist and wheel and publishes them to PyPI; `HOME_ASSISTANT`
- * is a Home Assistant custom integration distributed through HACS via GitHub
- * releases.
+ * `WHEEL` builds an sdist and a wheel and publishes them to PyPI.
+ * `HOME_ASSISTANT` is a Home Assistant custom integration that HACS installs
+ * from GitHub releases.
  */
 export enum PythonPackaging {
   HOME_ASSISTANT = "home-assistant",
@@ -34,8 +35,8 @@ export enum PythonPackaging {
 }
 
 /**
- * A Renovate built-in custom manager preset a `Stack.GITHUB_ACTIONS` repo can
- * opt into.
+ * A built-in Renovate custom manager preset that a `Stack.GITHUB_ACTIONS` repo
+ * can opt into.
  *
  * `GITHUB_ACTIONS_VERSIONS` updates `*_VERSION` env vars in workflow files
  * annotated with a `# renovate: datasource=... depName=...` comment.

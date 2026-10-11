@@ -124,13 +124,13 @@ jobs:
         # keys the pre-commit cache below; a repo without a config yet hashes the empty string
         pre_commit_config="$(GH_TOKEN="$APP_TOKEN" gh api "repos/${REPO}/contents/.pre-commit-config.yaml" --jq '.content' 2>/dev/null | base64 -d || true)"
         echo "pre-commit-config-hash=$(sha256sum <<< "$pre_commit_config" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
-        # home assistant packaging omits min-version; keep in sync with HOME_ASSISTANT_PYTHON in src/python.ts
+        # home assistant packaging omits min-version. Keep in sync with HOME_ASSISTANT_PYTHON in src/python.ts
         if [ "$(yq '.opt.python.packaging // ""' - <<< "$base_yml")" = "home-assistant" ]; then
           python_version="3.14"
         else
           python_version="$(yq '.opt.python.min-version // ""' - <<< "$base_yml")"
         fi
-        # mirrors BaseProject's own condition for running pinact: Stack.RUST,
+        # same condition as BaseProject's for running pinact: Stack.RUST,
         # Stack.FRONTEND, Stack.MIRROR, or Stack.PYTHON with opt.python.ci (on by
         # default), opt.python.packaging, or opt.python.runTypeChecksInGithubActions set
         needs_pinact="$(yq '((.stack // []) | (contains(["rust"]) or contains(["frontend"]) or contains(["mirror"]))) or (((.stack // []) | contains(["python"])) and ((.opt.python.ci != false) or (.opt.python.packaging != null) or (.opt.python.run-type-checks-in-github-actions == true)))' - <<< "$base_yml")"
@@ -144,11 +144,10 @@ jobs:
           echo "$dir" >> "$GITHUB_PATH"
         }
 
-        # BaseProject.postSynthesize() (run by propagate-repo.sh below) shells out
-        # to a plain `pre-commit`; pin it to this repo's own opt.python.minVersion
-        # (uv fetches that interpreter if missing) so default_language_version.python
-        # matches pre-commit's own interpreter instead of pre-commit having to
-        # search PATH for it
+        # BaseProject.postSynthesize(), run by propagate-repo.sh below, calls a
+        # plain `pre-commit`. Install it on the repo's Python version, which uv
+        # fetches if missing, so default_language_version.python matches
+        # pre-commit's interpreter and pre-commit doesn't search PATH for it
         install_pre_commit() {
           # pre-commit-uv installs python hook envs with uv instead of pip
           args=("pre-commit==${PRE_COMMIT_VERSION}" --with "pre-commit-uv==${PRE_COMMIT_UV_VERSION}")
@@ -170,9 +169,9 @@ jobs:
         done
         exit "$status"
 
-    # keyed on the downstream repo's current config: synth only installs hook
-    # envs for new revs, which become that key's contents once the base-update
-    # PR merges. falls back to the repo's, then any repo's, latest cache
+    # keyed on the downstream repo's current config. Synth installs hook envs
+    # only for new revs, which become that key's contents once the base-update
+    # PR merges. Falls back to the repo's latest cache, then any repo's
     - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0 # zizmor: ignore[cache-poisoning] only hook envs for synthing downstream repos; publish never restores it
       with:
         path: ~/.cache/pre-commit
@@ -185,7 +184,7 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
         # GitHub App installation tokens can't read packages owned by a personal
-        # account (only orgs), so a PAT is needed just for the npm registry auth
+        # account, only ones owned by an org, so npm registry auth needs a PAT
         GH_PACKAGES_READ_TOKEN: ${{ secrets.GH_PACKAGES_READ_TOKEN }}
         REPO: mxr/${{ matrix.repo }}
         # a manual run has nothing new to publish, so it always targets the

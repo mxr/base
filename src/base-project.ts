@@ -34,10 +34,10 @@ const RENOVATE_CUSTOM_MANAGER_PRESETS: Record<RenovateCustomManager, string> = {
 
 export interface MirrorOptions {
   /**
-   * The `pre-commit-mirror` invocation, e.g.
+   * The `pre-commit-mirror` command, such as
    * `pre-commit-mirror . --language python --package-name ty --id ty --entry 'ty check' --types python`.
    * Rendered verbatim into the `run: |` block of `.github/workflows/main.yml`,
-   * which is rendered from the pre-commit-mirror-maker template.
+   * which comes from the pre-commit-mirror-maker template.
    */
   readonly command: string;
 
@@ -50,25 +50,26 @@ export interface MirrorOptions {
 
 export interface PythonOptions {
   /**
-   * Minimum Python version this repo supports, e.g. `"3.11"`. Rendered as
+   * Minimum Python version this repo supports, such as `"3.11"`. Rendered as
    * `.pre-commit-config.yaml`'s top-level `default_language_version.python`.
-   * Required unless `packaging` is `PythonPackaging.HOME_ASSISTANT`, which
-   * always uses the only Python Home Assistant runs on and must omit it.
+   * Required unless `packaging` is `PythonPackaging.HOME_ASSISTANT`. A Home
+   * Assistant integration always uses the one Python that Home Assistant runs
+   * on, so it must omit this.
    */
   readonly minVersion?: string;
 
   /**
    * How the repo is packaged and released. When set, BaseProject renders
    * `.github/workflows/release.yml` and the packaging-specific parts of
-   * `pyproject.toml` (lint and tox config is managed either way). Omit for a
+   * `pyproject.toml`. Lint and tox config is managed either way. Omit for a
    * repo that isn't packaged.
    */
   readonly packaging?: PythonPackaging;
 
   /**
-   * Leave `.github/workflows/release.yml` to the repo, for one with its own
-   * release workflow. The packaging-specific parts of `pyproject.toml` are
-   * still managed.
+   * Leave `.github/workflows/release.yml` to a repo that has its own release
+   * workflow. Base still manages the packaging-specific parts of
+   * `pyproject.toml`.
    *
    * @default false
    */
@@ -83,17 +84,18 @@ export interface PythonOptions {
   readonly ci?: boolean;
 
   /**
-   * The repo ships a console script named after it, at `<module>._main:main`
-   * (e.g. `foo-bar = "foo_bar._main:main"`), rendered as `[project.scripts]`.
-   * It also commits a `uv.lock` that tox installs from via tox-uv's
-   * `uv-venv-lock-runner`. BaseProject runs `uv lock` to create or update it.
+   * The repo ships a console script named after the repo, at
+   * `<module>._main:main`, rendered as `[project.scripts]`. For example,
+   * `foo-bar = "foo_bar._main:main"`. The repo also commits a `uv.lock` that
+   * tox installs from with tox-uv's `uv-venv-lock-runner`. BaseProject runs
+   * `uv lock` to create or update the lockfile.
    *
    * @default false
    */
   readonly consoleScript?: boolean;
 
   /**
-   * Run the type checkers (mypy, pyright, ty) in a GitHub Actions job via
+   * Run the type checkers (mypy, pyright, ty) in a GitHub Actions job with
    * mxr/workflows' pre-commit-typing workflow instead of on pre-commit.ci,
    * whose environment is too small for a big project venv. Writes
    * `.github/workflows/typing.yml` and adds the hooks to `ci.skip`.
@@ -120,9 +122,9 @@ export interface PythonOptions {
   readonly extras?: PythonExtrasOptions;
 
   /**
-   * File base merges its managed `pyproject.toml` tables into, for a repo
-   * whose `pyproject.toml` is itself rendered from a template (e.g. an
-   * openapi-generator `pyproject.mustache`).
+   * File that base merges its managed `pyproject.toml` tables into. Set it when
+   * `pyproject.toml` is itself rendered from a template, such as an
+   * openapi-generator `pyproject.mustache`.
    *
    * @default "pyproject.toml"
    */
@@ -131,7 +133,7 @@ export interface PythonOptions {
 
 export interface PythonExtrasOptions {
   /**
-   * Directories of generated code (e.g. `"pkg/generated"`) that mypy,
+   * Directories of generated code, such as `"pkg/generated"`, that mypy,
    * pyright, and ty skip. Rendered as an `ignore_errors` mypy override and as
    * pyright and ty excludes.
    */
@@ -154,7 +156,7 @@ export interface GithubActionsOptions {
 
 export interface PreCommitOptions {
   /**
-   * Regexes for `.pre-commit-config.yaml`'s top-level `exclude`, e.g.
+   * Regexes for `.pre-commit-config.yaml`'s top-level `exclude`, such as
    * generated code that no hook should touch.
    */
   readonly exclude?: string[];
@@ -167,7 +169,7 @@ export interface MergifyRule {
   readonly name: string;
 
   /**
-   * The rule's `conditions`, e.g. `author=github-actions[bot]`.
+   * The rule's `conditions`, such as `author=github-actions[bot]`.
    */
   readonly conditions: string[];
 }
@@ -181,20 +183,21 @@ export interface MergifyOptions {
 
 export interface MergifyExtrasOptions {
   /**
-   * Squash-merge rules added after base's own (pre-commit.ci, renovate, and
-   * base updates), e.g. for PRs a repo's own workflows open.
+   * Squash-merge rules added after base's own rules for pre-commit.ci,
+   * renovate, and base updates. Use them for PRs that the repo's own workflows
+   * open.
    */
   readonly rules?: MergifyRule[];
 }
 
 export interface HomeAssistantOptions {
   /**
-   * Integration name shown in HACS, rendered as `hacs.json`'s `name`.
+   * Integration name that HACS shows, rendered as `hacs.json`'s `name`.
    */
   readonly name: string;
 
   /**
-   * Minimum Home Assistant version, e.g. `"2026.4.0"`, rendered as
+   * Minimum Home Assistant version, such as `"2026.4.0"`, rendered as
    * `hacs.json`'s `homeassistant`.
    */
   readonly minVersion: string;
@@ -229,25 +232,26 @@ export interface BaseProjectOpt {
 
 export interface BaseProjectOptions extends GitHubProjectOptions {
   /**
-   * Which stacks this repo is for. Drives which pre-commit hooks are added
-   * and the LICENSE type (`frontend`/`javascript` get AGPL-3.0-or-later,
-   * everything else gets MIT).
+   * Stacks this repo uses. They decide which files base generates and the
+   * LICENSE: `frontend` and `javascript` get AGPL-3.0-or-later, and every
+   * other stack gets MIT.
    */
   readonly stack: Stack[];
 
   /**
-   * Per-stack options, keyed by stack name, plus stack-independent options
-   * for individual generated files. Only stacks that need extra
-   * configuration to render their files have an entry here.
+   * Per-stack options keyed by stack name, plus options for individual
+   * generated files that apply to any stack. Only stacks that need extra
+   * configuration have an entry.
    */
   readonly opt?: BaseProjectOpt;
 }
 
 /**
- * A personal-repo base: stack-appropriate pre-commit hooks, a LICENSE picked
- * by stack, and shared mergify/renovate config.
+ * Projen external project type for mxr's personal repos. Generates
+ * pre-commit hooks, workflows, and tool config for each stack, a LICENSE
+ * picked by stack, and shared mergify and renovate config.
  *
- * projen external project type — see https://projen.io/docs/custom/custom-projects
+ * See https://projen.io/docs/custom/custom-projects.
  */
 export class BaseProject extends GitHubProject {
   public readonly stack: Stack[];
@@ -270,8 +274,8 @@ export class BaseProject extends GitHubProject {
     const isFrontend = this.stack.includes(Stack.FRONTEND);
     const isJavascript = this.stack.includes(Stack.JAVASCRIPT);
 
-    // projen's default marker points at a .projenrc.js downstream repos don't have (see
-    // banner.ts), and .gitignore has no option to override it, so shadow the getter
+    // projen's default marker points at a .projenrc.js that downstream repos don't have
+    // (see banner.ts). .gitignore has no option to override the marker, so shadow the getter.
     Object.defineProperty(this.gitignore, "marker", { configurable: true, get: () => BANNER });
 
     this.license = isFrontend || isJavascript ? "AGPL-3.0-or-later" : "MIT";
@@ -302,7 +306,7 @@ export class BaseProject extends GitHubProject {
       throw new Error("PythonPackaging.HOME_ASSISTANT requires opt.python.homeAssistant to be set");
     }
 
-    // read before PreCommitConfigFile overwrites it, so already-pinned hooks keep their rev
+    // read the current config before PreCommitConfigFile overwrites it, so already-pinned hooks keep their rev
     const existingPreCommitConfigPath = path.join(this.outdir, ".pre-commit-config.yaml");
     const existingRevs = fs.existsSync(existingPreCommitConfigPath)
       ? readExistingRevs(fs.readFileSync(existingPreCommitConfigPath, "utf-8"))
@@ -449,7 +453,7 @@ export class BaseProject extends GitHubProject {
       $schema: "https://docs.renovatebot.com/renovate-schema.json",
       commitMessageAction: "weekly",
       commitMessagePrefix: "[renovate]",
-      // the windows runner is a tox.yml `os` input, not `runs-on`, so the github-actions manager misses it
+      // the windows runner is tox-uv.yml's `os` input, not `runs-on`, so the github-actions manager misses it
       ...(this.stack.includes(Stack.PYTHON)
         ? {
             customManagers: [
@@ -470,13 +474,13 @@ export class BaseProject extends GitHubProject {
       ],
       groupSingleUpdates: true,
       minimumReleaseAge: "7 days",
-      // npm 12 refuses registry tarballs of packages with bundleDependencies (e.g. projen, tailwind oxide) unless remote fetches are allowed
+      // npm 12 refuses registry tarballs of packages with bundleDependencies, such as projen and tailwind oxide, unless remote fetches are allowed
       ...([Stack.FRONTEND, Stack.TYPESCRIPT].some((s) => this.stack.includes(s)) ? { npmrc: "allow-remote=all" } : {}),
       packageRules: [
         { commitMessageExtra: " ", groupName: "update", matchPackageNames: ["*"] },
         // github-runners has no release timestamps, so minimumReleaseAge would otherwise block every runner update
         { matchDatasources: ["github-runners"], minimumReleaseAgeBehaviour: "timestamp-optional" },
-        // nor does ghcr, for validate-home-assistant.yml's hassfest image
+        // ghcr has no release timestamps either, for validate-home-assistant.yml's hassfest image
         ...(this.pythonPackaging === PythonPackaging.HOME_ASSISTANT
           ? [{ matchDepNames: ["ghcr.io/home-assistant/hassfest"], minimumReleaseAgeBehaviour: "timestamp-optional" }]
           : []),
@@ -484,7 +488,7 @@ export class BaseProject extends GitHubProject {
         ...(this.stack.includes(Stack.TYPESCRIPT)
           ? [
               { enabled: false, matchPackageNames: ["typescript"], matchUpdateTypes: ["major"] },
-              // the default widen strategy leaves peer ranges behind the devDependency pins (and chains `||` ranges on 0.x)
+              // the default widen strategy leaves peer ranges behind the devDependency pins, and chains `||` ranges on 0.x
               { matchDepTypes: ["peerDependencies"], rangeStrategy: "bump" },
             ]
           : []),
@@ -502,8 +506,8 @@ export class BaseProject extends GitHubProject {
   }
 
   /**
-   * Adds a generated `.github/workflows/<file>`. Action versions default to a `v0.0.0` placeholder,
-   * unless the existing workflow already pins that action. Only placeholders are resolved by pinact.
+   * Adds `.github/workflows/<file>`. Each action ref is a `v0.0.0` placeholder unless the existing
+   * workflow already pins that action. pinact resolves only the placeholders.
    */
   private addWorkflow(file: string, body: string[]) {
     const workflowPath = `.github/workflows/${file}`;
@@ -526,7 +530,7 @@ export class BaseProject extends GitHubProject {
     // some hooks (e.g. end-of-file-fixer) open every file for writing and fail on projen's readonly ones
     execFileSync("chmod", ["-R", "u+w", this.outdir]);
 
-    // remove projen files that i don't use
+    // drop projen files these repos don't use. typescript repos get base's own .gitattributes
     const gitattributesPath = path.join(this.outdir, ".gitattributes");
     fs.rmSync(gitattributesPath, { force: true });
     fs.rmSync(path.join(this.outdir, ".projen"), { recursive: true, force: true });
@@ -594,7 +598,7 @@ export class BaseProject extends GitHubProject {
         ].join("\n"),
       );
     } else {
-      // most repos dont have a prescriptive .gitignore
+      // other stacks don't get a managed .gitignore
       fs.rmSync(gitignorePath, { force: true });
     }
 
@@ -633,8 +637,8 @@ export class BaseProject extends GitHubProject {
       partiallyManagedFiles.push("uv.lock");
     }
 
-    // `pre-commit run --all-files` skips untracked files, so stage new/renamed managed files.
-    // Not `-A`: propagate-repo.sh's scaffolding (package.json, node_modules, etc.) is still in outdir.
+    // `pre-commit run --all-files` skips untracked files, so stage new and renamed managed files.
+    // Not `-A`, since propagate-repo.sh's scaffolding, such as package.json and node_modules, is still in outdir.
     const managedFiles = [...this.files.map((file) => file.path), ...partiallyManagedFiles].filter((file) =>
       fs.existsSync(path.join(this.outdir, file)),
     );
@@ -642,13 +646,13 @@ export class BaseProject extends GitHubProject {
       execFileSync("git", ["add", "--", ...managedFiles], { cwd: this.outdir });
     }
 
-    // pin only actions newly added by this synth (see addWorkflow); renovate owns bumps.
-    // One task per file, since an action can be new to one workflow but already pinned in another.
+    // pin only actions that this synth added (see addWorkflow). Renovate owns bumps.
+    // One task per file, since an action can be new to one workflow and already pinned in another.
     const pinactTasks: (readonly (readonly string[])[])[] = [...this.newWorkflowActions].map(([file, actions]) => [
       ["pinact", "run", "-u", ...actions.flatMap((action) => ["-i", `^${escapeRegExp(action)}$`]), file],
     ]);
-    // resolve placeholder `v0.0.0` revs (see mergeRepos in pre-commit.ts) on new repos only.
-    // Then finish generating .pre-commit-config.yaml, for example sync-typing-deps will seed additional_dependencies.
+    // resolve the `v0.0.0` placeholder revs (see mergeRepos in pre-commit.ts) on new repos only.
+    // Then run the hooks on .pre-commit-config.yaml to finish it. For example, sync-typing-deps seeds additional_dependencies.
     const configTask = [
       ...(this.newPreCommitRepoUrls.length > 0
         ? [["pre-commit", "autoupdate", "--freeze", ...this.newPreCommitRepoUrls.flatMap((repo) => ["--repo", repo])]]
@@ -657,8 +661,8 @@ export class BaseProject extends GitHubProject {
     ];
     runTasksInParallelIgnoringFailure([...pinactTasks, configTask], this.outdir);
 
-    // first pass may fail from formatter fixes, so rerun. Stage those fixes first so a second
-    // failure that changed nothing shows as a clean worktree: that's a real failure, not churn
+    // the first pass can fail because formatters fixed files, so rerun. Stage those fixes first:
+    // if the second pass fails and leaves the worktree clean, the failure is real, not formatter churn
     if (!runIgnoringFailure("pre-commit", ["run", "--all-files"], this.outdir)) {
       execFileSync("git", ["add", "-u"], { cwd: this.outdir });
       if (
@@ -698,8 +702,8 @@ function shQuote(arg: string): string {
   return `'${arg.replace(/'/g, `'\\''`)}'`;
 }
 
-// runs tasks concurrently as background jobs in one `sh -c` (steps within a task run in order).
-// Blocks until all finish, since postSynthesize() can't await. Failures are ignored.
+// runs each task as a background job in one `sh -c`. Steps within a task run in order.
+// Blocks until every task finishes, since postSynthesize() can't await. Ignores failures.
 function runTasksInParallelIgnoringFailure(tasks: readonly (readonly (readonly string[])[])[], cwd: string): void {
   const quote = (command: readonly string[]): string => command.map(shQuote).join(" ");
   const pids = tasks.map((_, i) => `pid${i}`);

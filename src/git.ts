@@ -1,9 +1,9 @@
 import { execFileSync } from "node:child_process";
 
 /**
- * Returns the year of the repo's first commit, so the LICENSE year reflects
- * when the project actually started rather than when it happens to synth.
- * Falls back to the current year outside a git repo, or one with no commits.
+ * Returns the year of the repo's first commit, so the LICENSE year is when the
+ * project started, not when it last synthed. Returns the current year outside
+ * a git repo or in a repo with no commits.
  */
 export function firstCommitYear(outdir: string): number {
   try {

@@ -8,7 +8,7 @@ export const WINDOWS_RUNNER = "windows-2025";
 
 const PLACEHOLDER_REF = "v0.0.0";
 const USES_RE = /^(\s*(?:-\s+)?uses:\s+)([^\s@]+)@(\S+)(?:(\s+)#\s*(.*?))?\s*$/;
-// Renovate bumps a docker step's tag along with its digest, so the image alone is the key.
+// Renovate bumps a docker step's tag and digest together, so look up existing refs by image name without the tag.
 // The tag is the last `:` segment before the digest, since a registry can have a port.
 const DOCKER_RE = /^(docker:\/\/[^@]+?)((?::[^:/@]+)?@.+)$/;
 
@@ -34,9 +34,9 @@ function parseUsesLine(line: string): UsesLine | undefined {
 }
 
 /**
- * `action` name (e.g. `actions/checkout`) -> `ref` (and its inline comment)
- * from the downstream repo's current workflow file. A `docker://` step maps
- * its image to `:<tag>@<digest>`.
+ * Maps each action, such as `actions/checkout`, to its `ref` and inline comment
+ * in the downstream repo's current workflow file. Skips placeholder refs. A
+ * `docker://` step maps its image to `:<tag>@<digest>`.
  */
 export function readExistingActionRefs(workflowYaml: string): Map<string, ExistingActionRef> {
   const refs = new Map<string, ExistingActionRef>();
@@ -50,13 +50,14 @@ export function readExistingActionRefs(workflowYaml: string): Map<string, Existi
 }
 
 /**
- * Swaps the `v0.0.0` placeholder ref on each `uses:` line for that action's
- * existing ref (and comment) when there is one. Refs the template pins itself
- * are left alone, except a `docker://` step's, which pinact can't resolve: the
- * template's pin is a default that an existing tag and digest override. Returns the
- * resulting lines plus the names of actions still on the placeholder, i.e.
- * newly added ones, so the caller can scope `pinact` to just those instead of
- * re-bumping every already-pinned action.
+ * Replaces the `v0.0.0` placeholder ref on each `uses:` line with the action's
+ * existing ref and comment, if it has one. Refs that the template pins stay as
+ * they are. The exception is a `docker://` step, which pinact can't resolve:
+ * its template pin is a default that an existing tag and digest override.
+ *
+ * Also returns the actions still on the placeholder, which are the newly added
+ * ones. The caller runs `pinact` on these only, so already-pinned actions don't
+ * get bumped.
  */
 export function applyExistingActionRefs(
   lines: readonly string[],
