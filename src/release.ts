@@ -3,7 +3,7 @@ import { RUNNER } from "./workflow-actions";
 
 /**
  * `.github/workflows/release.yml` bodies, one per publishing target. Each runs
- * on a pushed tag; action refs are `v0.0.0` placeholders (see addWorkflow in
+ * on a pushed tag. Action refs are `v0.0.0` placeholders (see `addWorkflow` in
  * base-project.ts).
  */
 

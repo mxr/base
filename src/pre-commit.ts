@@ -4,9 +4,9 @@ import { Stack } from "./stack";
 const INLINE_LIST_MAX_WIDTH = 60;
 
 /**
- * Field names are camelCase here but rendered as snake_case keys in
- * `.pre-commit-config.yaml` (pre-commit's own convention), e.g.
- * `additionalDependencies` -> `additional_dependencies`. See {@link toSnakeCaseKeys}.
+ * Field names are camelCase here and render as snake_case keys in
+ * `.pre-commit-config.yaml`, which is pre-commit's convention. For example,
+ * `additionalDependencies` becomes `additional_dependencies`. See {@link toSnakeCaseKeys}.
  */
 export interface PreCommitHook {
   readonly id: string;
@@ -182,8 +182,8 @@ const STACK_REPOS: Partial<Record<Stack, PreCommitRepo[]>> = {
 };
 
 /**
- * Stacks that pull in another stack's hooks alongside their own, e.g. every
- * rust repo also wants toml formatting and GitHub Actions linting.
+ * Stacks that add other stacks' hooks to their own. For example, every rust
+ * repo also gets toml formatting and GitHub Actions linting.
  */
 const IMPLIED_STACKS: Partial<Record<Stack, Stack[]>> = {
   [Stack.FRONTEND]: [Stack.GITHUB_ACTIONS, Stack.GITIGNORE],
@@ -200,10 +200,11 @@ export function expandStacks(stack: Stack[]): Stack[] {
 }
 
 /**
- * Generated files that a formatter hook should skip, keyed by hook id then
- * stack, to avoid diff noise, e.g. toml lockfiles for tombi-format, and the
- * pre-commit-mirror-maker-rendered `.pre-commit-hooks.yaml` (whose style
- * pretty-format-yaml would otherwise flip on every mirror release).
+ * Generated files that a formatter hook skips to avoid diff noise, keyed by
+ * hook id and then stack. For example, tombi-format skips toml lockfiles.
+ * pretty-format-yaml skips the `.pre-commit-hooks.yaml` that
+ * pre-commit-mirror-maker renders, since it would otherwise flip that file's
+ * style on every mirror release.
  */
 const GENERATED_FILES: Record<string, Partial<Record<Stack, string[]>>> = {
   "tombi-format": {
@@ -217,8 +218,8 @@ const GENERATED_FILES: Record<string, Partial<Record<Stack, string[]>>> = {
 
 /**
  * A hook's pinned `rev` from an existing `.pre-commit-config.yaml`, plus its
- * inline comment (e.g. `frozen: v2.5.14` from `pre-commit autoupdate --freeze`)
- * so re-synthing doesn't drop it.
+ * inline comment, such as `frozen: v2.5.14` from `pre-commit autoupdate
+ * --freeze`, so a re-synth doesn't drop the comment.
  */
 export interface ExistingRev {
   readonly rev: string;
@@ -226,10 +227,9 @@ export interface ExistingRev {
 }
 
 /**
- * Parses a downstream repo's current `.pre-commit-config.yaml` (if any) into
- * a `repo` url -> `rev` map, so a re-synth can keep an already-pinned hook at
- * its existing rev instead of resetting it to the `v0.0.0` placeholder that
- * `pre-commit autoupdate --freeze` would then re-resolve on every synth.
+ * Parses a downstream repo's current `.pre-commit-config.yaml` into a map
+ * from `repo` URL to `rev`. A re-synth uses the map to keep already-pinned
+ * hooks at their rev (see {@link mergeRepos}).
  */
 export function readExistingRevs(configYaml: string): Map<string, ExistingRev> {
   const revs = new Map<string, ExistingRev>();
@@ -252,20 +252,16 @@ export function readExistingRevs(configYaml: string): Map<string, ExistingRev> {
 }
 
 /**
- * Merges hooks that share a `repo` url into a single entry (sorted by hook
- * id), and sorts `local` last.
+ * Merges hooks that share a `repo` URL into one entry with hooks sorted by
+ * id. Sorts repos by URL, with `local` last.
  *
- * Each non-local repo keeps its rev from `existingRevs` (the downstream
- * repo's current `.pre-commit-config.yaml`) when one exists, so a re-synth
- * doesn't touch a hook that's already pinned. A repo with no existing rev
- * (i.e. a newly added hook) gets the `v0.0.0` placeholder instead -
- * `pre-commit autoupdate --freeze` matches hooks structurally by repo url, so
- * the placeholder rev text itself doesn't matter, only that it's a value
- * `autoupdate` will treat as needing resolution.
+ * Each non-local repo keeps its rev from `existingRevs`, so a re-synth doesn't
+ * touch a hook that's already pinned. A newly added repo gets the `v0.0.0`
+ * placeholder. `pre-commit autoupdate --freeze` matches repos by URL, so the
+ * placeholder text doesn't matter, only that autoupdate resolves it.
  *
- * TODO: this merges hooks across all "repo: local" entries into one block,
- * which is wrong if there's ever more than one distinct local repo entry.
- * Fine for now since we only ever have a single local entry (biome-schema-version).
+ * TODO: all `repo: local` entries merge into one block, which is wrong if two
+ * distinct local entries ever exist. Today there is one, biome-schema-version.
  */
 export function mergeRepos(entries: PreCommitRepo[], existingRevs?: ReadonlyMap<string, ExistingRev>): PreCommitRepo[] {
   const hooksByRepo = new Map<string, PreCommitHook[]>();
@@ -297,8 +293,8 @@ export function mergeRepos(entries: PreCommitRepo[], existingRevs?: ReadonlyMap<
  * given stacks.
  */
 export function buildPreCommitRepos(stack: Stack[], existingRevs?: ReadonlyMap<string, ExistingRev>): PreCommitRepo[] {
-  // every Stack member has an entry in STACK_REPOS today; the fallback just
-  // guards against a future stack being added to one without the other
+  // every Stack has a STACK_REPOS entry today. The fallback guards against a
+  // new Stack added without one
   const entries = [...DEFAULT, ...expandStacks(stack).flatMap((name) => STACK_REPOS[name] ?? /* v8 ignore next */ [])];
   const repos = mergeRepos(entries, existingRevs);
   return repos.map((repo) => ({
@@ -314,10 +310,10 @@ export function buildPreCommitRepos(stack: Stack[], existingRevs?: ReadonlyMap<s
 }
 
 /**
- * The non-local repo urls that got the `v0.0.0` placeholder rev, i.e. hooks
- * newly added to this stack combination that aren't in the downstream repo's
- * current `.pre-commit-config.yaml` yet. Scopes `pre-commit autoupdate
- * --freeze` (via `--repo`) to just these, leaving already-pinned hooks alone.
+ * Non-local repo URLs on the `v0.0.0` placeholder rev, which are the repos the
+ * downstream `.pre-commit-config.yaml` doesn't have yet. postSynthesize passes
+ * them to `pre-commit autoupdate --freeze --repo`, which leaves already-pinned
+ * hooks alone.
  */
 export function newRepoUrls(stack: Stack[], existingRevs?: ReadonlyMap<string, ExistingRev>): string[] {
   return buildPreCommitRepos(stack, existingRevs)
@@ -339,12 +335,12 @@ function toSnakeCaseKeys(value: unknown): unknown {
 
 /**
  * Renders the `.pre-commit-config.yaml` contents for the given stacks,
- * inlining short scalar lists (e.g. `args: [--fix]`) and leaving longer or
- * non-scalar ones as block lists.
+ * inlining short scalar lists, such as `args: [--fix]`, and leaving longer or
+ * non-scalar lists as block lists.
  *
- * `pythonMinVersion` (e.g. `"3.11"`) sets the file's top-level
- * `default_language_version.python`, so individual Python hooks (mypy, ty,
- * etc.) don't need their own per-hook `language_version`.
+ * `pythonMinVersion`, such as `"3.11"`, sets the file's top-level
+ * `default_language_version.python`, so Python hooks such as mypy and ty don't
+ * need a per-hook `language_version`.
  *
  * `exclude` regexes are combined into the file's top-level `exclude`, one
  * alternative per line in a verbose regex.
@@ -390,7 +386,7 @@ export function renderPreCommitConfig(
   });
 
   // yaml emits one space before an inline comment, but `pre-commit autoupdate
-  // --freeze` writes two (`rev: <sha>  # frozen: <ref>`) and no formatter
-  // hook normalizes it, so match freeze's own spacing
+  // --freeze` writes two (`rev: <sha>  # frozen: <ref>`). No formatter hook
+  // normalizes the spacing, so match freeze
   return doc.toString({ indentSeq: false, lineWidth: 0, flowCollectionPadding: false }).replace(/^(\s*rev: \S+) # /gm, "$1  # ");
 }

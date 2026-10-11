@@ -24,9 +24,9 @@ function outdir(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), "base-projen-postsynth-"));
 }
 
-// pinact/pre-commit run as a gather-style `sh -c` script (see
-// runTasksInParallelIgnoringFailure in base-project.ts) rather than as their
-// own direct execFileSync calls, so assert against that script's contents
+// pinact and pre-commit run in one `sh -c` script (see
+// runTasksInParallelIgnoringFailure in base-project.ts), not as separate
+// execFileSync calls, so assert on that script's contents
 function shCallScript(mock: jest.Mock): string {
   const call = mock.mock.calls.find(([cmd]) => cmd === "sh");
   return (call?.[1] as string[] | undefined)?.[1] ?? "";
@@ -59,9 +59,8 @@ describe("BaseProject.postSynthesize with a mocked git/pre-commit binary", () =>
     expect(fs.existsSync(path.join(dir, ".projen"))).toBe(false);
     expect(execFileSyncMock).toHaveBeenCalledWith("chmod", ["-R", "u+w", dir]);
     expect(execFileSyncMock).toHaveBeenCalledWith("pre-commit", ["run", "--all-files"], { cwd: dir, stdio: "inherit" });
-    // no pre-existing .pre-commit-config.yaml, so every default repo counts
-    // as newly added and gets scoped into autoupdate --freeze, run via the
-    // gather-style `sh -c` script (see runTasksInParallelIgnoringFailure)
+    // with no existing .pre-commit-config.yaml, every default repo is new, so
+    // the `sh -c` script passes all of them to autoupdate --freeze
     const defaultRepoUrls = buildPreCommitRepos([])
       .map((r) => r.repo)
       .filter((repo) => repo !== "local");

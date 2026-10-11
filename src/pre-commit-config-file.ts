@@ -10,17 +10,16 @@ export interface PreCommitConfigFileOptions extends FileBaseOptions {
   readonly stack: Stack[];
 
   /**
-   * Minimum Python version (e.g. `"3.11"`), rendered as the file's top-level
+   * Minimum Python version, such as `"3.11"`,, rendered as the file's top-level
    * `default_language_version.python`. Required when `stack` includes
    * `Stack.PYTHON`.
    */
   readonly pythonMinVersion?: string;
 
   /**
-   * `repo` url -> `rev` (and its inline comment) from the downstream repo's current
-   * `.pre-commit-config.yaml`, so re-synthing keeps an already-pinned hook at
-   * its existing rev instead of resetting it to a placeholder that
-   * `pre-commit autoupdate --freeze` would then re-resolve on every synth.
+   * Maps each `repo` URL to its `rev` and inline comment in the downstream
+   * repo's current `.pre-commit-config.yaml`. A re-synth keeps an
+   * already-pinned hook at that rev instead of resetting it to the placeholder.
    */
   readonly existingRevs?: Record<string, ExistingRev>;
 
@@ -47,9 +46,8 @@ export class PreCommitConfigFile extends FileBase {
   private readonly exclude: string[];
 
   /**
-   * Non-local repo urls newly added by this synth (i.e. not present in
-   * `existingRevs`), so the caller can scope `pre-commit autoupdate --freeze`
-   * to just these instead of every repo.
+   * Non-local repo URLs that are not in `existingRevs`. The caller runs
+   * `pre-commit autoupdate --freeze` on these repos only.
    */
   public readonly newRepoUrls: string[];
 

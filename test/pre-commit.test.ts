@@ -195,9 +195,9 @@ describe("renderPreCommitConfig", () => {
   it("inlines short scalar lists but not long or non-scalar ones", () => {
     const yaml = renderPreCommitConfig([Stack.PYTHON, Stack.GITHUB_ACTIONS]);
     expect(yaml).toContain("args: [--fix]");
-    // additional_dependencies for actionlint is a single long url, still scalar-list-inlined
+    // actionlint's additional_dependencies is one long URL, which still fits inline
     expect(yaml).toContain("additional_dependencies: [github.com/wasilibs/go-shellcheck/cmd/shellcheck@latest]");
-    // ty/mypy get seeded with several deps by sync-typing-deps downstream, not by us: no additional_dependencies here at all
+    // sync-typing-deps seeds ty and mypy deps downstream, so base renders no block additional_dependencies
     expect(yaml).not.toContain("additional_dependencies:\n");
   });
 
