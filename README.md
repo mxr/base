@@ -33,7 +33,7 @@ sequenceDiagram
 Synth reuses the repo's existing pins, so a sync changes only what base changed:
 
 ```mermaid
-flowchart TD
+flowchart LR
     A[Read pinned hook revs and action refs from the repo] --> B[Render files. New hooks and actions get v0.0.0]
     B --> C[Merge managed tables into pyproject.toml]
     C --> D[git add managed files]
