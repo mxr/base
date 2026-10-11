@@ -41,10 +41,12 @@ flowchart LR
     D --> F[pre-commit autoupdate --freeze on new hooks]
     E --> G[pre-commit run --all-files]
     F --> G
-    G -->|pass| H[Done]
+    G -->|pass| H{Diff against main?}
     G -->|fail| I[Stage fixes and rerun]
     I -->|pass, or fail with fixes| H
     I -->|fail with no changes| J[Error]
+    H -->|yes| K[Open a PR]
+    H -->|no| L[No-op]
 ```
 
 Generated files start with a banner that says so. To change one, edit `.github/base.yml` or this repo, not the file.
