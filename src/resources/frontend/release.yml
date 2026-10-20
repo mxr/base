@@ -48,10 +48,16 @@ jobs:
       run: npm ci
 
     - name: Pull Vercel environment
-      run: npx vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+      env:
+        VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      run: npx vercel pull --yes --environment=production
 
     - name: Build
-      run: npx vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+      env:
+        VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      run: npx vercel build --prod
 
     - name: Deploy
-      run: npx vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+      env:
+        VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      run: npx vercel deploy --prebuilt --prod

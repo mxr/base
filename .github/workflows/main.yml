@@ -3,6 +3,7 @@ on:
   pull_request: {}
   workflow_dispatch: {}
   workflow_call: {}
+permissions: {}
 jobs:
   main:
     runs-on: ubuntu-26.04
