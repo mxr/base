@@ -15,7 +15,7 @@ export const LATEST_PYTHON = "3.15";
  * Newest GA CPython, for workflows that need one Python to run tooling.
  */
 // renovate: datasource=python-version depName=python
-export const STABLE_PYTHON = "3.14";
+export const STABLE_PYTHON = "3.15";
 
 /**
  * The one CPython that Home Assistant runs on. A Home Assistant integration is
