@@ -22,7 +22,7 @@ jobs:
         persist-credentials: false
     - uses: actions/setup-python@v0.0.0
       with:
-        python-version: '3.14'
+        python-version: '{{PYTHON}}'
     - run: '{{INSTALL}}'
     - run: git config --global user.name 'Github Actions'
     - run: git config --global user.email '41898282+github-actions[bot]@users.noreply.github.com'

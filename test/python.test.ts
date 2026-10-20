@@ -1,5 +1,6 @@
 import {
   homeAssistantValidateWorkflow,
+  LATEST_PYTHON,
   managedPyproject,
   pythonMainWorkflow,
   pythonToxEnvs,
@@ -8,23 +9,30 @@ import {
 } from "../src/python";
 import { PythonPackaging, Stack } from "../src/stack";
 
+const latestMinor = Number(LATEST_PYTHON.split(".")[1]);
+
+// tox envs from 3.<minor> through LATEST_PYTHON
+function envsFrom(minor: number): string[] {
+  return Array.from({ length: latestMinor - minor + 1 }, (_, i) => `py3${minor + i}`);
+}
+
 describe("supportedToxEnvs", () => {
   it.each([
-    { minVersion: "3.12", expected: ["py312", "py313", "py314", "py315"] },
-    { minVersion: "3.15", expected: ["py315"] },
+    { minVersion: "3.12", expected: envsFrom(12) },
+    { minVersion: LATEST_PYTHON, expected: [`py3${latestMinor}`] },
   ])("lists $minVersion through the latest", ({ minVersion, expected }) => {
     expect(supportedToxEnvs(minVersion)).toEqual(expected);
   });
 
-  it.each(["3.16", "3"])("throws for %s", (minVersion) => {
+  it.each([`3.${latestMinor + 1}`, "3"])("throws for %s", (minVersion) => {
     expect(() => supportedToxEnvs(minVersion)).toThrow(`unsupported python version: ${minVersion}`);
   });
 });
 
 describe("pythonMainWorkflow", () => {
   it.each([
-    { minVersion: "3.12", envs: '["py312", "py313", "py314", "py315", "pypy312"]' },
-    { minVersion: "3.13", envs: '["py313", "py314", "py315"]' },
+    { minVersion: "3.12", envs: JSON.stringify([...envsFrom(12), "pypy312"]).replaceAll(",", ", ") },
+    { minVersion: "3.13", envs: JSON.stringify(envsFrom(13)).replaceAll(",", ", ") },
   ])("tests a $minVersion wheel on every supported version, pypy if it supports $minVersion, and windows", ({ minVersion, envs }) => {
     const workflow = pythonMainWorkflow({
       packaging: PythonPackaging.WHEEL,
