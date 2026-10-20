@@ -94,7 +94,6 @@ All options are optional unless the description says so.
 | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
 | `opt.python.min-version`                       | Minimum Python version, such as `'3.11'`. Required for `python`, except with `home-assistant` packaging.                 |
 | `opt.python.packaging`                         | `wheel` publishes to PyPI. `home-assistant` releases a HACS integration on GitHub and adds hassfest and HACS validation. |
-| `opt.python.home-assistant`                    | `name` and `min-version` for `hacs.json`. Required with `home-assistant` packaging.                                      |
 | `opt.python.custom-release`                    | Leave `release.yml` to the repo. Defaults to `false`.                                                                    |
 | `opt.python.ci`                                | Generate the tox CI workflow and tox config. Defaults to `true`.                                                         |
 | `opt.python.console-script`                    | Add a `<name> = "<module>._main:main"` script and lock with `uv`. Defaults to `false`.                                   |

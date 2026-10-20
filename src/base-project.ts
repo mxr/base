@@ -106,11 +106,6 @@ export interface PythonOptions {
   readonly runTypeChecksInGithubActions?: boolean;
 
   /**
-   * Required when `packaging` is `PythonPackaging.HOME_ASSISTANT`.
-   */
-  readonly homeAssistant?: HomeAssistantOptions;
-
-  /**
    * Directory tox runs pytest on and mypy relaxes `disallow_untyped_defs` for.
    *
    * @default "tests"
@@ -189,19 +184,6 @@ export interface MergifyExtrasOptions {
    * open.
    */
   readonly rules?: MergifyRule[];
-}
-
-export interface HomeAssistantOptions {
-  /**
-   * Integration name that HACS shows, rendered as `hacs.json`'s `name`.
-   */
-  readonly name: string;
-
-  /**
-   * Minimum Home Assistant version, such as `"2026.4.0"`, rendered as
-   * `hacs.json`'s `homeassistant`.
-   */
-  readonly minVersion: string;
 }
 
 export interface BaseProjectOpt {
@@ -301,11 +283,7 @@ export class BaseProject extends GitHubProject {
     if (this.stack.includes(Stack.PYTHON) && !this.pythonMinVersion) {
       throw new Error("Stack.PYTHON requires opt.python.minVersion to be set");
     }
-    const homeAssistant = options.opt?.python?.homeAssistant;
     const runTypeChecksInGithubActions = this.stack.includes(Stack.PYTHON) && (options.opt?.python?.runTypeChecksInGithubActions ?? false);
-    if (isHomeAssistant && !homeAssistant) {
-      throw new Error("PythonPackaging.HOME_ASSISTANT requires opt.python.homeAssistant to be set");
-    }
 
     // read the current config before PreCommitConfigFile overwrites it, so already-pinned hooks keep their rev
     const existingPreCommitConfigPath = path.join(this.outdir, ".pre-commit-config.yaml");
@@ -358,9 +336,7 @@ export class BaseProject extends GitHubProject {
       this.addWorkflow("typing.yml", typingWorkflow());
     }
 
-    if (homeAssistant && this.pythonPackaging === PythonPackaging.HOME_ASSISTANT) {
-      const hacs = { content_in_root: false, homeassistant: homeAssistant.minVersion, name: homeAssistant.name };
-      new TextFile(this, "hacs.json", { marker: false, lines: JSON.stringify(hacs, null, 2).split("\n") });
+    if (isHomeAssistant) {
       this.addWorkflow("validate-home-assistant.yml", homeAssistantValidateWorkflow());
     }
 

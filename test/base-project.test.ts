@@ -319,14 +319,11 @@ describe("BaseProject.postSynthesize", () => {
 });
 
 describe("BaseProject python packaging", () => {
-  const homeAssistant = { name: "Foo", minVersion: "2026.4.0" };
-
-  it("tests but doesn't release or write hacs.json without opt.python.packaging", () => {
+  it("tests but doesn't release without opt.python.packaging", () => {
     const snapshot = Testing.synth(new BaseProject({ name: "test", stack: [Stack.PYTHON], opt: { python: { minVersion: "3.12" } } }));
     expect(snapshot[".github/workflows/main.yml"]).toContain(`env: '${PY312_ENVS}'`);
     expect(snapshot[".github/workflows/main.yml"]).toContain("main-win-real:");
     expect(snapshot[".github/workflows/release.yml"]).toBeUndefined();
-    expect(snapshot["hacs.json"]).toBeUndefined();
     expect(snapshot[".github/workflows/validate-home-assistant.yml"]).toBeUndefined();
   });
 
@@ -365,21 +362,19 @@ describe("BaseProject python packaging", () => {
     expect(snapshot[".github/workflows/release.yml"]).toContain(
       'gh release create "$GITHUB_REF_NAME" dist/* --verify-tag --generate-notes',
     );
-    expect(snapshot["hacs.json"]).toBeUndefined();
     expect(snapshot[".github/workflows/validate-home-assistant.yml"]).toBeUndefined();
   });
 
-  it("releases a home assistant integration through GitHub and writes hacs.json", () => {
+  it("releases a home assistant integration through GitHub", () => {
     const project = new BaseProject({
       name: "test",
       stack: [Stack.PYTHON],
-      opt: { python: { packaging: PythonPackaging.HOME_ASSISTANT, homeAssistant } },
+      opt: { python: { packaging: PythonPackaging.HOME_ASSISTANT } },
     });
     const snapshot = Testing.synth(project);
     expect(snapshot[".github/workflows/main.yml"]).toContain(`env: '["py314"]'`);
     expect(snapshot[".pre-commit-config.yaml"]).toContain("default_language_version:\n  python: python3.14\n");
     expect(snapshot[".github/workflows/release.yml"]).toContain('gh release create "$GITHUB_REF_NAME" --verify-tag --generate-notes');
-    expect(snapshot["hacs.json"]).toEqual({ content_in_root: false, homeassistant: "2026.4.0", name: "Foo" });
     expect(snapshot[".github/workflows/validate-home-assistant.yml"]).toContain("hassfest-real:");
     expect(snapshot[".github/renovate.jsonc"].packageRules).toContainEqual({
       matchDepNames: ["ghcr.io/home-assistant/hassfest"],
@@ -408,7 +403,7 @@ describe("BaseProject python packaging", () => {
       name: "test",
       stack: [Stack.PYTHON],
       outdir: dir,
-      opt: { python: { packaging: PythonPackaging.HOME_ASSISTANT, homeAssistant } },
+      opt: { python: { packaging: PythonPackaging.HOME_ASSISTANT } },
     });
     const snapshot = Testing.synth(project);
     expect(snapshot[".github/workflows/validate-home-assistant.yml"]).toContain(`    - uses: docker://${expected}\n`);
@@ -453,24 +448,13 @@ describe("BaseProject python packaging", () => {
     expect(snapshot[".github/workflows/release.yml"]).toContain("runs-on: ubuntu-26.04");
   });
 
-  it("throws without opt.python.homeAssistant for home assistant packaging", () => {
-    expect(
-      () =>
-        new BaseProject({
-          name: "test",
-          stack: [Stack.PYTHON],
-          opt: { python: { packaging: PythonPackaging.HOME_ASSISTANT } },
-        }),
-    ).toThrow("PythonPackaging.HOME_ASSISTANT requires opt.python.homeAssistant to be set");
-  });
-
   it("throws when home assistant packaging sets opt.python.minVersion", () => {
     expect(
       () =>
         new BaseProject({
           name: "test",
           stack: [Stack.PYTHON],
-          opt: { python: { minVersion: "3.14", packaging: PythonPackaging.HOME_ASSISTANT, homeAssistant } },
+          opt: { python: { minVersion: "3.14", packaging: PythonPackaging.HOME_ASSISTANT } },
         }),
     ).toThrow("PythonPackaging.HOME_ASSISTANT always uses python 3.14; omit opt.python.minVersion");
   });
