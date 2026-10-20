@@ -121,7 +121,7 @@
   },
   "stability": "stable",
   "types": "lib/index.d.ts",
-  "version": "0.0.76",
+  "version": "0.0.77",
   "bundleDependencies": [
     "yaml"
   ]
