@@ -3,7 +3,14 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { Testing } from "projen";
 import { BaseProject } from "../src/base-project";
+import { LATEST_PYTHON, STABLE_PYTHON } from "../src/python";
 import { PythonPackaging, RenovateCustomManager, Stack } from "../src/stack";
+
+// the tox env list a 3.12 wheel runs: every CPython through LATEST_PYTHON, plus pypy312
+const PY312_ENVS = JSON.stringify([
+  ...Array.from({ length: Number(LATEST_PYTHON.split(".")[1]) - 11 }, (_, i) => `py3${12 + i}`),
+  "pypy312",
+]).replaceAll(",", ", ");
 
 describe("BaseProject", () => {
   it("uses MIT for a non-frontend stack, and still adds biome.json", () => {
@@ -177,6 +184,27 @@ describe("BaseProject", () => {
     expect(nonPython[".github/renovate.jsonc"].customManagers).toBeUndefined();
   });
 
+  it("adds a renovate custom manager for annotated constants for a typescript stack only", () => {
+    const typescript = Testing.synth(new BaseProject({ name: "test", stack: [Stack.TYPESCRIPT] }));
+    const [manager] = typescript[".github/renovate.jsonc"].customManagers;
+    expect(manager.managerFilePatterns).toEqual(["/^src/.+\\.ts$/"]);
+    const python = fs.readFileSync(path.join(__dirname, "..", "src", "python.ts"), "utf-8");
+    const matches = [...python.matchAll(new RegExp(manager.matchStrings[0], "g"))].map((match) => match.groups);
+    expect(matches).toEqual([
+      {
+        datasource: "github-tags",
+        depName: "python/cpython",
+        versioning: undefined,
+        extractVersion: "^v(?<version>\\d+\\.\\d+)\\.0b1$",
+        currentValue: expect.stringMatching(/^3\.\d+$/),
+      },
+      { datasource: "python-version", depName: "python", versioning: undefined, extractVersion: undefined, currentValue: STABLE_PYTHON },
+    ]);
+
+    const nonTypescript = Testing.synth(new BaseProject({ name: "test", stack: [] }));
+    expect(nonTypescript[".github/renovate.jsonc"].customManagers).toBeUndefined();
+  });
+
   it.each([
     { stack: [Stack.FRONTEND], npmrc: "allow-remote=all" },
     { stack: [Stack.TYPESCRIPT], npmrc: "allow-remote=all" },
@@ -228,7 +256,7 @@ describe("BaseProject mirror stack", () => {
     const snapshot = Testing.synth(project);
     expect(snapshot[".github/workflows/main.yml"]).toContain("pip install pre-commit-mirror-maker");
     expect(snapshot[".github/workflows/main.yml"]).toContain("pre-commit-mirror . --language python");
-    expect(snapshot[".github/workflows/main.yml"]).toContain("python-version: '3.14'");
+    expect(snapshot[".github/workflows/main.yml"]).toContain(`python-version: '${STABLE_PYTHON}'`);
   });
 
   it("indents continuation lines of a multi-line command", () => {
@@ -295,7 +323,7 @@ describe("BaseProject python packaging", () => {
 
   it("tests but doesn't release or write hacs.json without opt.python.packaging", () => {
     const snapshot = Testing.synth(new BaseProject({ name: "test", stack: [Stack.PYTHON], opt: { python: { minVersion: "3.12" } } }));
-    expect(snapshot[".github/workflows/main.yml"]).toContain(`env: '["py312", "py313", "py314", "py315", "pypy312"]'`);
+    expect(snapshot[".github/workflows/main.yml"]).toContain(`env: '${PY312_ENVS}'`);
     expect(snapshot[".github/workflows/main.yml"]).toContain("main-win-real:");
     expect(snapshot[".github/workflows/release.yml"]).toBeUndefined();
     expect(snapshot["hacs.json"]).toBeUndefined();
@@ -331,8 +359,8 @@ describe("BaseProject python packaging", () => {
       opt: { python: { minVersion: "3.12", packaging: PythonPackaging.WHEEL } },
     });
     const snapshot = Testing.synth(project);
-    expect(snapshot[".github/workflows/main.yml"]).toContain(`env: '["py312", "py313", "py314", "py315", "pypy312"]'`);
-    expect(snapshot[".github/workflows/release.yml"]).toContain("python-version: '3.14'");
+    expect(snapshot[".github/workflows/main.yml"]).toContain(`env: '${PY312_ENVS}'`);
+    expect(snapshot[".github/workflows/release.yml"]).toContain(`python-version: '${STABLE_PYTHON}'`);
     expect(snapshot[".github/workflows/release.yml"]).toContain("uses: pypa/gh-action-pypi-publish@v0.0.0");
     expect(snapshot[".github/workflows/release.yml"]).toContain(
       'gh release create "$GITHUB_REF_NAME" dist/* --verify-tag --generate-notes',

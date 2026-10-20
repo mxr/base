@@ -5,15 +5,16 @@ import type { ManagedPyproject, ManagedTable } from "./pyproject";
 
 /**
  * Newest CPython a wheel is tested against. uv runs a prerelease of that
- * version until it's released.
+ * version until it's released. Renovate bumps it at the version's first beta,
+ * its feature freeze.
  */
-const LATEST_PYTHON = "3.15";
+// renovate: datasource=github-tags depName=python/cpython extractVersion=^v(?<version>\d+\.\d+)\.0b1$
+export const LATEST_PYTHON = "3.15";
 
 /**
  * Newest GA CPython, for workflows that need one Python to run tooling.
- * Renovate bumps setup-python but not this constant, so update it on each
- * CPython release.
  */
+// renovate: datasource=python-version depName=python
 export const STABLE_PYTHON = "3.14";
 
 /**

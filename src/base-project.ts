@@ -14,6 +14,7 @@ import {
   managedPyproject,
   pythonMainWorkflow,
   pythonToxEnvs,
+  STABLE_PYTHON,
   toxEnv,
   typingWorkflow,
 } from "./python";
@@ -379,8 +380,9 @@ export class BaseProject extends GitHubProject {
         .join("\n");
       this.addWorkflow(
         "main.yml",
-        readResource("mirror/main.yml")
+        readResource("mirror/main.yml.tpl")
           .replace("'{{INSTALL}}'", () => install)
+          .replace("{{PYTHON}}", STABLE_PYTHON)
           .replace("{{COMMAND}}", () => commandLines)
           .trimEnd()
           .split("\n"),
@@ -449,24 +451,37 @@ export class BaseProject extends GitHubProject {
     if (customManagers.length > 0 && !expandStacks(this.stack).includes(Stack.GITHUB_ACTIONS)) {
       throw new Error("opt.githubActions requires Stack.GITHUB_ACTIONS");
     }
+    const renovateRegexManagers = [
+      // the windows runner is tox-uv.yml's `os` input, not `runs-on`, so the github-actions manager misses it
+      ...(this.stack.includes(Stack.PYTHON)
+        ? [
+            {
+              customType: "regex",
+              managerFilePatterns: ["/^\\.github/workflows/main\\.yml$/"],
+              matchStrings: ["\\sos: (?<depName>windows)-(?<currentValue>\\S+)"],
+              datasourceTemplate: "github-runners",
+              versioningTemplate: "docker",
+            },
+          ]
+        : []),
+      // string constants annotated with a `// renovate: datasource=... depName=...` comment, like the githubActionsVersions preset
+      ...(this.stack.includes(Stack.TYPESCRIPT)
+        ? [
+            {
+              customType: "regex",
+              managerFilePatterns: ["/^src/.+\\.ts$/"],
+              matchStrings: [
+                '// renovate: datasource=(?<datasource>[a-zA-Z0-9-._]+?) depName=(?<depName>[^\\s]+?)(?: versioning=(?<versioning>[^\\s]+?))?(?: extractVersion=(?<extractVersion>[^\\s]+?))?\\s+(?:export )?const [A-Za-z0-9_]+ = "(?<currentValue>[^"]+)"',
+              ],
+            },
+          ]
+        : []),
+    ];
     const renovateConfig = {
       $schema: "https://docs.renovatebot.com/renovate-schema.json",
       commitMessageAction: "weekly",
       commitMessagePrefix: "[renovate]",
-      // the windows runner is tox-uv.yml's `os` input, not `runs-on`, so the github-actions manager misses it
-      ...(this.stack.includes(Stack.PYTHON)
-        ? {
-            customManagers: [
-              {
-                customType: "regex",
-                managerFilePatterns: ["/^\\.github/workflows/main\\.yml$/"],
-                matchStrings: ["\\sos: (?<depName>windows)-(?<currentValue>\\S+)"],
-                datasourceTemplate: "github-runners",
-                versioningTemplate: "docker",
-              },
-            ],
-          }
-        : {}),
+      ...(renovateRegexManagers.length > 0 ? { customManagers: renovateRegexManagers } : {}),
       extends: [
         "config:recommended",
         ":disableDependencyDashboard",
