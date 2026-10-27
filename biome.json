@@ -1,5 +1,5 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.5.15/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.6.3/schema.json",
   "assist": {
     "actions": {
       "source": {
@@ -47,5 +47,10 @@
     "clientKind": "git",
     "enabled": true,
     "useIgnoreFile": true
+  },
+  "yaml": {
+    "formatter": {
+      "enabled": false
+    }
   }
 }
