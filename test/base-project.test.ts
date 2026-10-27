@@ -20,6 +20,14 @@ describe("BaseProject", () => {
     expect(snapshot["biome.json"].$schema).toMatch(/^https:\/\/biomejs\.dev\/schemas\/\d+\.\d+\.\d+\/schema\.json$/);
   });
 
+  it.each([{ stack: [Stack.PYTHON], opt: { python: { minVersion: "3.11" } } }, { stack: [Stack.FRONTEND] }, { stack: [Stack.TYPESCRIPT] }])(
+    "disables the biome yaml formatter for $stack so it doesn't fight pretty-format-yaml",
+    (options) => {
+      const snapshot = Testing.synth(new BaseProject({ name: "test", ...options }));
+      expect(snapshot["biome.json"].yaml.formatter.enabled).toBe(false);
+    },
+  );
+
   it("throws without opt.python.minVersion for a python stack", () => {
     expect(() => new BaseProject({ name: "test", stack: [Stack.PYTHON] })).toThrow("Stack.PYTHON requires opt.python.minVersion to be set");
   });
