@@ -64,7 +64,11 @@ describe("BaseProject", () => {
     const snapshot = Testing.synth(project);
     expect(snapshot[".github/mergify.yml"]).toContain("renovate[bot]");
     expect(snapshot[".github/mergify.yml"]).toContain("author=mxr-base-sync[bot]");
-    expect(snapshot[".github/renovate.jsonc"]).toMatchObject({ commitMessagePrefix: "[renovate]" });
+    expect(snapshot[".github/renovate.jsonc"]).toMatchObject({
+      commitMessagePrefix: "[renovate]",
+      "pre-commit": { enabled: true },
+      schedule: ["* 20-21 * * 1"],
+    });
     expect(snapshot[".github/renovate.jsonc"].packageRules).toContainEqual({
       matchDatasources: ["github-runners"],
       minimumReleaseAgeBehaviour: "timestamp-optional",
@@ -165,10 +169,12 @@ describe("BaseProject", () => {
 
   it("writes a ci.skip block for a rust stack, and skips it otherwise", () => {
     const rust = Testing.synth(new BaseProject({ name: "test", stack: [Stack.RUST] }));
-    expect(rust[".pre-commit-config.yaml"]).toContain("ci:\n  skip: [clippy] # runs via GHA to avoid keeping deps in-sync here\n");
+    expect(rust[".pre-commit-config.yaml"]).toContain(
+      "ci:\n  autoupdate_schedule: quarterly\n  skip: [clippy] # runs via GHA to avoid keeping deps in-sync here\n",
+    );
 
     const nonRust = Testing.synth(new BaseProject({ name: "test", stack: [] }));
-    expect(nonRust[".pre-commit-config.yaml"]).not.toContain("ci:");
+    expect(nonRust[".pre-commit-config.yaml"]).toContain("ci:\n  autoupdate_schedule: quarterly\n\n");
   });
 
   it("adds a renovate custom manager for the windows runner for a python stack only", () => {
@@ -420,7 +426,7 @@ describe("BaseProject python packaging", () => {
     });
     const snapshot = Testing.synth(project);
     expect(snapshot[".pre-commit-config.yaml"]).toContain(
-      "ci:\n  skip: [mypy, pyright, ty] # venv is too big; runs with github action instead\n",
+      "ci:\n  autoupdate_schedule: quarterly\n  skip: [mypy, pyright, ty] # venv is too big; runs with github action instead\n",
     );
     expect(snapshot[".github/workflows/typing.yml"]).toContain("typing-real:");
   });
@@ -432,7 +438,7 @@ describe("BaseProject python packaging", () => {
       opt: { python: { minVersion: "3.14", packaging: PythonPackaging.WHEEL } },
     });
     const snapshot = Testing.synth(project);
-    expect(snapshot[".pre-commit-config.yaml"]).not.toContain("ci:");
+    expect(snapshot[".pre-commit-config.yaml"]).not.toContain("skip:");
     expect(snapshot[".github/workflows/typing.yml"]).toBeUndefined();
   });
 
