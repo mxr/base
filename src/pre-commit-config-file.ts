@@ -71,7 +71,6 @@ export class PreCommitConfigFile extends FileBase {
     ];
     const ciLines = [
       `ci:`,
-      // renovate updates hooks weekly, so pre-commit.ci's autoupdate rarely has anything left to do
       `  autoupdate_schedule: quarterly`,
       ...(skips.length > 0
         ? [`  skip: [${skips.flatMap(({ hooks }) => hooks).join(", ")}] # ${skips.map(({ reason }) => reason).join("; ")}`]

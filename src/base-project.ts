@@ -485,7 +485,6 @@ export class BaseProject extends GitHubProject {
           : []),
       ],
       prBodyTemplate: "{{{table}}}",
-      // pre-commit hooks update here instead of on pre-commit.ci's own autoupdate, which is set to quarterly
       "pre-commit": { enabled: true },
       schedule: ["* 20-21 * * 1"],
       separateMajorMinor: false,
