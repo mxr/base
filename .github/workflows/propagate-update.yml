@@ -17,6 +17,8 @@ env:
   PRE_COMMIT_VERSION: 4.7.0
   # renovate: datasource=pypi depName=pre-commit-uv
   PRE_COMMIT_UV_VERSION: 4.4.0
+  # renovate: datasource=pypi depName=uv
+  UV_VERSION: 0.13.6
 
 jobs:
   build:
@@ -99,6 +101,7 @@ jobs:
         package-manager-cache: false
     - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
       with:
+        version: ${{ env.UV_VERSION }}
         enable-cache: false
     - uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
       id: app-token
@@ -150,7 +153,7 @@ jobs:
         # pre-commit's interpreter and pre-commit doesn't search PATH for it
         install_pre_commit() {
           # pre-commit-uv installs python hook envs with uv instead of pip
-          args=("pre-commit==${PRE_COMMIT_VERSION}" --with "pre-commit-uv==${PRE_COMMIT_UV_VERSION}")
+          args=("pre-commit==${PRE_COMMIT_VERSION}" --with "pre-commit-uv==${PRE_COMMIT_UV_VERSION}" --with "uv==${UV_VERSION}")
           if [ -n "$python_version" ]; then
             args+=(--python "$python_version")
           fi
