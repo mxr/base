@@ -71,7 +71,7 @@ export class PreCommitConfigFile extends FileBase {
     ];
     const ciLines = [
       `ci:`,
-      `  autoupdate_schedule: quarterly`,
+      `  autoupdate_schedule: quarterly # updaed with renovate`,
       ...(skips.length > 0
         ? [`  skip: [${skips.flatMap(({ hooks }) => hooks).join(", ")}] # ${skips.map(({ reason }) => reason).join("; ")}`]
         : []),
