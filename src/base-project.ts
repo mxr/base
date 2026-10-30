@@ -376,7 +376,10 @@ export class BaseProject extends GitHubProject {
       const releasePath = path.join(this.outdir, ".github/workflows/release.yml");
       const existingRelease = fs.existsSync(releasePath) ? fs.readFileSync(releasePath, "utf-8") : "";
       const vercelVersion = VERCEL_VERSION_RE.exec(existingRelease)?.[1] ?? VERCEL_VERSION;
-      this.addWorkflow("release.yml", readResource("frontend/release.yml").replace("{{VERCEL}}", vercelVersion).trimEnd().split("\n"));
+      this.addWorkflow(
+        "release.yml",
+        readResource("frontend/release.yml").replace("VERCEL_VERSION: 0.0.0", `VERCEL_VERSION: ${vercelVersion}`).trimEnd().split("\n"),
+      );
       new TextFile(this, "tsconfig.json", { lines: readResource("frontend/tsconfig.json").trimEnd().split("\n") });
       new TextFile(this, "vitest.config.mts", {
         marker: false,
