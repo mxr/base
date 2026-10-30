@@ -29,9 +29,11 @@ function readResource(name: string): string {
   return fs.readFileSync(path.join(__dirname, "resources", name), "utf-8");
 }
 
-// pinned here instead of as a downstream devDependency, which Vercel ignores and warns about during builds
+// pinned here instead of as a downstream devDependency, which Vercel ignores and warns about during builds.
+// Only new repos get this version: renovate bumps release.yml downstream, and synth keeps that version.
 // renovate: datasource=npm depName=vercel
 const VERCEL_VERSION = "64.7.0";
+const VERCEL_VERSION_RE = /^\s+VERCEL_VERSION: (\S+)$/m;
 
 const RENOVATE_CUSTOM_MANAGER_PRESETS: Record<RenovateCustomManager, string> = {
   [RenovateCustomManager.GITHUB_ACTIONS_VERSIONS]: "customManagers:githubActionsVersions",
@@ -371,7 +373,13 @@ export class BaseProject extends GitHubProject {
 
     if (isFrontend) {
       this.addWorkflow("main.yml", readResource("frontend/main.yml").trimEnd().split("\n"));
-      this.addWorkflow("release.yml", readResource("frontend/release.yml").replaceAll("{{VERCEL}}", VERCEL_VERSION).trimEnd().split("\n"));
+      const releasePath = path.join(this.outdir, ".github/workflows/release.yml");
+      const existingRelease = fs.existsSync(releasePath) ? fs.readFileSync(releasePath, "utf-8") : "";
+      const vercelVersion = VERCEL_VERSION_RE.exec(existingRelease)?.[1] ?? VERCEL_VERSION;
+      this.addWorkflow(
+        "release.yml",
+        readResource("frontend/release.yml").replace("VERCEL_VERSION: 0.0.0", `VERCEL_VERSION: ${vercelVersion}`).trimEnd().split("\n"),
+      );
       new TextFile(this, "tsconfig.json", { lines: readResource("frontend/tsconfig.json").trimEnd().split("\n") });
       new TextFile(this, "vitest.config.mts", {
         marker: false,
@@ -465,7 +473,12 @@ export class BaseProject extends GitHubProject {
       extends: [
         "config:recommended",
         ":disableDependencyDashboard",
-        ...customManagers.map((manager) => RENOVATE_CUSTOM_MANAGER_PRESETS[manager]),
+        // frontend release.yml pins the Vercel CLI as an annotated `VERCEL_VERSION` env var
+        ...new Set(
+          [...customManagers, ...(isFrontend ? [RenovateCustomManager.GITHUB_ACTIONS_VERSIONS] : [])].map(
+            (manager) => RENOVATE_CUSTOM_MANAGER_PRESETS[manager],
+          ),
+        ),
       ],
       groupSingleUpdates: true,
       minimumReleaseAge: "7 days",

@@ -134,11 +134,26 @@ describe("BaseProject", () => {
     expect(snapshot[".github/workflows/release.yml"]).toBeUndefined();
   });
 
-  it("writes frontend workflow files with a Vercel deploy for a frontend stack", () => {
-    const project = new BaseProject({ name: "test", stack: [Stack.FRONTEND] });
-    const snapshot = Testing.synth(project);
+  it.each([
+    { name: "the default Vercel CLI version for a new repo", existing: undefined, expected: /\n {6}VERCEL_VERSION: \d+\.\d+\.\d+\n/ },
+    {
+      name: "the existing Vercel CLI version",
+      existing: "    env:\n      # renovate: datasource=npm depName=vercel\n      VERCEL_VERSION: 99.1.2\n",
+      expected: /\n {6}VERCEL_VERSION: 99\.1\.2\n/,
+    },
+  ])("writes frontend workflow files with a Vercel deploy pinned to $name", ({ existing, expected }) => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "base-projen-vercel-"));
+    if (existing) {
+      fs.mkdirSync(path.join(dir, ".github/workflows"), { recursive: true });
+      fs.writeFileSync(path.join(dir, ".github/workflows/release.yml"), existing);
+    }
+    const snapshot = Testing.synth(new BaseProject({ name: "test", stack: [Stack.FRONTEND], outdir: dir }));
     expect(snapshot[".github/workflows/main.yml"]).toContain("npm run test:coverage");
-    expect(snapshot[".github/workflows/release.yml"]).toMatch(/npx --yes vercel@\d+\.\d+\.\d+ deploy --prebuilt --prod/);
+    const release = snapshot[".github/workflows/release.yml"];
+    expect(release).toMatch(expected);
+    expect(release.match(/VERCEL_VERSION: /g)).toHaveLength(1);
+    expect(release).toContain('npx --yes "vercel@$VERCEL_VERSION" deploy --prebuilt --prod');
+    expect(snapshot[".github/renovate.jsonc"].extends).toContain("customManagers:githubActionsVersions");
   });
 
   it("includes actionlint and zizmor pre-commit hooks for a frontend stack", () => {
@@ -224,14 +239,26 @@ describe("BaseProject", () => {
 
 describe("BaseProject github-actions stack", () => {
   it.each([
-    { name: "without opt", customManagers: undefined, extends: ["config:recommended", ":disableDependencyDashboard"] },
+    {
+      name: "without opt",
+      stack: [Stack.GITHUB_ACTIONS],
+      customManagers: undefined,
+      extends: ["config:recommended", ":disableDependencyDashboard"],
+    },
     {
       name: "with github-actions-versions",
+      stack: [Stack.GITHUB_ACTIONS],
       customManagers: [RenovateCustomManager.GITHUB_ACTIONS_VERSIONS],
       extends: ["config:recommended", ":disableDependencyDashboard", "customManagers:githubActionsVersions"],
     },
-  ])("renders renovate extends $name", ({ customManagers, extends: expected }) => {
-    const project = new BaseProject({ name: "test", stack: [Stack.GITHUB_ACTIONS], opt: { githubActions: { customManagers } } });
+    {
+      name: "with github-actions-versions and a frontend stack, once",
+      stack: [Stack.GITHUB_ACTIONS, Stack.FRONTEND],
+      customManagers: [RenovateCustomManager.GITHUB_ACTIONS_VERSIONS],
+      extends: ["config:recommended", ":disableDependencyDashboard", "customManagers:githubActionsVersions"],
+    },
+  ])("renders renovate extends $name", ({ stack, customManagers, extends: expected }) => {
+    const project = new BaseProject({ name: "test", stack, opt: { githubActions: { customManagers } } });
     const snapshot = Testing.synth(project);
     expect(snapshot[".github/renovate.jsonc"].extends).toEqual(expected);
   });
