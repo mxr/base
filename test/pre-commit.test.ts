@@ -240,7 +240,7 @@ describe("PreCommitConfigFile", () => {
     const file = new PreCommitConfigFile(project, { stack: [] });
     expect(file.newRepoUrls).toEqual(newRepoUrls([], new Map()));
     expect(Testing.synth(project)[".pre-commit-config.yaml"]).toBe(
-      `# ${BANNER}\n\nci:\n  autoupdate_schedule: quarterly\n\n${renderPreCommitConfig([])}`,
+      `# ${BANNER}\n\nci:\n  autoupdate_schedule: quarterly # updated with renovate\n\n${renderPreCommitConfig([])}`,
     );
   });
 });

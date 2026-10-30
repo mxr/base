@@ -67,7 +67,7 @@ describe("BaseProject", () => {
     expect(snapshot[".github/renovate.jsonc"]).toMatchObject({
       commitMessagePrefix: "[renovate]",
       "pre-commit": { enabled: true },
-      schedule: ["* 20-21 * * 1"],
+      schedule: ["* 19-20 * * 1"],
     });
     expect(snapshot[".github/renovate.jsonc"].packageRules).toContainEqual({
       matchDatasources: ["github-runners"],
@@ -170,11 +170,11 @@ describe("BaseProject", () => {
   it("writes a ci.skip block for a rust stack, and skips it otherwise", () => {
     const rust = Testing.synth(new BaseProject({ name: "test", stack: [Stack.RUST] }));
     expect(rust[".pre-commit-config.yaml"]).toContain(
-      "ci:\n  autoupdate_schedule: quarterly\n  skip: [clippy] # runs via GHA to avoid keeping deps in-sync here\n",
+      "ci:\n  autoupdate_schedule: quarterly # updated with renovate\n  skip: [clippy] # runs via GHA to avoid keeping deps in-sync here\n",
     );
 
     const nonRust = Testing.synth(new BaseProject({ name: "test", stack: [] }));
-    expect(nonRust[".pre-commit-config.yaml"]).toContain("ci:\n  autoupdate_schedule: quarterly\n\n");
+    expect(nonRust[".pre-commit-config.yaml"]).toContain("ci:\n  autoupdate_schedule: quarterly # updated with renovate\n\n");
   });
 
   it("adds a renovate custom manager for the windows runner for a python stack only", () => {
@@ -426,7 +426,7 @@ describe("BaseProject python packaging", () => {
     });
     const snapshot = Testing.synth(project);
     expect(snapshot[".pre-commit-config.yaml"]).toContain(
-      "ci:\n  autoupdate_schedule: quarterly\n  skip: [mypy, pyright, ty] # venv is too big; runs with github action instead\n",
+      "ci:\n  autoupdate_schedule: quarterly # updated with renovate\n  skip: [mypy, pyright, ty] # venv is too big; runs with github action instead\n",
     );
     expect(snapshot[".github/workflows/typing.yml"]).toContain("typing-real:");
   });
