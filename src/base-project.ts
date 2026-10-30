@@ -485,7 +485,8 @@ export class BaseProject extends GitHubProject {
           : []),
       ],
       prBodyTemplate: "{{{table}}}",
-      schedule: ["* 21-22 * * 1"],
+      "pre-commit": { enabled: true },
+      schedule: ["* 19-20 * * 1"],
       separateMajorMinor: false,
       separateMultipleMajor: false,
     };
