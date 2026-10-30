@@ -29,6 +29,10 @@ function readResource(name: string): string {
   return fs.readFileSync(path.join(__dirname, "resources", name), "utf-8");
 }
 
+// pinned here instead of as a downstream devDependency, which Vercel ignores and warns about during builds
+// renovate: datasource=npm depName=vercel
+const VERCEL_VERSION = "64.7.0";
+
 const RENOVATE_CUSTOM_MANAGER_PRESETS: Record<RenovateCustomManager, string> = {
   [RenovateCustomManager.GITHUB_ACTIONS_VERSIONS]: "customManagers:githubActionsVersions",
 };
@@ -367,7 +371,7 @@ export class BaseProject extends GitHubProject {
 
     if (isFrontend) {
       this.addWorkflow("main.yml", readResource("frontend/main.yml").trimEnd().split("\n"));
-      this.addWorkflow("release.yml", readResource("frontend/release.yml").trimEnd().split("\n"));
+      this.addWorkflow("release.yml", readResource("frontend/release.yml").replaceAll("{{VERCEL}}", VERCEL_VERSION).trimEnd().split("\n"));
       new TextFile(this, "tsconfig.json", { lines: readResource("frontend/tsconfig.json").trimEnd().split("\n") });
       new TextFile(this, "vitest.config.mts", {
         marker: false,

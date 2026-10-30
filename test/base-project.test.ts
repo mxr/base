@@ -138,7 +138,7 @@ describe("BaseProject", () => {
     const project = new BaseProject({ name: "test", stack: [Stack.FRONTEND] });
     const snapshot = Testing.synth(project);
     expect(snapshot[".github/workflows/main.yml"]).toContain("npm run test:coverage");
-    expect(snapshot[".github/workflows/release.yml"]).toContain("npx vercel deploy --prebuilt --prod");
+    expect(snapshot[".github/workflows/release.yml"]).toMatch(/npx --yes vercel@\d+\.\d+\.\d+ deploy --prebuilt --prod/);
   });
 
   it("includes actionlint and zizmor pre-commit hooks for a frontend stack", () => {
