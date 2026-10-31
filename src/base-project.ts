@@ -32,7 +32,7 @@ function readResource(name: string): string {
 // pinned here instead of as a downstream devDependency, which Vercel ignores and warns about during builds.
 // Only new repos get this version: renovate bumps release.yml downstream, and synth keeps that version.
 // renovate: datasource=npm depName=vercel
-const VERCEL_VERSION = "64.7.0";
+const VERCEL_VERSION = "65.8.0";
 const VERCEL_VERSION_RE = /^\s+VERCEL_VERSION: (\S+)$/m;
 
 const RENOVATE_CUSTOM_MANAGER_PRESETS: Record<RenovateCustomManager, string> = {
