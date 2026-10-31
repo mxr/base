@@ -400,7 +400,21 @@ export class BaseProject extends GitHubProject {
       new TextFile(this, ".github/actionlint.yml", {
         marker: false,
         committed: true,
-        lines: [`# ${BANNER}`, "", "# https://github.com/rhysd/actionlint/issues/682", "self-hosted-runner:", "  labels:", `  - ${RUNNER}`],
+        lines: [
+          `# ${BANNER}`,
+          "",
+          "# https://github.com/rhysd/actionlint/issues/682",
+          "self-hosted-runner:",
+          "  labels:",
+          `  - ${RUNNER}`,
+          "",
+          "# https://github.com/rhysd/actionlint/issues/711",
+          "paths:",
+          "  .github/workflows/**/*.{yaml,yml}:",
+          "    ignore:",
+          '    - reusable workflow call "\\$/.+" at "uses" is not following the format',
+          '    - specifying action "\\$/.+" in invalid format because ref is missing',
+        ],
       });
     }
 

@@ -171,6 +171,8 @@ describe("BaseProject", () => {
     const snapshot = Testing.synth(new BaseProject({ name: "test", stack }));
     if (expected) {
       expect(snapshot[".github/actionlint.yml"]).toContain("self-hosted-runner:\n  labels:\n  - ubuntu-26.04");
+      expect(snapshot[".github/actionlint.yml"]).toContain('- reusable workflow call "\\$/.+" at "uses" is not following the format');
+      expect(snapshot[".github/actionlint.yml"]).toContain('- specifying action "\\$/.+" in invalid format because ref is missing');
     } else {
       expect(snapshot[".github/actionlint.yml"]).toBeUndefined();
     }
