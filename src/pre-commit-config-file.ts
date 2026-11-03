@@ -69,14 +69,10 @@ export class PreCommitConfigFile extends FileBase {
         ? [{ hooks: ["mypy", "pyright", "ty"], reason: "venv is too big; runs with github action instead" }]
         : []),
     ];
-    const ciLines = [
-      `ci:`,
-      `  autoupdate_schedule: quarterly # updated with renovate`,
-      ...(skips.length > 0
-        ? [`  skip: [${skips.flatMap(({ hooks }) => hooks).join(", ")}] # ${skips.map(({ reason }) => reason).join("; ")}`]
-        : []),
-      "",
-    ];
+    const ciLines =
+      skips.length > 0
+        ? [`ci:`, `  skip: [${skips.flatMap(({ hooks }) => hooks).join(", ")}] # ${skips.map(({ reason }) => reason).join("; ")}`, ""]
+        : [];
     return [`# ${BANNER}`, "", ...ciLines, renderPreCommitConfig(this.stack, this.pythonMinVersion, this.existingRevs, this.exclude)].join(
       "\n",
     );
