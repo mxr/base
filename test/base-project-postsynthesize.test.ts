@@ -377,7 +377,7 @@ describe("BaseProject.postSynthesize with a mocked git/pre-commit binary", () =>
     expect(gitignore).toContain("/lib/\n");
     expect(gitignore).toContain("node_modules/\n");
     expect(fs.readFileSync(path.join(dir, ".gitattributes"), "utf-8")).toBe(`# ${BANNER}\n* text=auto eol=lf\n`);
-    expect(shCallScript(execFileSyncMock)).not.toContain("pinact");
+    expect(shCallScript(execFileSyncMock)).toContain(".github/workflows/main.yml");
   });
 
   it("does not manage a .gitignore for a javascript stack", () => {
