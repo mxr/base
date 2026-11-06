@@ -269,6 +269,25 @@ describe("BaseProject github-actions stack", () => {
         }),
     ).toThrow("opt.githubActions requires Stack.GITHUB_ACTIONS");
   });
+
+  it("runs bats in CI with opt.shell.bats", () => {
+    const snapshot = Testing.synth(
+      new BaseProject({ name: "test", stack: [Stack.SHELL, Stack.GITHUB_ACTIONS], opt: { shell: { bats: true } } }),
+    );
+    expect(snapshot[".github/workflows/main.yml"]).toContain("run: bats tests/");
+    expect(snapshot[".github/workflows/main.yml"]).toContain("runs-on: ubuntu-26.04");
+  });
+
+  it("does not run bats without opt.shell.bats", () => {
+    const snapshot = Testing.synth(new BaseProject({ name: "test", stack: [Stack.SHELL, Stack.GITHUB_ACTIONS] }));
+    expect(snapshot[".github/workflows/main.yml"]).toBeUndefined();
+  });
+
+  it("throws when opt.shell.bats is set without github actions", () => {
+    expect(() => new BaseProject({ name: "test", stack: [Stack.SHELL], opt: { shell: { bats: true } } })).toThrow(
+      "opt.shell.bats requires Stack.GITHUB_ACTIONS",
+    );
+  });
 });
 
 describe("BaseProject mirror stack", () => {

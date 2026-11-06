@@ -102,6 +102,7 @@ All options are optional unless the description says so.
 | `opt.python.extras.tests`                      | More test directories.                                                                                                   |
 | `opt.python.extras.generated`                  | Generated-code directories that the type checkers skip.                                                                  |
 | `opt.python.pyproject-path`                    | File to merge `pyproject.toml` tables into, such as a `.mustache` template.                                              |
+| `opt.shell.bats`                               | Run the bats tests in `tests/` in CI. Requires the `github-actions` stack. Defaults to `false`.                          |
 | `opt.mirror.command`                           | The `pre-commit-mirror` command. Required for `mirror`.                                                                  |
 | `opt.mirror.version`                           | pre-commit-mirror-maker commit to install. Defaults to the latest release.                                               |
 | `opt.github-actions.custom-managers`           | Renovate custom manager presets, such as `github-actions-versions`.                                                      |

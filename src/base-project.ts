@@ -148,6 +148,16 @@ export interface PythonExtrasOptions {
   readonly tests?: string[];
 }
 
+export interface ShellOptions {
+  /**
+   * Render `.github/workflows/main.yml`, which runs the bats tests in `tests/`
+   * with bash and zsh installed. Requires `Stack.GITHUB_ACTIONS`.
+   *
+   * @default false
+   */
+  readonly bats?: boolean;
+}
+
 export interface GithubActionsOptions {
   /**
    * Renovate built-in custom manager presets added to `.github/renovate.jsonc`'s
@@ -202,6 +212,11 @@ export interface BaseProjectOpt {
    * Options for `Stack.PYTHON`. Required when that stack is present.
    */
   readonly python?: PythonOptions;
+
+  /**
+   * Options for `Stack.SHELL`.
+   */
+  readonly shell?: ShellOptions;
 
   /**
    * Options for `Stack.GITHUB_ACTIONS`.
@@ -318,6 +333,13 @@ export class BaseProject extends GitHubProject {
     if (this.stack.includes(Stack.RUST)) {
       this.addWorkflow("main.yml", readResource("rust/main.yml").trimEnd().split("\n"));
       this.addWorkflow("release.yml", cargoReleaseWorkflow());
+    }
+
+    if (options.opt?.shell?.bats) {
+      if (!expandStacks(this.stack).includes(Stack.GITHUB_ACTIONS)) {
+        throw new Error("opt.shell.bats requires Stack.GITHUB_ACTIONS");
+      }
+      this.addWorkflow("main.yml", readResource("shell/main.yml").trimEnd().split("\n"));
     }
 
     if (this.pythonMinVersion && this.ci) {
