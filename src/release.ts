@@ -27,11 +27,17 @@ jobs:
   return `${header}${job}`.trimEnd().split("\n");
 }
 
+/**
+ * Tags with anything after `vX.Y.Z` (e.g. `v2.0.0rc1`, `v2.0.0-rc.1`) become
+ * GitHub prereleases.
+ */
 function githubReleaseStep(assets?: string): string {
   return `    - name: Create GitHub release
       env:
         GH_TOKEN: \${{ github.token }}
-      run: gh release create "$GITHUB_REF_NAME"${assets ? ` ${assets}` : ""} --verify-tag --generate-notes
+      run: |
+        if [[ "$GITHUB_REF_NAME" =~ ^v[0-9]+\\.[0-9]+\\.[0-9]+$ ]]; then prerelease=false; else prerelease=true; fi
+        gh release create "$GITHUB_REF_NAME"${assets ? ` ${assets}` : ""} --verify-tag --generate-notes --prerelease="$prerelease"
 `;
 }
 

@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -418,7 +419,7 @@ describe("BaseProject python packaging", () => {
     expect(snapshot[".github/workflows/release.yml"]).toContain(`python-version: '${STABLE_PYTHON}'`);
     expect(snapshot[".github/workflows/release.yml"]).toContain("uses: pypa/gh-action-pypi-publish@v0.0.0");
     expect(snapshot[".github/workflows/release.yml"]).toContain(
-      'gh release create "$GITHUB_REF_NAME" dist/* --verify-tag --generate-notes',
+      'gh release create "$GITHUB_REF_NAME" dist/* --verify-tag --generate-notes --prerelease="$prerelease"',
     );
     expect(snapshot[".github/workflows/validate-home-assistant.yml"]).toBeUndefined();
   });
@@ -432,12 +433,34 @@ describe("BaseProject python packaging", () => {
     const snapshot = Testing.synth(project);
     expect(snapshot[".github/workflows/main.yml"]).toContain(`env: '["py314"]'`);
     expect(snapshot[".pre-commit-config.yaml"]).toContain("default_language_version:\n  python: python3.14\n");
-    expect(snapshot[".github/workflows/release.yml"]).toContain('gh release create "$GITHUB_REF_NAME" --verify-tag --generate-notes');
+    expect(snapshot[".github/workflows/release.yml"]).toContain(
+      'gh release create "$GITHUB_REF_NAME" --verify-tag --generate-notes --prerelease="$prerelease"',
+    );
     expect(snapshot[".github/workflows/validate-home-assistant.yml"]).toContain("hassfest-real:");
     expect(snapshot[".github/renovate.jsonc"].packageRules).toContainEqual({
       matchDepNames: ["ghcr.io/home-assistant/hassfest"],
       minimumReleaseAgeBehaviour: "timestamp-optional",
     });
+  });
+
+  it.each([
+    { tag: "v2.0.0", prerelease: "false" },
+    { tag: "v2.0.0rc1", prerelease: "true" },
+    { tag: "v2.0.0-rc.1", prerelease: "true" },
+  ])("releases $tag with --prerelease=$prerelease", ({ tag, prerelease }) => {
+    const project = new BaseProject({
+      name: "test",
+      stack: [Stack.PYTHON],
+      opt: { python: { packaging: PythonPackaging.HOME_ASSISTANT } },
+    });
+    const release = parse(Testing.synth(project)[".github/workflows/release.yml"]);
+    const step = release.jobs.release.steps.find((s: { name?: string }) => s.name === "Create GitHub release");
+    const bin = fs.mkdtempSync(path.join(os.tmpdir(), "gh-stub-"));
+    fs.writeFileSync(path.join(bin, "gh"), '#!/bin/sh\necho "$@"\n', { mode: 0o755 });
+    const out = execFileSync("bash", ["-c", step.run], {
+      env: { ...process.env, GITHUB_REF_NAME: tag, PATH: `${bin}:${process.env.PATH}` },
+    }).toString();
+    expect(out.trim()).toBe(`release create ${tag} --verify-tag --generate-notes --prerelease=${prerelease}`);
   });
 
   it.each([
