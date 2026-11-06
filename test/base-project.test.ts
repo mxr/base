@@ -2,6 +2,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { Testing } from "projen";
+import { parse } from "yaml";
 import { BaseProject } from "../src/base-project";
 import { LATEST_PYTHON, STABLE_PYTHON } from "../src/python";
 import { PythonPackaging, RenovateCustomManager, Stack } from "../src/stack";
@@ -162,7 +163,8 @@ describe("BaseProject", () => {
   it.each([
     { name: "github-actions", stack: [Stack.GITHUB_ACTIONS], expected: true },
     { name: "rust (implies github-actions)", stack: [Stack.RUST], expected: true },
-    { name: "shell", stack: [Stack.SHELL], expected: false },
+    { name: "shell (implies github-actions)", stack: [Stack.SHELL], expected: true },
+    { name: "toml", stack: [Stack.TOML], expected: false },
   ])("writes .github/actionlint.yml only when github actions is in the stack: $name", ({ stack, expected }) => {
     const snapshot = Testing.synth(new BaseProject({ name: "test", stack }));
     if (expected) {
@@ -270,23 +272,31 @@ describe("BaseProject github-actions stack", () => {
     ).toThrow("opt.githubActions requires Stack.GITHUB_ACTIONS");
   });
 
-  it("runs bats in CI with opt.shell.bats", () => {
-    const snapshot = Testing.synth(
-      new BaseProject({ name: "test", stack: [Stack.SHELL, Stack.GITHUB_ACTIONS], opt: { shell: { bats: true } } }),
-    );
-    expect(snapshot[".github/workflows/main.yml"]).toContain("run: bats tests/");
-    expect(snapshot[".github/workflows/main.yml"]).toContain("runs-on: ubuntu-26.04");
+  it.each([
+    { name: "shell only", stack: [Stack.SHELL], otherJob: undefined },
+    { name: "shell and typescript", stack: [Stack.SHELL, Stack.TYPESCRIPT], otherJob: "    - name: Package\n" },
+    { name: "shell and rust", stack: [Stack.SHELL, Stack.RUST], otherJob: "  test-real:\n" },
+  ])("adds a bats job to main.yml: $name", ({ stack, otherJob }) => {
+    const main = Testing.synth(new BaseProject({ name: "test", stack }))[".github/workflows/main.yml"];
+    expect(main).toContain("\n  bats:\n    runs-on: ubuntu-26.04\n");
+    expect(main).toContain("    - run: git ls-files -z '*.bats' | xargs -0 bats");
+    if (otherJob) {
+      expect(main).toContain(otherJob);
+    }
+    expect(parse(main).jobs.bats.steps).toHaveLength(3);
   });
 
-  it("does not run bats without opt.shell.bats", () => {
-    const snapshot = Testing.synth(new BaseProject({ name: "test", stack: [Stack.SHELL, Stack.GITHUB_ACTIONS] }));
-    expect(snapshot[".github/workflows/main.yml"]).toBeUndefined();
-  });
-
-  it("throws when opt.shell.bats is set without github actions", () => {
-    expect(() => new BaseProject({ name: "test", stack: [Stack.SHELL], opt: { shell: { bats: true } } })).toThrow(
-      "opt.shell.bats requires Stack.GITHUB_ACTIONS",
-    );
+  it.each([
+    { stack: [Stack.GITHUB_ACTIONS], expected: undefined },
+    { stack: [Stack.TYPESCRIPT], expected: "run: npm run package" },
+  ])("renders main.yml without bats for $stack", ({ stack, expected }) => {
+    const main = Testing.synth(new BaseProject({ name: "test", stack }))[".github/workflows/main.yml"];
+    if (expected) {
+      expect(main).toContain(expected);
+      expect(main).not.toContain("bats");
+    } else {
+      expect(main).toBeUndefined();
+    }
   });
 });
 

@@ -5,29 +5,17 @@ import { License, TextFile } from "projen";
 import { GitHubProject } from "projen/lib/github";
 import { BANNER } from "./banner";
 import { firstCommitYear } from "./git";
+import { mainWorkflow, readResource } from "./main-workflow";
 import { expandStacks, readExistingRevs } from "./pre-commit";
 import { PreCommitConfigFile } from "./pre-commit-config-file";
 import { mergePyproject, sqlfluffTables } from "./pyproject";
-import {
-  HOME_ASSISTANT_PYTHON,
-  homeAssistantValidateWorkflow,
-  managedPyproject,
-  pythonMainWorkflow,
-  pythonToxEnvs,
-  STABLE_PYTHON,
-  toxEnv,
-  typingWorkflow,
-} from "./python";
+import { HOME_ASSISTANT_PYTHON, homeAssistantValidateWorkflow, managedPyproject, pythonToxEnvs, toxEnv, typingWorkflow } from "./python";
 import { cargoReleaseWorkflow, homeAssistantReleaseWorkflow, wheelReleaseWorkflow } from "./release";
 import { PythonPackaging, RenovateCustomManager, Stack } from "./stack";
 import { applyExistingActionRefs, RUNNER, readExistingActionRefs } from "./workflow-actions";
 import type { GitHubProjectOptions } from "projen/lib/github";
 import type { ExistingRev } from "./pre-commit";
 import type { ManagedTable } from "./pyproject";
-
-function readResource(name: string): string {
-  return fs.readFileSync(path.join(__dirname, "resources", name), "utf-8");
-}
 
 // pinned here instead of as a downstream devDependency, which Vercel ignores and warns about during builds.
 // Only new repos get this version: renovate bumps release.yml downstream, and synth keeps that version.
@@ -148,16 +136,6 @@ export interface PythonExtrasOptions {
   readonly tests?: string[];
 }
 
-export interface ShellOptions {
-  /**
-   * Render `.github/workflows/main.yml`, which runs the bats tests in `tests/`
-   * with bash and zsh installed. Requires `Stack.GITHUB_ACTIONS`.
-   *
-   * @default false
-   */
-  readonly bats?: boolean;
-}
-
 export interface GithubActionsOptions {
   /**
    * Renovate built-in custom manager presets added to `.github/renovate.jsonc`'s
@@ -212,11 +190,6 @@ export interface BaseProjectOpt {
    * Options for `Stack.PYTHON`. Required when that stack is present.
    */
   readonly python?: PythonOptions;
-
-  /**
-   * Options for `Stack.SHELL`.
-   */
-  readonly shell?: ShellOptions;
 
   /**
    * Options for `Stack.GITHUB_ACTIONS`.
@@ -330,27 +303,28 @@ export class BaseProject extends GitHubProject {
       new TextFile(this, "biome.json", { lines: readResource(biomeResource).split("\n") });
     }
 
+    const mirror = options.opt?.mirror;
+    if (this.stack.includes(Stack.MIRROR) && !mirror) {
+      throw new Error("Stack.MIRROR requires opt.mirror to be set");
+    }
+    const main = mainWorkflow({
+      stack: this.stack,
+      ...(this.pythonMinVersion && this.ci
+        ? {
+            python: {
+              ...(this.pythonPackaging ? { packaging: this.pythonPackaging } : {}),
+              envs: isHomeAssistant ? [toxEnv(HOME_ASSISTANT_PYTHON)] : pythonToxEnvs(this.pythonMinVersion),
+            },
+          }
+        : {}),
+      ...(this.stack.includes(Stack.MIRROR) && mirror ? { mirror } : {}),
+    });
+    if (main) {
+      this.addWorkflow("main.yml", main);
+    }
+
     if (this.stack.includes(Stack.RUST)) {
-      this.addWorkflow("main.yml", readResource("rust/main.yml").trimEnd().split("\n"));
       this.addWorkflow("release.yml", cargoReleaseWorkflow());
-    }
-
-    if (options.opt?.shell?.bats) {
-      if (!expandStacks(this.stack).includes(Stack.GITHUB_ACTIONS)) {
-        throw new Error("opt.shell.bats requires Stack.GITHUB_ACTIONS");
-      }
-      this.addWorkflow("main.yml", readResource("shell/main.yml").trimEnd().split("\n"));
-    }
-
-    if (this.pythonMinVersion && this.ci) {
-      this.addWorkflow(
-        "main.yml",
-        pythonMainWorkflow({
-          ...(this.pythonPackaging ? { packaging: this.pythonPackaging } : {}),
-          envs: isHomeAssistant ? [toxEnv(HOME_ASSISTANT_PYTHON)] : pythonToxEnvs(this.pythonMinVersion),
-          stack: this.stack,
-        }),
-      );
     }
 
     if (this.pythonMinVersion && this.pythonPackaging && !this.customRelease) {
@@ -368,33 +342,7 @@ export class BaseProject extends GitHubProject {
       this.addWorkflow("validate-home-assistant.yml", homeAssistantValidateWorkflow());
     }
 
-    if (this.stack.includes(Stack.MIRROR)) {
-      const mirror = options.opt?.mirror;
-      if (!mirror) {
-        throw new Error("Stack.MIRROR requires opt.mirror to be set");
-      }
-      const { command, version } = mirror;
-      const install = version
-        ? `pip install git+https://github.com/pre-commit/pre-commit-mirror-maker@${version}`
-        : "pip install pre-commit-mirror-maker";
-      const commandLines = command
-        .trim()
-        .split("\n")
-        .map((line, i) => (i === 0 ? line.trim() : `          ${line.trim()}`))
-        .join("\n");
-      this.addWorkflow(
-        "main.yml",
-        readResource("mirror/main.yml.tpl")
-          .replace("'{{INSTALL}}'", () => install)
-          .replace("{{PYTHON}}", STABLE_PYTHON)
-          .replace("{{COMMAND}}", () => commandLines)
-          .trimEnd()
-          .split("\n"),
-      );
-    }
-
     if (isFrontend) {
-      this.addWorkflow("main.yml", readResource("frontend/main.yml").trimEnd().split("\n"));
       const releasePath = path.join(this.outdir, ".github/workflows/release.yml");
       const existingRelease = fs.existsSync(releasePath) ? fs.readFileSync(releasePath, "utf-8") : "";
       const vercelVersion = VERCEL_VERSION_RE.exec(existingRelease)?.[1] ?? VERCEL_VERSION;

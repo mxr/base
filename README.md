@@ -69,19 +69,19 @@ Keys under `opt` are kebab-case. The sync converts them to the camelCase options
 
 Some stacks imply others. For example, `python` also turns on `toml`, `github-actions`, and `gitignore`.
 
-| Stack            | Implies                               | Generates                                                                           |
-| ---------------- | ------------------------------------- | ----------------------------------------------------------------------------------- |
-| `frontend`       | `github-actions`, `gitignore`         | Next.js and Vercel config, CI and release workflows                                 |
-| `github-actions` |                                       | zizmor and actionlint hooks, `.github/actionlint.yml`                               |
-| `gitignore`      |                                       | gitignore-tidy hook                                                                 |
-| `javascript`     | `github-actions`                      | Browser JavaScript without Next.js. No `biome.json`                                 |
-| `mirror`         | `github-actions`                      | pre-commit-mirror-maker workflow                                                    |
-| `python`         | `toml`, `github-actions`, `gitignore` | ruff, mypy, pyright, and ty hooks, managed `pyproject.toml` tables, tox CI workflow |
-| `rust`           | `toml`, `github-actions`, `gitignore` | cargo fmt and clippy hooks, CI workflow, crates.io release workflow                 |
-| `shell`          |                                       | shfmt and shellcheck hooks                                                          |
-| `sql`            | `toml`                                | sqlfluff hooks and config                                                           |
-| `toml`           |                                       | tombi hook                                                                          |
-| `typescript`     | `github-actions`, `gitignore`         | `biome.json`, `.gitignore`, and `.gitattributes` for a jsii library                 |
+| Stack            | Implies                               | Generates                                                                                        |
+| ---------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `frontend`       | `github-actions`, `gitignore`         | Next.js and Vercel config, CI and release workflows                                              |
+| `github-actions` |                                       | zizmor and actionlint hooks, `.github/actionlint.yml`                                            |
+| `gitignore`      |                                       | gitignore-tidy hook                                                                              |
+| `javascript`     | `github-actions`                      | Browser JavaScript without Next.js. No `biome.json`                                              |
+| `mirror`         | `github-actions`                      | pre-commit-mirror-maker workflow                                                                 |
+| `python`         | `toml`, `github-actions`, `gitignore` | ruff, mypy, pyright, and ty hooks, managed `pyproject.toml` tables, tox CI workflow              |
+| `rust`           | `toml`, `github-actions`, `gitignore` | cargo fmt and clippy hooks, CI workflow, crates.io release workflow                              |
+| `shell`          | `github-actions`                      | shfmt and shellcheck hooks, a `bats` job in `main.yml` that runs every tracked `*.bats` file     |
+| `sql`            | `toml`                                | sqlfluff hooks and config                                                                        |
+| `toml`           |                                       | tombi hook                                                                                       |
+| `typescript`     | `github-actions`, `gitignore`         | `biome.json`, `.gitignore`, `.gitattributes`, and a build and test `main.yml` for a jsii library |
 
 Every repo also gets the default hooks (pre-commit-hooks, pretty-format-yaml, biome, and mdformat),
 `.github/renovate.jsonc`, and `.github/mergify.yml`.
@@ -102,7 +102,6 @@ All options are optional unless the description says so.
 | `opt.python.extras.tests`                      | More test directories.                                                                                                   |
 | `opt.python.extras.generated`                  | Generated-code directories that the type checkers skip.                                                                  |
 | `opt.python.pyproject-path`                    | File to merge `pyproject.toml` tables into, such as a `.mustache` template.                                              |
-| `opt.shell.bats`                               | Run the bats tests in `tests/` in CI. Requires the `github-actions` stack. Defaults to `false`.                          |
 | `opt.mirror.command`                           | The `pre-commit-mirror` command. Required for `mirror`.                                                                  |
 | `opt.mirror.version`                           | pre-commit-mirror-maker commit to install. Defaults to the latest release.                                               |
 | `opt.github-actions.custom-managers`           | Renovate custom manager presets, such as `github-actions-versions`.                                                      |
