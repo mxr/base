@@ -315,6 +315,7 @@ describe("BaseProject mirror stack", () => {
     const snapshot = Testing.synth(project);
     expect(snapshot[".github/workflows/main.yml"]).toContain("pip install pre-commit-mirror-maker");
     expect(snapshot[".github/workflows/main.yml"]).toContain("pre-commit-mirror . --language python");
+    expect(snapshot[".github/workflows/main.yml"]).toContain("workflow_dispatch: {}");
     expect(snapshot[".github/workflows/main.yml"]).toContain(`python-version: '${STABLE_PYTHON}'`);
   });
 
