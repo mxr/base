@@ -354,10 +354,17 @@ export function managedPyproject(options: ManagedPyprojectOptions): ManagedPypro
             commands: [
               ["coverage", "erase"],
               [
+                "python",
+                "-X",
+                "dev",
+                "-m",
                 "coverage",
                 "run",
                 "-m",
                 "pytest",
+                "--strict",
+                "-W",
+                "error",
                 // a `{posargs:a b}` default would be one argument
                 testsDirs.length > 1 ? { replace: "posargs", default: testsDirs, extend: true } : `{posargs:${testsDir}}`,
               ],
