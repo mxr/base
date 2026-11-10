@@ -180,19 +180,20 @@ describe("managedPyproject", () => {
       name: "default tests dir",
       options: {},
       module: '"tests.*"',
-      pytest: '["coverage", "run", "-m", "pytest", "{posargs:tests}"]',
+      pytest: '["python", "-X", "dev", "-m", "coverage", "run", "-m", "pytest", "--strict", "-W", "error", "{posargs:tests}"]',
     },
     {
       name: "custom tests dir",
       options: { testsDir: "test" },
       module: '"test.*"',
-      pytest: '["coverage", "run", "-m", "pytest", "{posargs:test}"]',
+      pytest: '["python", "-X", "dev", "-m", "coverage", "run", "-m", "pytest", "--strict", "-W", "error", "{posargs:test}"]',
     },
     {
       name: "extra tests dirs",
       options: { testsDir: "test", extraTestsDirs: ["test_custom"] },
       module: '["test.*", "test_custom.*"]',
-      pytest: '["coverage", "run", "-m", "pytest", { replace = "posargs", default = ["test", "test_custom"], extend = true }]',
+      pytest:
+        '["python", "-X", "dev", "-m", "coverage", "run", "-m", "pytest", "--strict", "-W", "error", { replace = "posargs", default = ["test", "test_custom"], extend = true }]',
     },
   ])("tests and relaxes typing for $name", ({ options, module, pytest }) => {
     const pyproject = managedPyproject({ minVersion: "3.11", name: "foo", license: "MIT", ...options });
