@@ -363,7 +363,10 @@ export class BaseProject extends GitHubProject {
         marker: false,
         lines: [`// ${BANNER}`, "", ...readResource("frontend/next.config.ts").trimEnd().split("\n")],
       });
-      new TextFile(this, "vercel.json", { lines: readResource("frontend/vercel.json").trimEnd().split("\n") });
+      new TextFile(this, "vercel.ts", {
+        marker: false,
+        lines: [`// ${BANNER}`, "", ...readResource("frontend/vercel.ts").trimEnd().split("\n")],
+      });
     }
 
     if (expandStacks(this.stack).includes(Stack.GITHUB_ACTIONS)) {
