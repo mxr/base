@@ -113,11 +113,13 @@ describe("BaseProject", () => {
     expect(snapshot["vitest.config.mts"]).toContain("defineConfig");
     expect(snapshot["postcss.config.mjs"]).toContain("@tailwindcss/postcss");
     expect(snapshot["next.config.ts"]).toContain("useTypeScriptCli");
-    expect(snapshot["vercel.json"]).toMatchObject({ git: { deploymentEnabled: { main: false } } });
+    expect(snapshot["vercel.ts"]).toContain("deploymentEnabled");
+    expect(snapshot["vercel.ts"]).toContain('mitigate: {\n        action: "deny",');
+    expect(snapshot["vercel.json"]).toBeUndefined();
 
     const nonFrontend = Testing.synth(new BaseProject({ name: "test", stack: [] }));
     expect(nonFrontend["tsconfig.json"]).toBeUndefined();
-    expect(nonFrontend["vercel.json"]).toBeUndefined();
+    expect(nonFrontend["vercel.ts"]).toBeUndefined();
   });
 
   it("skips shared frontend config files for a javascript stack", () => {
@@ -127,7 +129,7 @@ describe("BaseProject", () => {
     expect(snapshot["vitest.config.mts"]).toBeUndefined();
     expect(snapshot["postcss.config.mjs"]).toBeUndefined();
     expect(snapshot["next.config.ts"]).toBeUndefined();
-    expect(snapshot["vercel.json"]).toBeUndefined();
+    expect(snapshot["vercel.ts"]).toBeUndefined();
     expect(snapshot[".github/workflows/main.yml"]).toBeUndefined();
     expect(snapshot[".github/workflows/release.yml"]).toBeUndefined();
   });
