@@ -394,7 +394,18 @@ export function managedPyproject(options: ManagedPyprojectOptions): ManagedPypro
           },
         }
       : {}),
-    // the repo's own filters go after `error`, so they win
-    ...(ci ? { prependedKeys: { "tool.pytest.ini_options": { filterwarnings: ["error"] } } } : {}),
+    ...(ci
+      ? {
+          prependedKeys: {
+            "tool.pytest.ini_options": {
+              // importing homeassistant aliases httpx to httpx2 and raises if httpx is already imported. respx's pytest plugin
+              // loads first and imports httpx, so disable it. pytest-homeassistant imports respx itself, after the alias
+              ...(isHomeAssistant ? { addopts: ["-p", "no:respx"] } : {}),
+              // the repo's own filters go after `error`, so they win
+              filterwarnings: ["error"],
+            },
+          },
+        }
+      : {}),
   };
 }

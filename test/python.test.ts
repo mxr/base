@@ -133,6 +133,7 @@ describe("managedPyproject", () => {
     expect(runBase?.lines).toContainEqual(
       expect.stringContaining('subprocess.check_call(["uv", "pip", "install", "--python", sys.executable, *manifest["requirements"]])'),
     );
+    expect(pyproject.prependedKeys).toEqual({ "tool.pytest.ini_options": { addopts: ["-p", "no:respx"], filterwarnings: ["error"] } });
     expect(runBase?.lines).toContain('dependency_groups = ["test"]');
     expect(runBase?.lines).toContain("skip_install = true");
   });

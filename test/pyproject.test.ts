@@ -100,12 +100,31 @@ describe("mergePyproject", () => {
       expected: `[${PYTEST}]\nfilterwarnings = ["error", "ignore::UserWarning"]  ${M}\n`,
     },
     {
+      name: "unmarked filters with error later",
+      existing: `[${PYTEST}]\nfilterwarnings = ["ignore::UserWarning", "error"]\n`,
+      expected: `[${PYTEST}]\nfilterwarnings = ["error", "ignore::UserWarning", "error"]  ${M}\n`,
+    },
+    {
       name: "repo filters in a single string",
       existing: `[${PYTEST}]\nfilterwarnings = "ignore::UserWarning"\n`,
       expected: `[${PYTEST}]\nfilterwarnings = ["error", "ignore::UserWarning"]  ${M}\n`,
     },
   ])("prepends managed array entries for $name", ({ existing, expected }) => {
     expect(mergePyproject(existing, { tables: [], prependedKeys: { [PYTEST]: { filterwarnings: ["error"] } } })).toBe(expected);
+  });
+
+  it.each([
+    { name: "no addopts", existing: `[${PYTEST}]\n`, expected: `["-p", "no:respx"]` },
+    {
+      name: "marked addopts",
+      existing: `[${PYTEST}]\naddopts = ["-p", "no:respx", "-p", "xdist"]  ${M}\n`,
+      expected: `["-p", "no:respx", "-p", "xdist"]`,
+    },
+    { name: "unmarked addopts", existing: `[${PYTEST}]\naddopts = ["-p", "xdist"]\n`, expected: `["-p", "no:respx", "-p", "xdist"]` },
+  ])("keeps every repo entry of a multi-entry prepended array for $name", ({ existing, expected }) => {
+    expect(mergePyproject(existing, { tables: [], prependedKeys: { [PYTEST]: { addopts: ["-p", "no:respx"] } } })).toBe(
+      `[${PYTEST}]\naddopts = ${expected}  ${M}\n`,
+    );
   });
 
   it("drops a marked key no longer managed outside [project]", () => {

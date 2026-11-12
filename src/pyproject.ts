@@ -199,9 +199,10 @@ export function mergePyproject(existing: string, managed: ManagedPyproject): str
 
   const managedEntry = (table: string, key: string): string => {
     const prepended = prependedKeys[table]?.[key];
-    const value = prepended
-      ? [...prepended, ...(existingEntries.get(keyId(table, key)) ?? []).filter((entry) => !prepended.includes(entry))]
-      : (keys[table]?.[key] as TomlValue);
+    const existing = existingEntries.get(keyId(table, key)) ?? [];
+    // base's entries from the last merge lead the existing ones; dropping matches elsewhere would break multi-entry args like `["-p", "x"]`
+    const hasPrefix = prepended?.every((entry, i) => existing[i] === entry) ?? false;
+    const value = prepended ? [...prepended, ...existing.slice(hasPrefix ? prepended.length : 0)] : (keys[table]?.[key] as TomlValue);
     return `${tomlEntries({ [key]: value })[0]}  ${MANAGED_MARKER}`;
   };
   const newKeys = (table: string): string[] =>
