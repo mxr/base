@@ -74,7 +74,44 @@ describe("mergePyproject", () => {
       expected: `[project]\nlicense = "MIT"  ${M}\nname = "x"\n\n[tool.other]\nlicense = "GPL"\n`,
     },
   ])("replaces [project] keys for $name", ({ existing, expected }) => {
-    expect(mergePyproject(existing, { tables: [], projectKeys: { license: "MIT" } })).toBe(expected);
+    expect(mergePyproject(existing, { tables: [], tableKeys: { project: { license: "MIT" } } })).toBe(expected);
+  });
+
+  const PYTEST = "tool.pytest.ini_options";
+  it.each([
+    {
+      name: "no pytest table",
+      existing: '[project]\nname = "x"\n',
+      expected: `[project]\nname = "x"\n\n[${PYTEST}]\nfilterwarnings = ["error"]  ${M}\n`,
+    },
+    {
+      name: "pytest table without filters",
+      existing: `[${PYTEST}]\nasyncio_mode = "auto"\n`,
+      expected: `[${PYTEST}]\nfilterwarnings = ["error"]  ${M}\nasyncio_mode = "auto"\n`,
+    },
+    {
+      name: "repo filters",
+      existing: `[${PYTEST}]\naddopts = "-q"\nfilterwarnings = [\n  "ignore::DeprecationWarning",  # see #1\n  'ignore:a "b"',\n]\n`,
+      expected: `[${PYTEST}]\naddopts = "-q"\nfilterwarnings = ["error", "ignore::DeprecationWarning", "ignore:a \\"b\\""]  ${M}\n`,
+    },
+    {
+      name: "marked filters",
+      existing: `[${PYTEST}]\nfilterwarnings = ["error", "ignore::UserWarning"]  ${M}\n`,
+      expected: `[${PYTEST}]\nfilterwarnings = ["error", "ignore::UserWarning"]  ${M}\n`,
+    },
+    {
+      name: "repo filters in a single string",
+      existing: `[${PYTEST}]\nfilterwarnings = "ignore::UserWarning"\n`,
+      expected: `[${PYTEST}]\nfilterwarnings = ["error", "ignore::UserWarning"]  ${M}\n`,
+    },
+  ])("prepends managed array entries for $name", ({ existing, expected }) => {
+    expect(mergePyproject(existing, { tables: [], prependedKeys: { [PYTEST]: { filterwarnings: ["error"] } } })).toBe(expected);
+  });
+
+  it("drops a marked key no longer managed outside [project]", () => {
+    expect(mergePyproject(`[${PYTEST}]\nfilterwarnings = ["error"]  ${M}\naddopts = "-q"\n`, { tables: [] })).toBe(
+      `[${PYTEST}]\naddopts = "-q"\n`,
+    );
   });
 });
 

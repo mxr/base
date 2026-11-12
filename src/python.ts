@@ -363,8 +363,6 @@ export function managedPyproject(options: ManagedPyprojectOptions): ManagedPypro
                 "-m",
                 "pytest",
                 "--strict",
-                "-W",
-                "error",
                 // a `{posargs:a b}` default would be one argument
                 testsDirs.length > 1 ? { replace: "posargs", default: testsDirs, extend: true } : `{posargs:${testsDir}}`,
               ],
@@ -385,14 +383,18 @@ export function managedPyproject(options: ManagedPyprojectOptions): ManagedPypro
     tables,
     ...(isWheel
       ? {
-          projectKeys: {
-            // tombi's order, for keys new to `[project]`
-            "requires-python": `>=${options.minVersion}`,
-            license: options.license,
-            "license-files": ["LICENSE"],
-            authors: [{ name: "Max R", email: "mxr@users.noreply.github.com" }],
+          tableKeys: {
+            project: {
+              // tombi's order, for keys new to `[project]`
+              "requires-python": `>=${options.minVersion}`,
+              license: options.license,
+              "license-files": ["LICENSE"],
+              authors: [{ name: "Max R", email: "mxr@users.noreply.github.com" }],
+            },
           },
         }
       : {}),
+    // the repo's own filters go after `error`, so they win
+    ...(ci ? { prependedKeys: { "tool.pytest.ini_options": { filterwarnings: ["error"] } } } : {}),
   };
 }
