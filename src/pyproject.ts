@@ -202,8 +202,16 @@ export function mergePyproject(existing: string, managed: ManagedPyproject): str
     const existing = existingEntries.get(keyId(table, key)) ?? [];
     // base's entries from the last merge lead the existing ones; dropping matches elsewhere would break multi-entry args like `["-p", "x"]`
     const hasPrefix = prepended?.every((entry, i) => existing[i] === entry) ?? false;
-    const value = prepended ? [...prepended, ...existing.slice(hasPrefix ? prepended.length : 0)] : (keys[table]?.[key] as TomlValue);
-    return `${tomlEntries({ [key]: value })[0]}  ${MANAGED_MARKER}`;
+    const repoEntries = prepended ? existing.slice(hasPrefix ? prepended.length : 0) : [];
+    if (prepended && repoEntries.length > 0) {
+      // one entry per line, so the marker sits on base's entries and not on the repo's
+      const lines = [
+        ...prepended.map((entry) => `  ${renderTomlValue(entry)},  ${MANAGED_MARKER}`),
+        ...repoEntries.map((entry) => `  ${renderTomlValue(entry)},`),
+      ];
+      return [`${key} = [`, ...lines, "]"].join("\n");
+    }
+    return `${tomlEntries({ [key]: prepended ?? (keys[table]?.[key] as TomlValue) })[0]}  ${MANAGED_MARKER}`;
   };
   const newKeys = (table: string): string[] =>
     Object.keys(keys[table] as Record<string, TomlValue>)
