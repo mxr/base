@@ -1,5 +1,5 @@
 /**
- * Trailing comment on every table header and `[project]` key that base
+ * Trailing comment on every table header and key that base
  * manages. tombi sorts tables and keys, so a begin and end marker pair
  * wouldn't survive, but a trailing comment stays on its line.
  */
@@ -22,10 +22,18 @@ export interface ManagedPyproject {
   readonly tables: readonly ManagedTable[];
 
   /**
-   * Keys that base sets in the downstream repo's `[project]` table, next to
-   * the keys the repo manages itself, such as `name` and `version`.
+   * Keys that base sets in tables the downstream repo owns, keyed by table
+   * name, next to the keys the repo manages itself, such as `[project]`'s
+   * `name` and `version`.
    */
-  readonly projectKeys?: Readonly<Record<string, TomlValue>>;
+  readonly tableKeys?: Readonly<Record<string, Readonly<Record<string, TomlValue>>>>;
+
+  /**
+   * Like {@link tableKeys}, but for string arrays that keep the repo's own
+   * entries after base's, such as pytest's `filterwarnings`, where later
+   * filters win.
+   */
+  readonly prependedKeys?: Readonly<Record<string, Readonly<Record<string, readonly string[]>>>>;
 
   /**
    * Table name prefixes that base owns outright. Their tables are dropped even
@@ -106,16 +114,31 @@ function bracketDepth(line: string): number {
   return (code.match(/[[{]/g)?.length ?? 0) - (code.match(/[\]}]/g)?.length ?? 0);
 }
 
+// string literals in a line of TOML, skipping its comment
+function tomlStrings(line: string): string[] {
+  return [...line.matchAll(/"(?:[^"\\]|\\.)*"|'[^']*'|#.*$/g)]
+    .map(([match]) => match)
+    .filter((match) => !match.startsWith("#"))
+    .map((match) => (match.startsWith('"') ? (JSON.parse(match) as string) : match.slice(1, -1)));
+}
+
+// placeholders in the kept lines, filled in once every existing key has been read
+const KEY_SLOT = "\0key\0";
+const NEW_KEYS_SLOT = "\0new\0";
+
 /**
- * Replaces base's managed tables and `[project]` keys in an existing
- * `pyproject.toml` and leaves the rest of the file alone, since the
- * downstream repo owns the rest. Also drops anything marked with
- * {@link MANAGED_MARKER}, so a table or key that base stops managing doesn't
- * linger.
+ * Replaces base's managed tables and keys in an existing `pyproject.toml` and
+ * leaves the rest of the file alone, since the downstream repo owns the rest.
+ * Also drops anything marked with {@link MANAGED_MARKER}, so a table or key
+ * that base stops managing doesn't linger.
  */
 export function mergePyproject(existing: string, managed: ManagedPyproject): string {
   const tableNames = new Set(managed.tables.map(({ name }) => name));
-  const projectKeys = managed.projectKeys ?? {};
+  const prependedKeys = managed.prependedKeys ?? {};
+  const keys: Record<string, Record<string, TomlValue>> = {};
+  for (const [table, values] of [...Object.entries(managed.tableKeys ?? {}), ...Object.entries(prependedKeys)]) {
+    keys[table] = { ...keys[table], ...values };
+  }
   const ownedPrefixes = managed.ownedPrefixes ?? [];
   const isDropped = (name: string, header: string): boolean =>
     header.includes(MANAGED_MARKER) ||
@@ -123,22 +146,25 @@ export function mergePyproject(existing: string, managed: ManagedPyproject): str
     ownedPrefixes.some((prefix) => name === prefix || name.startsWith(`${prefix}.`));
 
   const kept: string[] = [];
-  const managedEntry = (key: string): string => `${tomlEntries({ [key]: projectKeys[key] as TomlValue })[0]}  ${MANAGED_MARKER}`;
-  // managed keys replace existing ones in place, so tombi's key order holds; new ones go right under `[project]`
+  const keyId = (table: string, key: string): string => `${table}\0${key}`;
+  // the repo's entries in each prepended key
+  const existingEntries = new Map<string, string[]>();
+  // managed keys replace existing ones in place, so tombi's key order holds; new ones go right under the table's header
   const placedKeys = new Set<string>();
-  let projectHeaderIndex: number | undefined;
+  const seenTables = new Set<string>();
   let currentTable: string | undefined;
   let droppingTable = false;
   let droppingDepth = 0;
+  let droppingEntries: string[] | undefined;
   for (const line of existing.split("\n")) {
     const header = TABLE_HEADER.exec(line);
     if (header?.[1] !== undefined) {
       currentTable = header[1];
       droppingTable = isDropped(currentTable, line);
       droppingDepth = 0;
-      if (!droppingTable && currentTable === "project") {
-        projectHeaderIndex = kept.length;
-        kept.push(line);
+      if (!droppingTable && currentTable in keys && !line.startsWith("[[")) {
+        seenTables.add(currentTable);
+        kept.push(line, `${NEW_KEYS_SLOT}${currentTable}`);
         continue;
       }
     }
@@ -147,30 +173,57 @@ export function mergePyproject(existing: string, managed: ManagedPyproject): str
     }
     if (droppingDepth > 0) {
       droppingDepth += bracketDepth(line);
+      droppingEntries?.push(...tomlStrings(line));
       continue;
     }
-    const key = currentTable === "project" ? KEY.exec(line)?.[1] : undefined;
-    if (key !== undefined && (key in projectKeys || line.includes(MANAGED_MARKER))) {
+    const keyMatch = currentTable === undefined ? null : KEY.exec(line);
+    const key = keyMatch?.[1];
+    const tableKeys = currentTable === undefined ? {} : (keys[currentTable] ?? {});
+    if (currentTable !== undefined && keyMatch && key !== undefined && (key in tableKeys || line.includes(MANAGED_MARKER))) {
       droppingDepth = bracketDepth(line);
-      if (key in projectKeys && !placedKeys.has(key)) {
-        placedKeys.add(key);
-        kept.push(managedEntry(key));
+      droppingEntries = undefined;
+      const id = keyId(currentTable, key);
+      if (prependedKeys[currentTable]?.[key] !== undefined) {
+        droppingEntries = existingEntries.get(id) ?? [];
+        existingEntries.set(id, droppingEntries);
+        droppingEntries.push(...tomlStrings(line.slice(keyMatch[0].length)));
+      }
+      if (key in tableKeys && !placedKeys.has(id)) {
+        placedKeys.add(id);
+        kept.push(`${KEY_SLOT}${id}`);
       }
       continue;
     }
     kept.push(line);
   }
 
-  const newKeys = Object.keys(projectKeys)
-    .filter((key) => !placedKeys.has(key))
-    .map(managedEntry);
-  if (projectHeaderIndex !== undefined) {
-    kept.splice(projectHeaderIndex + 1, 0, ...newKeys);
-  }
-  // the downstream repo owns the rest of `[project]`, so a new one's header isn't marked
-  const newProject = projectHeaderIndex === undefined && newKeys.length > 0 ? ["[project]", ...newKeys].join("\n") : "";
-  const rest = kept.join("\n").trim();
-  return `${sortToolTables([rest, newProject, renderManagedTables(managed.tables)].filter(Boolean).join("\n\n"))}\n`;
+  const managedEntry = (table: string, key: string): string => {
+    const prepended = prependedKeys[table]?.[key];
+    const existing = existingEntries.get(keyId(table, key)) ?? [];
+    // base's entries from the last merge lead the existing ones; dropping matches elsewhere would break multi-entry args like `["-p", "x"]`
+    const hasPrefix = prepended?.every((entry, i) => existing[i] === entry) ?? false;
+    const value = prepended ? [...prepended, ...existing.slice(hasPrefix ? prepended.length : 0)] : (keys[table]?.[key] as TomlValue);
+    return `${tomlEntries({ [key]: value })[0]}  ${MANAGED_MARKER}`;
+  };
+  const newKeys = (table: string): string[] =>
+    Object.keys(keys[table] as Record<string, TomlValue>)
+      .filter((key) => !placedKeys.has(keyId(table, key)))
+      .map((key) => managedEntry(table, key));
+  const rest = kept
+    .flatMap((line) => {
+      if (line.startsWith(KEY_SLOT)) {
+        const [table = "", key = ""] = line.slice(KEY_SLOT.length).split("\0");
+        return [managedEntry(table, key)];
+      }
+      return line.startsWith(NEW_KEYS_SLOT) ? newKeys(line.slice(NEW_KEYS_SLOT.length)) : [line];
+    })
+    .join("\n")
+    .trim();
+  // the downstream repo owns the rest of these tables, so a new one's header isn't marked
+  const newTables = Object.keys(keys)
+    .filter((table) => !seenTables.has(table))
+    .map((table) => [`[${table}]`, ...newKeys(table)].join("\n"));
+  return `${sortToolTables([rest, ...newTables, renderManagedTables(managed.tables)].filter(Boolean).join("\n\n"))}\n`;
 }
 
 function compareTableNames(a: string, b: string): number {

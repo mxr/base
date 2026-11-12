@@ -105,11 +105,13 @@ describe("managedPyproject", () => {
     expect(pyproject.tables).toContainEqual({ name: "project.urls", lines: ['Homepage = "https://github.com/mxr/foo-bar"'] });
     expect(names).not.toContain("tool.ruff");
     expect(pyproject.tables).toContainEqual({ name: "tool.tox", lines: ['env_list = ["py", "pre-commit"]'] });
-    expect(pyproject.projectKeys).toEqual({
-      authors: [{ name: "Max R", email: "mxr@users.noreply.github.com" }],
-      license: "MIT",
-      "license-files": ["LICENSE"],
-      "requires-python": ">=3.12",
+    expect(pyproject.tableKeys).toEqual({
+      project: {
+        authors: [{ name: "Max R", email: "mxr@users.noreply.github.com" }],
+        license: "MIT",
+        "license-files": ["LICENSE"],
+        "requires-python": ">=3.12",
+      },
     });
   });
 
@@ -123,7 +125,7 @@ describe("managedPyproject", () => {
     const names = pyproject.tables.map(({ name }) => name);
     expect(names).not.toContain("build-system");
     expect(names).not.toContain("project.urls");
-    expect(pyproject.projectKeys).toBeUndefined();
+    expect(pyproject.tableKeys).toBeUndefined();
     const runBase = pyproject.tables.find(({ name }) => name === "tool.tox.env_run_base");
     expect(runBase?.lines).toContainEqual(
       expect.stringMatching(/^commands_pre = \[\n {2}\[\n {4}"python",\n {4}"-c",\n {4}'''\nimport json\n.*manifest\["requirements"\]/s),
@@ -131,6 +133,7 @@ describe("managedPyproject", () => {
     expect(runBase?.lines).toContainEqual(
       expect.stringContaining('subprocess.check_call(["uv", "pip", "install", "--python", sys.executable, *manifest["requirements"]])'),
     );
+    expect(pyproject.prependedKeys).toEqual({ "tool.pytest.ini_options": { addopts: ["-p", "no:respx"], filterwarnings: ["error"] } });
     expect(runBase?.lines).toContain('dependency_groups = ["test"]');
     expect(runBase?.lines).toContain("skip_install = true");
   });
@@ -152,16 +155,18 @@ describe("managedPyproject", () => {
     ]);
     expect(pyproject.tables).toContainEqual({ name: "tool.ruff", lines: ['target-version = "py311"'] });
     expect(pyproject.tables).toContainEqual({ name: "tool.tox", lines: ['env_list = ["py", "pre-commit"]'] });
+    expect(pyproject.prependedKeys).toEqual({ "tool.pytest.ini_options": { filterwarnings: ["error"] } });
     expect(pyproject.tables).toContainEqual({
       name: "tool.ruff.lint.isort",
       lines: ["force-single-line = true", 'required-imports = ["from __future__ import annotations"]'],
     });
-    expect(pyproject.projectKeys).toBeUndefined();
+    expect(pyproject.tableKeys).toBeUndefined();
   });
 
   it("omits the tox config with ci off", () => {
     const pyproject = managedPyproject({ minVersion: "3.11", name: "foo", license: "MIT", ci: false });
     expect(pyproject.tables.map(({ name }) => name).filter((name) => name.startsWith("tool.tox"))).toEqual([]);
+    expect(pyproject.prependedKeys).toBeUndefined();
   });
 
   it("skips generated dirs in mypy, pyright, and ty", () => {
@@ -180,20 +185,20 @@ describe("managedPyproject", () => {
       name: "default tests dir",
       options: {},
       module: '"tests.*"',
-      pytest: '["python", "-X", "dev", "-m", "coverage", "run", "-m", "pytest", "--strict", "-W", "error", "{posargs:tests}"]',
+      pytest: '["python", "-X", "dev", "-m", "coverage", "run", "-m", "pytest", "--strict", "{posargs:tests}"]',
     },
     {
       name: "custom tests dir",
       options: { testsDir: "test" },
       module: '"test.*"',
-      pytest: '["python", "-X", "dev", "-m", "coverage", "run", "-m", "pytest", "--strict", "-W", "error", "{posargs:test}"]',
+      pytest: '["python", "-X", "dev", "-m", "coverage", "run", "-m", "pytest", "--strict", "{posargs:test}"]',
     },
     {
       name: "extra tests dirs",
       options: { testsDir: "test", extraTestsDirs: ["test_custom"] },
       module: '["test.*", "test_custom.*"]',
       pytest:
-        '["python", "-X", "dev", "-m", "coverage", "run", "-m", "pytest", "--strict", "-W", "error", { replace = "posargs", default = ["test", "test_custom"], extend = true }]',
+        '["python", "-X", "dev", "-m", "coverage", "run", "-m", "pytest", "--strict", { replace = "posargs", default = ["test", "test_custom"], extend = true }]',
     },
   ])("tests and relaxes typing for $name", ({ options, module, pytest }) => {
     const pyproject = managedPyproject({ minVersion: "3.11", name: "foo", license: "MIT", ...options });

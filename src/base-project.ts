@@ -621,7 +621,8 @@ export class BaseProject extends GitHubProject {
         pyprojectPath,
         mergePyproject(existing, {
           tables,
-          ...(python?.projectKeys ? { projectKeys: python.projectKeys } : {}),
+          ...(python?.tableKeys ? { tableKeys: python.tableKeys } : {}),
+          ...(python?.prependedKeys ? { prependedKeys: python.prependedKeys } : {}),
           ...(isSql ? { ownedPrefixes: ["tool.sqlfluff"] } : {}),
         }),
       );
