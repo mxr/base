@@ -200,6 +200,20 @@ describe("BaseProject", () => {
     expect(snapshot[".github/workflows/release.yml"].match(expected)).toHaveLength(1);
   });
 
+  it.each([
+    { name: "the default bats version for a new repo", existing: undefined, expected: /^ {6}BATS_VERSION: \d+\.\d+\.\d+$/gm },
+    { name: "the existing bats version", existing: "    env:\n      BATS_VERSION: 9.8.7\n", expected: /^ {6}BATS_VERSION: 9\.8\.7$/gm },
+  ])("writes the bats job with $name", ({ existing, expected }) => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "base-projen-bats-"));
+    if (existing) {
+      fs.mkdirSync(path.join(dir, ".github/workflows"), { recursive: true });
+      fs.writeFileSync(path.join(dir, ".github/workflows/main.yml"), existing);
+    }
+    const snapshot = Testing.synth(new BaseProject({ name: "test", stack: [Stack.SHELL], outdir: dir }));
+    expect(snapshot[".github/workflows/main.yml"].match(expected)).toHaveLength(1);
+    expect(snapshot[".github/renovate.jsonc"].extends).toContain("customManagers:githubActionsVersions");
+  });
+
   it("writes a ci.skip block for a rust stack, and skips it otherwise", () => {
     const rust = Testing.synth(new BaseProject({ name: "test", stack: [Stack.RUST] }));
     expect(rust[".pre-commit-config.yaml"]).toContain("ci:\n  skip: [clippy] # runs via GHA to avoid keeping deps in-sync here\n");
@@ -298,10 +312,11 @@ describe("BaseProject github-actions stack", () => {
     const main = Testing.synth(new BaseProject({ name: "test", stack }))[".github/workflows/main.yml"];
     expect(main).toContain("\n  bats:\n    runs-on: ubuntu-26.04\n");
     expect(main).toContain("    - run: git ls-files -z '*.bats' | xargs -0 bats");
+    expect(main).toContain("        bats-version: ${{ env.BATS_VERSION }}\n");
     if (otherJob) {
       expect(main).toContain(otherJob);
     }
-    expect(parse(main).jobs.bats.steps).toHaveLength(3);
+    expect(parse(main).jobs.bats.steps).toHaveLength(4);
   });
 
   it.each([
