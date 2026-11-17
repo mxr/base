@@ -36,6 +36,7 @@ jobs:
         persist-credentials: false
     - uses: actions-rust-lang/setup-rust-toolchain@v0.0.0
       with:
+        toolchain: 0.0.0
         components: clippy
     - run: cargo clippy --all-targets --locked -- -D warnings -D clippy::pedantic -D clippy::nursery -D clippy::cargo
 
@@ -49,6 +50,7 @@ jobs:
         persist-credentials: false
     - uses: actions-rust-lang/setup-rust-toolchain@v0.0.0
       with:
+        toolchain: 0.0.0
         components: llvm-tools-preview
     - uses: taiki-e/install-action@v0.0.0
       with:
