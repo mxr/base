@@ -185,6 +185,21 @@ describe("BaseProject", () => {
     expect(snapshot[".pre-commit-config.yaml"]).toContain("repos:");
   });
 
+  it.each([
+    { name: "the default rust toolchain for a new repo", existing: undefined, expected: /^ {8}toolchain: \d+\.\d+\.\d+$/gm },
+    { name: "the existing rust toolchain", existing: "      with:\n        toolchain: 9.8.7\n", expected: /^ {8}toolchain: 9\.8\.7$/gm },
+  ])("writes rust workflow files with $name", ({ existing, expected }) => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "base-projen-rust-"));
+    if (existing) {
+      fs.mkdirSync(path.join(dir, ".github/workflows"), { recursive: true });
+      fs.writeFileSync(path.join(dir, ".github/workflows/main.yml"), existing);
+      fs.writeFileSync(path.join(dir, ".github/workflows/release.yml"), existing);
+    }
+    const snapshot = Testing.synth(new BaseProject({ name: "test", stack: [Stack.RUST], outdir: dir }));
+    expect(snapshot[".github/workflows/main.yml"].match(expected)).toHaveLength(2);
+    expect(snapshot[".github/workflows/release.yml"].match(expected)).toHaveLength(1);
+  });
+
   it("writes a ci.skip block for a rust stack, and skips it otherwise", () => {
     const rust = Testing.synth(new BaseProject({ name: "test", stack: [Stack.RUST] }));
     expect(rust[".pre-commit-config.yaml"]).toContain("ci:\n  skip: [clippy] # runs via GHA to avoid keeping deps in-sync here\n");

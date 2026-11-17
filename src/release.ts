@@ -58,6 +58,7 @@ export function cargoReleaseWorkflow(): string[] {
         persist-credentials: false
     - uses: actions-rust-lang/setup-rust-toolchain@v0.0.0
       with:
+        toolchain: 0.0.0
         cache: false
     - uses: rust-lang/crates-io-auth-action@v0.0.0
       id: auth

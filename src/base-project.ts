@@ -23,6 +23,11 @@ import type { ManagedTable } from "./pyproject";
 const VERCEL_VERSION = "65.9.0";
 const VERCEL_VERSION_RE = /^\s+VERCEL_VERSION: (\S+)$/m;
 
+// Only new repos get this version: renovate bumps the setup-rust-toolchain `toolchain` input downstream, and synth keeps it.
+// renovate: datasource=rust-version depName=rust
+const RUST_TOOLCHAIN = "1.100.0";
+const RUST_TOOLCHAIN_RE = /^\s+toolchain: (\S+)$/m;
+
 const RENOVATE_CUSTOM_MANAGER_PRESETS: Record<RenovateCustomManager, string> = {
   [RenovateCustomManager.GITHUB_ACTIONS_VERSIONS]: "customManagers:githubActionsVersions",
 };
@@ -507,8 +512,12 @@ export class BaseProject extends GitHubProject {
   private addWorkflow(file: string, body: string[]) {
     const workflowPath = `.github/workflows/${file}`;
     const existingPath = path.join(this.outdir, workflowPath);
-    const existing = fs.existsSync(existingPath) ? readExistingActionRefs(fs.readFileSync(existingPath, "utf-8")) : new Map();
-    const { lines, newActions } = applyExistingActionRefs(body, existing);
+    const existingContent = fs.existsSync(existingPath) ? fs.readFileSync(existingPath, "utf-8") : "";
+    const toolchain = RUST_TOOLCHAIN_RE.exec(existingContent)?.[1] ?? RUST_TOOLCHAIN;
+    const { lines, newActions } = applyExistingActionRefs(
+      body.map((line) => line.replace("toolchain: 0.0.0", `toolchain: ${toolchain}`)),
+      readExistingActionRefs(existingContent),
+    );
     if (newActions.length > 0) {
       this.newWorkflowActions.set(workflowPath, newActions);
     }
