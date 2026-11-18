@@ -17,21 +17,18 @@ import type { GitHubProjectOptions } from "projen/lib/github";
 import type { ExistingRev } from "./pre-commit";
 import type { ManagedTable } from "./pyproject";
 
-// pinned here instead of as a downstream devDependency, which Vercel ignores and warns about during builds.
-// Only new repos get this version: renovate bumps release.yml downstream, and synth keeps that version.
+// Only new repos get these versions: renovate bumps the annotated `KEY: x` workflow line downstream, and synth keeps it.
+// Vercel is pinned here instead of as a downstream devDependency, which Vercel ignores and warns about during builds.
 // renovate: datasource=npm depName=vercel
 const VERCEL_VERSION = "65.9.0";
-const VERCEL_VERSION_RE = /^\s+VERCEL_VERSION: (\S+)$/m;
-
-// Only new repos get this version: renovate bumps the setup-rust-toolchain `toolchain` input downstream, and synth keeps it.
 // renovate: datasource=rust-version depName=rust
 const RUST_TOOLCHAIN = "1.100.0";
-const RUST_TOOLCHAIN_RE = /^\s+toolchain: (\S+)$/m;
-
-// Only new repos get this version: renovate bumps the bats job's annotated `BATS_VERSION` env downstream, and synth keeps it.
 // renovate: datasource=github-releases depName=bats-core/bats-core extractVersion=^v(?<version>.+)$
 const BATS_VERSION = "1.14.0";
-const BATS_VERSION_RE = /^\s+BATS_VERSION: (\S+)$/m;
+
+// workflow `KEY: 0.0.0` placeholder -> version for new repos
+const PINNED_VERSIONS: Record<string, string> = { VERCEL_VERSION, toolchain: RUST_TOOLCHAIN, BATS_VERSION };
+const PINNED_VERSION_PLACEHOLDER_RE = new RegExp(`^( +)(${Object.keys(PINNED_VERSIONS).join("|")}): 0\\.0\\.0$`, "gm");
 
 const RENOVATE_CUSTOM_MANAGER_PRESETS: Record<RenovateCustomManager, string> = {
   [RenovateCustomManager.GITHUB_ACTIONS_VERSIONS]: "customManagers:githubActionsVersions",
@@ -353,13 +350,7 @@ export class BaseProject extends GitHubProject {
     }
 
     if (isFrontend) {
-      const releasePath = path.join(this.outdir, ".github/workflows/release.yml");
-      const existingRelease = fs.existsSync(releasePath) ? fs.readFileSync(releasePath, "utf-8") : "";
-      const vercelVersion = VERCEL_VERSION_RE.exec(existingRelease)?.[1] ?? VERCEL_VERSION;
-      this.addWorkflow(
-        "release.yml",
-        readResource("frontend/release.yml").replace("VERCEL_VERSION: 0.0.0", `VERCEL_VERSION: ${vercelVersion}`).trimEnd().split("\n"),
-      );
+      this.addWorkflow("release.yml", readResource("frontend/release.yml").trimEnd().split("\n"));
       new TextFile(this, "tsconfig.json", { lines: readResource("frontend/tsconfig.json").trimEnd().split("\n") });
       new TextFile(this, "vitest.config.mts", {
         marker: false,
@@ -519,11 +510,13 @@ export class BaseProject extends GitHubProject {
     const workflowPath = `.github/workflows/${file}`;
     const existingPath = path.join(this.outdir, workflowPath);
     const existingContent = fs.existsSync(existingPath) ? fs.readFileSync(existingPath, "utf-8") : "";
-    const toolchain = RUST_TOOLCHAIN_RE.exec(existingContent)?.[1] ?? RUST_TOOLCHAIN;
-    const batsVersion = BATS_VERSION_RE.exec(existingContent)?.[1] ?? BATS_VERSION;
     const { lines, newActions } = applyExistingActionRefs(
       body.map((line) =>
-        line.replace("toolchain: 0.0.0", `toolchain: ${toolchain}`).replace("BATS_VERSION: 0.0.0", `BATS_VERSION: ${batsVersion}`),
+        line.replace(
+          PINNED_VERSION_PLACEHOLDER_RE,
+          (_, indent: string, key: string) =>
+            `${indent}${key}: ${new RegExp(`^ +${key}: (\\S+)$`, "m").exec(existingContent)?.[1] ?? PINNED_VERSIONS[key]}`,
+        ),
       ),
       readExistingActionRefs(existingContent),
     );
