@@ -32,11 +32,17 @@ jobs:`;
 const BATS_JOB = `  bats:
     runs-on: ${RUNNER}
     timeout-minutes: 10
+    env:
+      # renovate: datasource=github-releases depName=bats-core/bats-core extractVersion=^v(?<version>.+)$
+      BATS_VERSION: 0.0.0
     steps:
     - uses: actions/checkout@v0.0.0
       with:
         persist-credentials: false
-    - run: sudo apt-get update && sudo apt-get install -y bats zsh
+    - uses: bats-core/bats-action@v0.0.0
+      with:
+        bats-version: \${{ env.BATS_VERSION }}
+    - run: sudo apt-get update && sudo apt-get install -y zsh
     - run: git ls-files -z '*.bats' | xargs -0 bats`;
 
 function mirrorMainWorkflow({ command, version }: { readonly command: string; readonly version?: string }): string {

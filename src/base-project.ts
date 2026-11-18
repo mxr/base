@@ -28,6 +28,11 @@ const VERCEL_VERSION_RE = /^\s+VERCEL_VERSION: (\S+)$/m;
 const RUST_TOOLCHAIN = "1.100.0";
 const RUST_TOOLCHAIN_RE = /^\s+toolchain: (\S+)$/m;
 
+// Only new repos get this version: renovate bumps the bats job's annotated `BATS_VERSION` env downstream, and synth keeps it.
+// renovate: datasource=github-releases depName=bats-core/bats-core extractVersion=^v(?<version>.+)$
+const BATS_VERSION = "1.14.0";
+const BATS_VERSION_RE = /^\s+BATS_VERSION: (\S+)$/m;
+
 const RENOVATE_CUSTOM_MANAGER_PRESETS: Record<RenovateCustomManager, string> = {
   [RenovateCustomManager.GITHUB_ACTIONS_VERSIONS]: "customManagers:githubActionsVersions",
 };
@@ -465,11 +470,12 @@ export class BaseProject extends GitHubProject {
       extends: [
         "config:recommended",
         ":disableDependencyDashboard",
-        // frontend release.yml pins the Vercel CLI as an annotated `VERCEL_VERSION` env var
+        // frontend release.yml pins the Vercel CLI as an annotated `VERCEL_VERSION` env var, and the shell bats job pins `BATS_VERSION`
         ...new Set(
-          [...customManagers, ...(isFrontend ? [RenovateCustomManager.GITHUB_ACTIONS_VERSIONS] : [])].map(
-            (manager) => RENOVATE_CUSTOM_MANAGER_PRESETS[manager],
-          ),
+          [
+            ...customManagers,
+            ...(isFrontend || this.stack.includes(Stack.SHELL) ? [RenovateCustomManager.GITHUB_ACTIONS_VERSIONS] : []),
+          ].map((manager) => RENOVATE_CUSTOM_MANAGER_PRESETS[manager]),
         ),
       ],
       groupSingleUpdates: true,
@@ -514,8 +520,11 @@ export class BaseProject extends GitHubProject {
     const existingPath = path.join(this.outdir, workflowPath);
     const existingContent = fs.existsSync(existingPath) ? fs.readFileSync(existingPath, "utf-8") : "";
     const toolchain = RUST_TOOLCHAIN_RE.exec(existingContent)?.[1] ?? RUST_TOOLCHAIN;
+    const batsVersion = BATS_VERSION_RE.exec(existingContent)?.[1] ?? BATS_VERSION;
     const { lines, newActions } = applyExistingActionRefs(
-      body.map((line) => line.replace("toolchain: 0.0.0", `toolchain: ${toolchain}`)),
+      body.map((line) =>
+        line.replace("toolchain: 0.0.0", `toolchain: ${toolchain}`).replace("BATS_VERSION: 0.0.0", `BATS_VERSION: ${batsVersion}`),
+      ),
       readExistingActionRefs(existingContent),
     );
     if (newActions.length > 0) {
