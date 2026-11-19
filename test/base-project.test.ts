@@ -70,6 +70,7 @@ describe("BaseProject", () => {
       commitMessagePrefix: "[renovate]",
       lockFileMaintenance: { enabled: true, schedule: ["* 21-22 * * 1"] },
       osvVulnerabilityAlerts: true,
+      vulnerabilityAlerts: { groupName: "security" },
     });
     expect(snapshot[".github/renovate.jsonc"].packageRules).toContainEqual({
       matchDatasources: ["github-runners"],
