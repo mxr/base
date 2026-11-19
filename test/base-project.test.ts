@@ -66,7 +66,7 @@ describe("BaseProject", () => {
     const snapshot = Testing.synth(project);
     expect(snapshot[".github/mergify.yml"]).toContain("renovate[bot]");
     expect(snapshot[".github/mergify.yml"]).toContain("author=mxr-base-sync[bot]");
-    expect(snapshot[".github/renovate.jsonc"]).toMatchObject({ commitMessagePrefix: "[renovate]" });
+    expect(snapshot[".github/renovate.jsonc"]).toMatchObject({ commitMessagePrefix: "[renovate]", osvVulnerabilityAlerts: true });
     expect(snapshot[".github/renovate.jsonc"].packageRules).toContainEqual({
       matchDatasources: ["github-runners"],
       minimumReleaseAgeBehaviour: "timestamp-optional",

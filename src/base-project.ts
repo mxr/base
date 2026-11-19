@@ -471,6 +471,8 @@ export class BaseProject extends GitHubProject {
       ],
       groupSingleUpdates: true,
       minimumReleaseAge: "7 days",
+      // GitHub's Dependabot alerts feed Renovate via vulnerabilityAlerts (on by default); OSV covers advisories GitHub lacks
+      osvVulnerabilityAlerts: true,
       // npm 12 refuses registry tarballs of packages with bundleDependencies, such as projen and tailwind oxide, unless remote fetches are allowed
       ...([Stack.FRONTEND, Stack.TYPESCRIPT].some((s) => this.stack.includes(s)) ? { npmrc: "allow-remote=all" } : {}),
       packageRules: [
