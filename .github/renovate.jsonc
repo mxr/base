@@ -15,6 +15,7 @@
   "extends": ["config:recommended", ":disableDependencyDashboard", "customManagers:githubActionsVersions"],
   "groupSingleUpdates": true,
   "minimumReleaseAge": "7 days",
+  "osvVulnerabilityAlerts": true,
   "npmrc": "allow-remote=all",
   "packageRules": [
     {
