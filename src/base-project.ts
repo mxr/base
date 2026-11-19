@@ -453,6 +453,7 @@ export class BaseProject extends GitHubProject {
           ]
         : []),
     ];
+    const renovateSchedule = ["* 21-22 * * 1"];
     const renovateConfig = {
       $schema: "https://docs.renovatebot.com/renovate-schema.json",
       commitMessageAction: "weekly",
@@ -470,6 +471,8 @@ export class BaseProject extends GitHubProject {
         ),
       ],
       groupSingleUpdates: true,
+      // vulnerabilityAlerts only fixes direct deps, so periodically re-resolve the whole lockfile to pick up transitive fixes
+      lockFileMaintenance: { enabled: true, schedule: renovateSchedule },
       minimumReleaseAge: "7 days",
       // GitHub's Dependabot alerts feed Renovate via vulnerabilityAlerts (on by default); OSV covers advisories GitHub lacks
       osvVulnerabilityAlerts: true,
@@ -495,7 +498,7 @@ export class BaseProject extends GitHubProject {
           : []),
       ],
       prBodyTemplate: "{{{table}}}",
-      schedule: ["* 21-22 * * 1"],
+      schedule: renovateSchedule,
       separateMajorMinor: false,
       separateMultipleMajor: false,
     };
