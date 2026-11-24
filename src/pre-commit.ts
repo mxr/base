@@ -41,16 +41,6 @@ const DEFAULT: PreCommitRepo[] = [
     hooks: [{ id: "biome-check" }],
   },
   {
-    repo: "https://github.com/hukkin/mdformat",
-    hooks: [
-      {
-        id: "mdformat",
-        args: ["--number", "--wrap", "120"],
-        additionalDependencies: ["mdformat-footnote", "mdformat-gfm", "mdformat-gfm-alerts"],
-      },
-    ],
-  },
-  {
     repo: "local",
     hooks: [
       {

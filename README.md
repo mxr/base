@@ -83,8 +83,8 @@ Some stacks imply others. For example, `python` also turns on `toml`, `github-ac
 | `toml`           |                                       | tombi hook                                                                                       |
 | `typescript`     | `github-actions`, `gitignore`         | `biome.json`, `.gitignore`, `.gitattributes`, and a build and test `main.yml` for a jsii library |
 
-Every repo also gets the default hooks (pre-commit-hooks, pretty-format-yaml, biome, and mdformat),
-`.github/renovate.jsonc`, and `.github/mergify.yml`.
+Every repo also gets the default hooks (pre-commit-hooks, pretty-format-yaml, and biome), `.github/renovate.jsonc`, and
+`.github/mergify.yml`.
 
 The generated release workflows create a GitHub release for each pushed tag. A tag with anything after `vX.Y.Z`, such as
 `v2.0.0rc1` or `v2.0.0-rc.1`, becomes a prerelease.
