@@ -68,7 +68,7 @@ describe("BaseProject", () => {
     expect(snapshot[".github/mergify.yml"]).toContain("author=mxr-base-sync[bot]");
     expect(snapshot[".github/renovate.jsonc"]).toMatchObject({
       commitMessagePrefix: "[renovate]",
-      lockFileMaintenance: { enabled: true, schedule: ["* 21-22 * * 1"] },
+      lockFileMaintenance: { commitMessageAction: "lockfile maintenance", enabled: true, schedule: ["* 22-23 * * 1"] },
       osvVulnerabilityAlerts: true,
       vulnerabilityAlerts: { groupName: "security" },
     });
