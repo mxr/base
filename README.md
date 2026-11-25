@@ -101,6 +101,7 @@ All options are optional unless the description says so.
 | `opt.python.ci`                                | Generate the tox CI workflow and tox config. Defaults to `true`.                                                         |
 | `opt.python.console-script`                    | Add a `<name> = "<module>._main:main"` script and lock with `uv`. Defaults to `false`.                                   |
 | `opt.python.run-type-checks-in-github-actions` | Run mypy, pyright, and ty in `typing.yml` instead of pre-commit.ci. Defaults to `false`.                                 |
+| `opt.python.custom-managers`                   | Bump `.py` string constants annotated with `# renovate: datasource=... depName=...`. Defaults to `false`.                |
 | `opt.python.tests-dir`                         | Directory that tox runs pytest on. Defaults to `tests`.                                                                  |
 | `opt.python.extras.tests`                      | More test directories.                                                                                                   |
 | `opt.python.extras.generated`                  | Generated-code directories that the type checkers skip.                                                                  |
