@@ -41,12 +41,6 @@ export interface MirrorOptions {
    * which comes from the pre-commit-mirror-maker template.
    */
   readonly command: string;
-
-  /**
-   * A pre-commit-mirror-maker commit sha to pin `pip install` to. Omit to
-   * install the release pinned by the `MIRROR_MAKER_VERSION` env var.
-   */
-  readonly version?: string;
 }
 
 export interface PythonOptions {
