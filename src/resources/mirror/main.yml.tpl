@@ -27,7 +27,7 @@ jobs:
     - uses: actions/setup-python@v0.0.0
       with:
         python-version: '{{PYTHON}}'
-    - run: '{{INSTALL}}'
+    - run: pip install "pre-commit-mirror-maker==$MIRROR_MAKER_VERSION"
     - run: git config --global user.name 'Github Actions'
     - run: git config --global user.email '41898282+github-actions[bot]@users.noreply.github.com'
     - run: |

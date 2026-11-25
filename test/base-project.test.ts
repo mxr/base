@@ -369,7 +369,7 @@ describe("BaseProject mirror stack", () => {
     expect(() => new BaseProject({ name: "test", stack: [Stack.MIRROR] })).toThrow("Stack.MIRROR requires opt.mirror to be set");
   });
 
-  it("renders the workflow with a pinned install when no version is given", () => {
+  it("renders the workflow with a pinned install", () => {
     const project = new BaseProject({ name: "test", stack: [Stack.MIRROR], opt: { mirror } });
     const snapshot = Testing.synth(project);
     expect(snapshot[".github/workflows/main.yml"]).toMatch(/^ {6}MIRROR_MAKER_VERSION: \d+\.\d+\.\d+$/m);
@@ -408,18 +408,6 @@ describe("BaseProject mirror stack", () => {
     });
     const snapshot = Testing.synth(project);
     expect(snapshot[".github/workflows/main.yml"]).toContain("pre-commit-mirror . --files-regex '(^|/)(openapi|.*[.](json|ya?ml))$'");
-  });
-
-  it("pins the install to a version when given", () => {
-    const project = new BaseProject({
-      name: "test",
-      stack: [Stack.MIRROR],
-      opt: { mirror: { ...mirror, version: "abc123" } },
-    });
-    const snapshot = Testing.synth(project);
-    expect(snapshot[".github/workflows/main.yml"]).toContain(
-      "pip install git+https://github.com/pre-commit/pre-commit-mirror-maker@abc123",
-    );
   });
 
   it("includes actionlint and zizmor pre-commit hooks for a mirror stack", () => {
