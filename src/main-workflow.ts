@@ -1,7 +1,8 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { pythonMainWorkflow, STABLE_PYTHON } from "./python";
+import { pythonMainWorkflow } from "./python";
 import { Stack } from "./stack";
+import { STABLE_PYTHON } from "./versions";
 import { RUNNER } from "./workflow-actions";
 import type { PythonPackaging } from "./stack";
 
@@ -15,7 +16,7 @@ export interface MainWorkflowOptions {
    * Set when the repo runs tox in CI.
    */
   readonly python?: { readonly envs: string[]; readonly packaging?: PythonPackaging };
-  readonly mirror?: { readonly command: string; readonly version?: string };
+  readonly mirror?: { readonly command: string };
 }
 
 const HEADER = `name: main
@@ -45,17 +46,13 @@ const BATS_JOB = `  bats:
     - run: sudo apt-get update && sudo apt-get install -y zsh
     - run: git ls-files -z '*.bats' | xargs -0 bats`;
 
-function mirrorMainWorkflow({ command, version }: { readonly command: string; readonly version?: string }): string {
-  const install = version
-    ? `pip install git+https://github.com/pre-commit/pre-commit-mirror-maker@${version}`
-    : "pip install pre-commit-mirror-maker";
+function mirrorMainWorkflow({ command }: { readonly command: string }): string {
   const commandLines = command
     .trim()
     .split("\n")
     .map((line, i) => (i === 0 ? line.trim() : `          ${line.trim()}`))
     .join("\n");
   return readResource("mirror/main.yml.tpl")
-    .replace("'{{INSTALL}}'", () => install)
     .replace("{{PYTHON}}", STABLE_PYTHON)
     .replace("{{COMMAND}}", () => commandLines);
 }

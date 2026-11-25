@@ -19,6 +19,8 @@ env:
   PRE_COMMIT_UV_VERSION: 4.4.3
   # renovate: datasource=pypi depName=uv
   UV_VERSION: 0.13.9
+  # renovate: datasource=github-releases depName=suzuki-shunsuke/pinact
+  PINACT_VERSION: v5.0.2
 
 jobs:
   build:
@@ -139,7 +141,7 @@ jobs:
         install_pinact() {
           dir="$RUNNER_TEMP/pinact"
           mkdir -p "$dir"
-          gh release download --repo suzuki-shunsuke/pinact --pattern 'pinact_linux_amd64.tar.gz' --dir "$dir"
+          gh release download "$PINACT_VERSION" --repo suzuki-shunsuke/pinact --pattern 'pinact_linux_amd64.tar.gz' --dir "$dir"
           gh attestation verify "$dir/pinact_linux_amd64.tar.gz" --repo suzuki-shunsuke/pinact --signer-workflow suzuki-shunsuke/go-release-workflow/.github/workflows/release.yaml
           tar -xzf "$dir/pinact_linux_amd64.tar.gz" -C "$dir" pinact
           echo "$dir" >> "$GITHUB_PATH"

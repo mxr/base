@@ -12,22 +12,21 @@ import { mergePyproject, sqlfluffTables } from "./pyproject";
 import { HOME_ASSISTANT_PYTHON, homeAssistantValidateWorkflow, managedPyproject, pythonToxEnvs, toxEnv, typingWorkflow } from "./python";
 import { cargoReleaseWorkflow, homeAssistantReleaseWorkflow, wheelReleaseWorkflow } from "./release";
 import { PythonPackaging, RenovateCustomManager, Stack } from "./stack";
+import { BATS_VERSION, BUILD_VERSION, MIRROR_MAKER_VERSION, RUST_TOOLCHAIN, VERCEL_VERSION } from "./versions";
 import { applyExistingActionRefs, RUNNER, readExistingActionRefs } from "./workflow-actions";
 import type { GitHubProjectOptions } from "projen/lib/github";
 import type { ExistingRev } from "./pre-commit";
 import type { ManagedTable } from "./pyproject";
 
 // Only new repos get these versions: renovate bumps the annotated `KEY: x` workflow line downstream, and synth keeps it.
-// Vercel is pinned here instead of as a downstream devDependency, which Vercel ignores and warns about during builds.
-// renovate: datasource=npm depName=vercel
-const VERCEL_VERSION = "66.1.0";
-// renovate: datasource=rust-version depName=rust
-const RUST_TOOLCHAIN = "1.100.0";
-// renovate: datasource=github-releases depName=bats-core/bats-core extractVersion=^v(?<version>.+)$
-const BATS_VERSION = "1.14.0";
-
 // workflow `KEY: 0.0.0` placeholder -> version for new repos
-const PINNED_VERSIONS: Record<string, string> = { VERCEL_VERSION, toolchain: RUST_TOOLCHAIN, BATS_VERSION };
+const PINNED_VERSIONS: Record<string, string> = {
+  VERCEL_VERSION,
+  toolchain: RUST_TOOLCHAIN,
+  BATS_VERSION,
+  BUILD_VERSION,
+  MIRROR_MAKER_VERSION,
+};
 const PINNED_VERSION_PLACEHOLDER_RE = new RegExp(`^( +)(${Object.keys(PINNED_VERSIONS).join("|")}): 0\\.0\\.0$`, "gm");
 
 const RENOVATE_CUSTOM_MANAGER_PRESETS: Record<RenovateCustomManager, string> = {
@@ -42,12 +41,6 @@ export interface MirrorOptions {
    * which comes from the pre-commit-mirror-maker template.
    */
   readonly command: string;
-
-  /**
-   * A pre-commit-mirror-maker commit sha to pin `pip install` to. Omit to
-   * install the latest release unpinned.
-   */
-  readonly version?: string;
 }
 
 export interface PythonOptions {
@@ -290,6 +283,7 @@ export class BaseProject extends GitHubProject {
     this.ci = options.opt?.python?.ci ?? true;
     this.consoleScript = options.opt?.python?.consoleScript ?? false;
     this.customRelease = options.opt?.python?.customRelease ?? false;
+    const hasWheelReleaseWorkflow = Boolean(this.pythonMinVersion) && this.pythonPackaging === PythonPackaging.WHEEL && !this.customRelease;
     if (this.stack.includes(Stack.PYTHON) && !this.pythonMinVersion) {
       throw new Error("Stack.PYTHON requires opt.python.minVersion to be set");
     }
@@ -344,10 +338,7 @@ export class BaseProject extends GitHubProject {
     }
 
     if (this.pythonMinVersion && this.pythonPackaging && !this.customRelease) {
-      this.addWorkflow(
-        "release.yml",
-        this.pythonPackaging === PythonPackaging.WHEEL ? wheelReleaseWorkflow() : homeAssistantReleaseWorkflow(),
-      );
+      this.addWorkflow("release.yml", hasWheelReleaseWorkflow ? wheelReleaseWorkflow() : homeAssistantReleaseWorkflow());
     }
 
     if (runTypeChecksInGithubActions) {
@@ -482,11 +473,14 @@ export class BaseProject extends GitHubProject {
       extends: [
         "config:recommended",
         ":disableDependencyDashboard",
-        // frontend release.yml pins the Vercel CLI as an annotated `VERCEL_VERSION` env var, and the shell bats job pins `BATS_VERSION`
+        // workflows pin tools as annotated `*_VERSION` env vars: frontend release.yml's `VERCEL_VERSION`, the shell bats job's
+        // `BATS_VERSION`, the wheel release.yml's `BUILD_VERSION`, and the mirror main.yml's `MIRROR_MAKER_VERSION`
         ...new Set(
           [
             ...customManagers,
-            ...(isFrontend || this.stack.includes(Stack.SHELL) ? [RenovateCustomManager.GITHUB_ACTIONS_VERSIONS] : []),
+            ...(isFrontend || [Stack.SHELL, Stack.MIRROR].some((s) => this.stack.includes(s)) || hasWheelReleaseWorkflow
+              ? [RenovateCustomManager.GITHUB_ACTIONS_VERSIONS]
+              : []),
           ].map((manager) => RENOVATE_CUSTOM_MANAGER_PRESETS[manager]),
         ),
       ],
