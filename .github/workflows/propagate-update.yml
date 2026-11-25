@@ -16,9 +16,9 @@ env:
   # renovate: datasource=pypi depName=pre-commit
   PRE_COMMIT_VERSION: 4.7.0
   # renovate: datasource=pypi depName=pre-commit-uv
-  PRE_COMMIT_UV_VERSION: 4.4.1
+  PRE_COMMIT_UV_VERSION: 4.4.3
   # renovate: datasource=pypi depName=uv
-  UV_VERSION: 0.13.6
+  UV_VERSION: 0.13.9
 
 jobs:
   build:

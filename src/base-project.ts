@@ -20,7 +20,7 @@ import type { ManagedTable } from "./pyproject";
 // Only new repos get these versions: renovate bumps the annotated `KEY: x` workflow line downstream, and synth keeps it.
 // Vercel is pinned here instead of as a downstream devDependency, which Vercel ignores and warns about during builds.
 // renovate: datasource=npm depName=vercel
-const VERCEL_VERSION = "65.9.0";
+const VERCEL_VERSION = "66.1.0";
 // renovate: datasource=rust-version depName=rust
 const RUST_TOOLCHAIN = "1.100.0";
 // renovate: datasource=github-releases depName=bats-core/bats-core extractVersion=^v(?<version>.+)$

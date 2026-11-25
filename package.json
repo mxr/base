@@ -23,7 +23,7 @@
     "jsii-diff": "^1.139.0",
     "jsii-pacmak": "^1.139.0",
     "jsii-rosetta": "~6.0.0",
-    "projen": "0.104.23",
+    "projen": "0.105.3",
     "ts-jest": "^29.4.12",
     "typescript": "^6.0.3"
   },
@@ -34,7 +34,7 @@
     }
   },
   "engines": {
-    "node": "26.13.0"
+    "node": "26.13.1"
   },
   "jest": {
     "clearMocks": true,
@@ -101,7 +101,7 @@
   },
   "peerDependencies": {
     "constructs": "^10.8.1",
-    "projen": "^0.104.23"
+    "projen": "^0.105.3"
   },
   "publishConfig": {
     "registry": "https://npm.pkg.github.com/"
@@ -115,7 +115,7 @@
     "compat": "jsii-diff npm:$(node -p \"require('./package.json').name\") -k --ignore-file .compatignore || (echo \"\\nUNEXPECTED BREAKING CHANGES: add keys such as 'removed:constructs.Node.of' to .compatignore to skip.\\n\" && exit 1)",
     "package": "jsii-pacmak -v --target js",
     "prepack": "npm run build 1>&2",
-    "test": "jest --passWithNoTests",
+    "test": "NODE_OPTIONS=--experimental-vm-modules jest --passWithNoTests",
     "test:watch": "jest --watch",
     "watch": "jsii -w --silence-warnings=reserved-word --fail-on-warnings"
   },
