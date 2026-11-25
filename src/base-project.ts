@@ -107,6 +107,15 @@ export interface PythonOptions {
   readonly runTypeChecksInGithubActions?: boolean;
 
   /**
+   * Add a Renovate regex custom manager that bumps string constants in `.py`
+   * files annotated with a `# renovate: datasource=... depName=...` comment,
+   * such as `NODE_VERSION = "24.0.0"`.
+   *
+   * @default false
+   */
+  readonly customManagers?: boolean;
+
+  /**
    * Directory tox runs pytest on and mypy relaxes `disallow_untyped_defs` for.
    *
    * @default "tests"
@@ -437,6 +446,17 @@ export class BaseProject extends GitHubProject {
               matchStrings: ["\\sos: (?<depName>windows)-(?<currentValue>\\S+)"],
               datasourceTemplate: "github-runners",
               versioningTemplate: "docker",
+            },
+          ]
+        : []),
+      ...(this.stack.includes(Stack.PYTHON) && options.opt?.python?.customManagers
+        ? [
+            {
+              customType: "regex",
+              managerFilePatterns: ["/\\.py$/"],
+              matchStrings: [
+                '# renovate: datasource=(?<datasource>[a-zA-Z0-9-._]+?) depName=(?<depName>[^\\s]+?)(?: versioning=(?<versioning>[^\\s]+?))?(?: extractVersion=(?<extractVersion>[^\\s]+?))?\\s+[A-Za-z0-9_]+ = "(?<currentValue>[^"]+)"',
+              ],
             },
           ]
         : []),

@@ -240,6 +240,25 @@ describe("BaseProject", () => {
     expect(nonPython[".github/renovate.jsonc"].customManagers).toBeUndefined();
   });
 
+  it("adds a renovate custom manager for annotated constants with opt.python.customManagers", () => {
+    const opt = { python: { minVersion: "3.14", customManagers: true } };
+    const python = Testing.synth(new BaseProject({ name: "test", stack: [Stack.PYTHON], opt }));
+    const manager = python[".github/renovate.jsonc"].customManagers[1];
+    expect(manager.managerFilePatterns).toEqual(["/\\.py$/"]);
+    const source = '# Pin an LTS release.\n# renovate: datasource=node-version depName=node\nNODE_VERSION = "24.20.0"\n';
+    const match = new RegExp(manager.matchStrings[0]).exec(source);
+    expect(match?.groups).toEqual({
+      datasource: "node-version",
+      depName: "node",
+      versioning: undefined,
+      extractVersion: undefined,
+      currentValue: "24.20.0",
+    });
+
+    const off = Testing.synth(new BaseProject({ name: "test", stack: [Stack.PYTHON], opt: { python: { minVersion: "3.14" } } }));
+    expect(off[".github/renovate.jsonc"].customManagers).toHaveLength(1);
+  });
+
   it("adds a renovate custom manager for annotated constants for a typescript stack only", () => {
     const typescript = Testing.synth(new BaseProject({ name: "test", stack: [Stack.TYPESCRIPT] }));
     const [manager] = typescript[".github/renovate.jsonc"].customManagers;
