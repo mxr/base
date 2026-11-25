@@ -1,5 +1,6 @@
 import { Document, isMap, isScalar, isSeq, parseDocument, Scalar, visit } from "yaml";
 import { Stack } from "./stack";
+import { SHELLCHECK_VERSION } from "./versions";
 
 const INLINE_LIST_MAX_WIDTH = 60;
 
@@ -164,7 +165,7 @@ const STACK_REPOS: Partial<Record<Stack, PreCommitRepo[]>> = {
       hooks: [
         {
           id: "actionlint",
-          additionalDependencies: ["github.com/wasilibs/go-shellcheck/cmd/shellcheck@latest"],
+          additionalDependencies: [`github.com/wasilibs/go-shellcheck/cmd/shellcheck@${SHELLCHECK_VERSION}`],
         },
       ],
     },

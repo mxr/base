@@ -17,6 +17,9 @@ jobs:
     runs-on: ubuntu-26.04
     permissions:
       contents: write
+    env:
+      # renovate: datasource=pypi depName=pre-commit-mirror-maker
+      MIRROR_MAKER_VERSION: 0.0.0
     steps:
     - uses: actions/checkout@v0.0.0
       with:

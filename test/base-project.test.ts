@@ -5,8 +5,8 @@ import * as path from "node:path";
 import { Testing } from "projen";
 import { parse } from "yaml";
 import { BaseProject } from "../src/base-project";
-import { LATEST_PYTHON, STABLE_PYTHON } from "../src/python";
 import { PythonPackaging, RenovateCustomManager, Stack } from "../src/stack";
+import { LATEST_PYTHON, STABLE_PYTHON } from "../src/versions";
 
 // the tox env list a 3.12 wheel runs: every CPython through LATEST_PYTHON, plus pypy312
 const PY312_ENVS = JSON.stringify([
@@ -263,18 +263,21 @@ describe("BaseProject", () => {
     const typescript = Testing.synth(new BaseProject({ name: "test", stack: [Stack.TYPESCRIPT] }));
     const [manager] = typescript[".github/renovate.jsonc"].customManagers;
     expect(manager.managerFilePatterns).toEqual(["/^src/.+\\.ts$/"]);
-    const python = fs.readFileSync(path.join(__dirname, "..", "src", "python.ts"), "utf-8");
-    const matches = [...python.matchAll(new RegExp(manager.matchStrings[0], "g"))].map((match) => match.groups);
-    expect(matches).toEqual([
-      {
-        datasource: "github-tags",
-        depName: "python/cpython",
-        versioning: undefined,
-        extractVersion: "^v(?<version>\\d+\\.\\d+)\\.0b1$",
-        currentValue: expect.stringMatching(/^3\.\d+$/),
-      },
-      { datasource: "python-version", depName: "python", versioning: undefined, extractVersion: undefined, currentValue: STABLE_PYTHON },
-    ]);
+    const versions = fs.readFileSync(path.join(__dirname, "..", "src", "versions.ts"), "utf-8");
+    const matches = [...versions.matchAll(new RegExp(manager.matchStrings[0], "g"))].map((match) => match.groups);
+    expect(matches).toHaveLength(versions.match(/^\/\/ renovate: /gm)?.length ?? 0);
+    expect(matches).toEqual(
+      expect.arrayContaining([
+        {
+          datasource: "github-tags",
+          depName: "python/cpython",
+          versioning: undefined,
+          extractVersion: "^v(?<version>\\d+\\.\\d+)\\.0b1$",
+          currentValue: expect.stringMatching(/^3\.\d+$/),
+        },
+        { datasource: "python-version", depName: "python", versioning: undefined, extractVersion: undefined, currentValue: STABLE_PYTHON },
+      ]),
+    );
 
     const nonTypescript = Testing.synth(new BaseProject({ name: "test", stack: [] }));
     expect(nonTypescript[".github/renovate.jsonc"].customManagers).toBeUndefined();
@@ -366,10 +369,12 @@ describe("BaseProject mirror stack", () => {
     expect(() => new BaseProject({ name: "test", stack: [Stack.MIRROR] })).toThrow("Stack.MIRROR requires opt.mirror to be set");
   });
 
-  it("renders the workflow with an unpinned install when no version is given", () => {
+  it("renders the workflow with a pinned install when no version is given", () => {
     const project = new BaseProject({ name: "test", stack: [Stack.MIRROR], opt: { mirror } });
     const snapshot = Testing.synth(project);
-    expect(snapshot[".github/workflows/main.yml"]).toContain("pip install pre-commit-mirror-maker");
+    expect(snapshot[".github/workflows/main.yml"]).toMatch(/^ {6}MIRROR_MAKER_VERSION: \d+\.\d+\.\d+$/m);
+    expect(snapshot[".github/workflows/main.yml"]).toContain('run: pip install "pre-commit-mirror-maker==$MIRROR_MAKER_VERSION"');
+    expect(snapshot[".github/renovate.jsonc"].extends).toContain("customManagers:githubActionsVersions");
     expect(snapshot[".github/workflows/main.yml"]).toContain("pre-commit-mirror . --language python");
     expect(snapshot[".github/workflows/main.yml"]).toContain("workflow_dispatch: {}");
     expect(snapshot[".github/workflows/main.yml"]).toContain(`python-version: '${STABLE_PYTHON}'`);
@@ -474,6 +479,9 @@ describe("BaseProject python packaging", () => {
     const snapshot = Testing.synth(project);
     expect(snapshot[".github/workflows/main.yml"]).toContain(`env: '${PY312_ENVS}'`);
     expect(snapshot[".github/workflows/release.yml"]).toContain(`python-version: '${STABLE_PYTHON}'`);
+    expect(snapshot[".github/workflows/release.yml"]).toMatch(/^ {8}BUILD_VERSION: \d+\.\d+\.\d+$/m);
+    expect(snapshot[".github/workflows/release.yml"]).toContain('run: python -m pip install "build==$BUILD_VERSION"');
+    expect(snapshot[".github/renovate.jsonc"].extends).toContain("customManagers:githubActionsVersions");
     expect(snapshot[".github/workflows/release.yml"]).toContain("uses: pypa/gh-action-pypi-publish@v0.0.0");
     expect(snapshot[".github/workflows/release.yml"]).toContain(
       'gh release create "$GITHUB_REF_NAME" dist/* --verify-tag --generate-notes --prerelease="$prerelease"',

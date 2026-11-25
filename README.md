@@ -107,7 +107,7 @@ All options are optional unless the description says so.
 | `opt.python.extras.generated`                  | Generated-code directories that the type checkers skip.                                                                  |
 | `opt.python.pyproject-path`                    | File to merge `pyproject.toml` tables into, such as a `.mustache` template.                                              |
 | `opt.mirror.command`                           | The `pre-commit-mirror` command. Required for `mirror`.                                                                  |
-| `opt.mirror.version`                           | pre-commit-mirror-maker commit to install. Defaults to the latest release.                                               |
+| `opt.mirror.version`                           | pre-commit-mirror-maker commit to install. Defaults to the release pinned by `MIRROR_MAKER_VERSION`.                     |
 | `opt.github-actions.custom-managers`           | Renovate custom manager presets, such as `github-actions-versions`.                                                      |
 | `opt.pre-commit.exclude`                       | Regexes for the top-level `exclude` in `.pre-commit-config.yaml`.                                                        |
 | `opt.mergify.extras.rules`                     | More squash-merge rules, each with a `name` and `conditions`.                                                            |

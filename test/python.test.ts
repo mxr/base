@@ -1,6 +1,5 @@
 import {
   homeAssistantValidateWorkflow,
-  LATEST_PYTHON,
   managedPyproject,
   pythonMainWorkflow,
   pythonToxEnvs,
@@ -8,6 +7,7 @@ import {
   typingWorkflow,
 } from "../src/python";
 import { PythonPackaging, Stack } from "../src/stack";
+import { LATEST_PYTHON } from "../src/versions";
 
 const latestMinor = Number(LATEST_PYTHON.split(".")[1]);
 

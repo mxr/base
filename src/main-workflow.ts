@@ -1,7 +1,8 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { pythonMainWorkflow, STABLE_PYTHON } from "./python";
+import { pythonMainWorkflow } from "./python";
 import { Stack } from "./stack";
+import { STABLE_PYTHON } from "./versions";
 import { RUNNER } from "./workflow-actions";
 import type { PythonPackaging } from "./stack";
 
@@ -48,7 +49,7 @@ const BATS_JOB = `  bats:
 function mirrorMainWorkflow({ command, version }: { readonly command: string; readonly version?: string }): string {
   const install = version
     ? `pip install git+https://github.com/pre-commit/pre-commit-mirror-maker@${version}`
-    : "pip install pre-commit-mirror-maker";
+    : 'pip install "pre-commit-mirror-maker==$MIRROR_MAKER_VERSION"';
   const commandLines = command
     .trim()
     .split("\n")

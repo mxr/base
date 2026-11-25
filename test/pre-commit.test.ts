@@ -195,7 +195,7 @@ describe("renderPreCommitConfig", () => {
     const yaml = renderPreCommitConfig([Stack.PYTHON, Stack.GITHUB_ACTIONS]);
     expect(yaml).toContain("args: [--fix]");
     // actionlint's additional_dependencies is one long URL, which still fits inline
-    expect(yaml).toContain("additional_dependencies: [github.com/wasilibs/go-shellcheck/cmd/shellcheck@latest]");
+    expect(yaml).toContain("additional_dependencies: [github.com/wasilibs/go-shellcheck/cmd/shellcheck@v0.11.1]");
     // sync-typing-deps seeds ty and mypy deps downstream, so base renders no block additional_dependencies
     expect(yaml).not.toContain("additional_dependencies:\n");
   });

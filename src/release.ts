@@ -1,4 +1,4 @@
-import { STABLE_PYTHON } from "./python";
+import { STABLE_PYTHON } from "./versions";
 import { RUNNER } from "./workflow-actions";
 
 /**
@@ -89,7 +89,10 @@ export function wheelReleaseWorkflow(): string[] {
       with:
         python-version: '${STABLE_PYTHON}'
     - name: Install build tooling
-      run: python -m pip install build
+      env:
+        # renovate: datasource=pypi depName=build
+        BUILD_VERSION: 0.0.0
+      run: python -m pip install "build==$BUILD_VERSION"
     - name: Build distributions
       run: python -m build
     - name: Publish package distributions to PyPI
