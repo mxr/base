@@ -12,7 +12,7 @@ import { mergePyproject, sqlfluffTables } from "./pyproject";
 import { HOME_ASSISTANT_PYTHON, homeAssistantValidateWorkflow, managedPyproject, pythonToxEnvs, toxEnv, typingWorkflow } from "./python";
 import { cargoReleaseWorkflow, homeAssistantReleaseWorkflow, wheelReleaseWorkflow } from "./release";
 import { PythonPackaging, RenovateCustomManager, Stack } from "./stack";
-import { BATS_VERSION, BUILD_VERSION, MIRROR_MAKER_VERSION, RUST_TOOLCHAIN, VERCEL_VERSION } from "./versions";
+import { BATS_VERSION, BUILD_VERSION, MIRROR_MAKER_VERSION, RUST_TOOLCHAIN, VERCEL_VERSION, ZSH_VERSION } from "./versions";
 import { applyExistingActionRefs, RUNNER, readExistingActionRefs } from "./workflow-actions";
 import type { GitHubProjectOptions } from "projen/lib/github";
 import type { ManagedTable } from "./pyproject";
@@ -23,6 +23,7 @@ const PINNED_VERSIONS: Record<string, string> = {
   VERCEL_VERSION,
   toolchain: RUST_TOOLCHAIN,
   BATS_VERSION,
+  ZSH_VERSION,
   BUILD_VERSION,
   MIRROR_MAKER_VERSION,
 };
@@ -486,7 +487,7 @@ export class BaseProject extends GitHubProject {
         "config:recommended",
         ":disableDependencyDashboard",
         // workflows pin tools as annotated `*_VERSION` env vars: frontend release.yml's `VERCEL_VERSION`, the shell bats job's
-        // `BATS_VERSION`, the wheel release.yml's `BUILD_VERSION`, and the mirror main.yml's `MIRROR_MAKER_VERSION`
+        // `BATS_VERSION` and `ZSH_VERSION`, the wheel release.yml's `BUILD_VERSION`, and the mirror main.yml's `MIRROR_MAKER_VERSION`
         ...new Set(
           [
             ...customManagers,
@@ -510,6 +511,16 @@ export class BaseProject extends GitHubProject {
         { commitMessageExtra: " ", groupName: "update", matchPackageNames: ["*"] },
         // github-runners has no release timestamps, so minimumReleaseAge would otherwise block every runner update
         { matchDatasources: ["github-runners"], minimumReleaseAgeBehaviour: "timestamp-optional" },
+        // the bats job's `ZSH_VERSION` comes from the runner's Ubuntu release, whose packages have no release timestamps
+        ...(this.stack.includes(Stack.SHELL)
+          ? [
+              {
+                matchDatasources: ["deb"],
+                minimumReleaseAgeBehaviour: "timestamp-optional",
+                registryUrls: ["https://archive.ubuntu.com/ubuntu?suite=resolute&components=main&binaryArch=amd64"],
+              },
+            ]
+          : []),
         // ghcr has no release timestamps either, for validate-home-assistant.yml's hassfest image
         ...(this.pythonPackaging === PythonPackaging.HOME_ASSISTANT
           ? [{ matchDepNames: ["ghcr.io/home-assistant/hassfest"], minimumReleaseAgeBehaviour: "timestamp-optional" }]

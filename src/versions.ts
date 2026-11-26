@@ -3,6 +3,11 @@
  * one through its `// renovate:` annotation.
  */
 
+// deb
+
+// renovate: datasource=deb depName=zsh
+export const ZSH_VERSION = "5.9-8ubuntu3";
+
 // github-releases
 
 // renovate: datasource=github-releases depName=bats-core/bats-core extractVersion=^v(?<version>.+)$
