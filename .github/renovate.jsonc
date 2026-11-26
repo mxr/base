@@ -6,6 +6,13 @@
   "customManagers": [
     {
       "customType": "regex",
+      "managerFilePatterns": ["/^\\.pre-commit-config\\.yaml$/"],
+      "matchStrings": ["github\\.com/wasilibs/go-shellcheck/cmd/shellcheck@(?<currentValue>v[^\\s,\\]]+)"],
+      "depNameTemplate": "github.com/wasilibs/go-shellcheck",
+      "datasourceTemplate": "go"
+    },
+    {
+      "customType": "regex",
       "managerFilePatterns": ["/^src/.+\\.ts$/"],
       "matchStrings": [
         "// renovate: datasource=(?<datasource>[a-zA-Z0-9-._]+?) depName=(?<depName>[^\\s]+?)(?: versioning=(?<versioning>[^\\s]+?))?(?: extractVersion=(?<extractVersion>[^\\s]+?))?\\s+(?:export )?const [A-Za-z0-9_]+ = \"(?<currentValue>[^\"]+)\""
