@@ -45,6 +45,10 @@ const BATS_JOB = `  bats:
     - uses: bats-core/bats-action@v0.0.0
       with:
         bats-version: \${{ env.BATS_VERSION }}
+        support-install: false
+        assert-install: false
+        detik-install: false
+        file-install: false
     - run: sudo apt-get update && sudo apt-get install -y "zsh=$ZSH_VERSION"
     - run: git ls-files -z '*.bats' | xargs -0 bats`;
 
