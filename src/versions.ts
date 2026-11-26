@@ -1,6 +1,6 @@
 /**
- * Tool versions, grouped by Renovate datasource. Renovate bumps each one
- * through its `// renovate:` annotation.
+ * Tool versions, grouped by Renovate datasource. Renovate bumps each annotated
+ * one through its `// renovate:` annotation.
  */
 
 // github-releases
@@ -20,7 +20,7 @@ export const LATEST_PYTHON = "3.15";
 
 // go
 
-// renovate: datasource=go depName=github.com/wasilibs/go-shellcheck
+// Only new repos get this version: each repo's renovate bumps the actionlint hook's pin in its `.pre-commit-config.yaml`, and synth keeps it.
 export const SHELLCHECK_VERSION = "v0.11.1";
 
 // npm

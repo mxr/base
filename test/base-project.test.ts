@@ -6,7 +6,7 @@ import { Testing } from "projen";
 import { parse } from "yaml";
 import { BaseProject } from "../src/base-project";
 import { PythonPackaging, RenovateCustomManager, Stack } from "../src/stack";
-import { LATEST_PYTHON, STABLE_PYTHON } from "../src/versions";
+import { LATEST_PYTHON, SHELLCHECK_VERSION, STABLE_PYTHON } from "../src/versions";
 
 // the tox env list a 3.12 wheel runs: every CPython through LATEST_PYTHON, plus pypy312
 const PY312_ENVS = JSON.stringify([
@@ -256,13 +256,76 @@ describe("BaseProject", () => {
     });
 
     const off = Testing.synth(new BaseProject({ name: "test", stack: [Stack.PYTHON], opt: { python: { minVersion: "3.14" } } }));
-    expect(off[".github/renovate.jsonc"].customManagers).toHaveLength(1);
+    expect(off[".github/renovate.jsonc"].customManagers).toHaveLength(2);
+  });
+
+  it.each([
+    { name: "the default shellcheck version for a new repo", existing: undefined, expected: SHELLCHECK_VERSION },
+    {
+      name: "the existing shellcheck version",
+      existing:
+        "repos:\n- repo: https://github.com/rhysd/actionlint\n  rev: v1.0.0\n  hooks:\n  - id: actionlint\n    additional_dependencies: [github.com/wasilibs/go-shellcheck/cmd/shellcheck@v9.8.7]\n",
+      expected: "v9.8.7",
+    },
+  ])("pins the actionlint hook's shellcheck to $name, which renovate bumps", ({ existing, expected }) => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "base-projen-shellcheck-"));
+    if (existing) {
+      fs.writeFileSync(path.join(dir, ".pre-commit-config.yaml"), existing);
+    }
+    const snapshot = Testing.synth(new BaseProject({ name: "test", stack: [Stack.GITHUB_ACTIONS], outdir: dir }));
+    const manager = snapshot[".github/renovate.jsonc"].customManagers.find(
+      (m: { datasourceTemplate?: string }) => m.datasourceTemplate === "go",
+    );
+    expect(manager).toMatchObject({
+      managerFilePatterns: ["/^\\.pre-commit-config\\.yaml$/"],
+      depNameTemplate: "github.com/wasilibs/go-shellcheck",
+    });
+    const matches = [...snapshot[".pre-commit-config.yaml"].matchAll(new RegExp(manager.matchStrings[0], "g"))];
+    expect(matches.map((match) => match.groups?.currentValue)).toEqual([expected]);
+
+    const nonGithubActions = Testing.synth(new BaseProject({ name: "test", stack: [Stack.TOML] }));
+    expect(nonGithubActions[".github/renovate.jsonc"].customManagers).toBeUndefined();
+  });
+
+  // customManagers:githubActionsVersions from renovate's presets
+  const GITHUB_ACTIONS_VERSIONS_RE =
+    /# renovate: datasource=(?<datasource>[a-zA-Z0-9-._]+?) depName=(?<depName>[^\s]+?)(?: (?:packageName)=(?<packageName>[^\s]+?))?(?: versioning=(?<versioning>[^\s]+?))?(?: extractVersion=(?<extractVersion>[^\s]+?))?\s+[A-Za-z0-9_]+?_VERSION\s*:\s*["']?(?<currentValue>.+?)["']?\s/g;
+
+  it.each([
+    {
+      name: "a wheel's build",
+      project: () =>
+        new BaseProject({ name: "test", stack: [Stack.PYTHON], opt: { python: { minVersion: "3.14", packaging: PythonPackaging.WHEEL } } }),
+      file: ".github/workflows/release.yml",
+      depName: "build",
+    },
+    {
+      name: "a mirror's pre-commit-mirror-maker",
+      project: () => new BaseProject({ name: "test", stack: [Stack.MIRROR], opt: { mirror: { command: "pre-commit-mirror ." } } }),
+      file: ".github/workflows/main.yml",
+      depName: "pre-commit-mirror-maker",
+    },
+  ])("renovate bumps $name pin", ({ project, file, depName }) => {
+    const snapshot = Testing.synth(project());
+    expect(snapshot[".github/renovate.jsonc"].extends).toContain("customManagers:githubActionsVersions");
+    const matches = [...snapshot[file].matchAll(GITHUB_ACTIONS_VERSIONS_RE)].map((match) => match.groups);
+    expect(matches).toEqual([
+      expect.objectContaining({ datasource: "pypi", depName, currentValue: expect.stringMatching(/^\d+\.\d+\.\d+$/) }),
+    ]);
+  });
+
+  it("renovate bumps base's own pinact pin", () => {
+    const workflow = fs.readFileSync(path.join(__dirname, "..", ".github", "workflows", "propagate-update.yml"), "utf-8");
+    const depNames = [...workflow.matchAll(GITHUB_ACTIONS_VERSIONS_RE)].map((match) => match.groups?.depName);
+    expect(depNames).toContain("suzuki-shunsuke/pinact");
   });
 
   it("adds a renovate custom manager for annotated constants for a typescript stack only", () => {
     const typescript = Testing.synth(new BaseProject({ name: "test", stack: [Stack.TYPESCRIPT] }));
-    const [manager] = typescript[".github/renovate.jsonc"].customManagers;
-    expect(manager.managerFilePatterns).toEqual(["/^src/.+\\.ts$/"]);
+    const manager = typescript[".github/renovate.jsonc"].customManagers.find(
+      (m: { managerFilePatterns: string[] }) => m.managerFilePatterns[0] === "/^src/.+\\.ts$/",
+    );
+    expect(manager).toBeDefined();
     const versions = fs.readFileSync(path.join(__dirname, "..", "src", "versions.ts"), "utf-8");
     const matches = [...versions.matchAll(new RegExp(manager.matchStrings[0], "g"))].map((match) => match.groups);
     expect(matches).toHaveLength(versions.match(/^\/\/ renovate: /gm)?.length ?? 0);

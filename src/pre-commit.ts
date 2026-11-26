@@ -4,6 +4,9 @@ import { SHELLCHECK_VERSION } from "./versions";
 
 const INLINE_LIST_MAX_WIDTH = 60;
 
+const SHELLCHECK_MODULE = "github.com/wasilibs/go-shellcheck/cmd/shellcheck";
+const SHELLCHECK_PIN_RE = /github\.com\/wasilibs\/go-shellcheck\/cmd\/shellcheck@([^\s,\]]+)/;
+
 /**
  * Field names are camelCase here and render as snake_case keys in
  * `.pre-commit-config.yaml`, which is pre-commit's convention. For example,
@@ -165,7 +168,7 @@ const STACK_REPOS: Partial<Record<Stack, PreCommitRepo[]>> = {
       hooks: [
         {
           id: "actionlint",
-          additionalDependencies: [`github.com/wasilibs/go-shellcheck/cmd/shellcheck@${SHELLCHECK_VERSION}`],
+          additionalDependencies: [`${SHELLCHECK_MODULE}@${SHELLCHECK_VERSION}`],
         },
       ],
     },
@@ -241,6 +244,14 @@ export function readExistingRevs(configYaml: string): Map<string, ExistingRev> {
     }
   }
   return revs;
+}
+
+/**
+ * The actionlint hook's go-shellcheck pin from a downstream repo's current
+ * `.pre-commit-config.yaml`. The repo's renovate bumps it, so a re-synth keeps it.
+ */
+export function readExistingShellcheckVersion(configYaml: string): string | undefined {
+  return SHELLCHECK_PIN_RE.exec(configYaml)?.[1];
 }
 
 /**
@@ -342,6 +353,7 @@ export function renderPreCommitConfig(
   pythonMinVersion?: string,
   existingRevs?: ReadonlyMap<string, ExistingRev>,
   exclude?: readonly string[],
+  shellcheckVersion?: string,
 ): string {
   const repos = toSnakeCaseKeys(buildPreCommitRepos(stack, existingRevs));
   const doc = new Document({
@@ -380,5 +392,8 @@ export function renderPreCommitConfig(
   // yaml emits one space before an inline comment, but `pre-commit autoupdate
   // --freeze` writes two (`rev: <sha>  # frozen: <ref>`). No formatter hook
   // normalizes the spacing, so match freeze
-  return doc.toString({ indentSeq: false, lineWidth: 0, flowCollectionPadding: false }).replace(/^(\s*rev: \S+) # /gm, "$1  # ");
+  return doc
+    .toString({ indentSeq: false, lineWidth: 0, flowCollectionPadding: false })
+    .replace(/^(\s*rev: \S+) # /gm, "$1  # ")
+    .replace(SHELLCHECK_PIN_RE, (pin) => (shellcheckVersion ? `${SHELLCHECK_MODULE}@${shellcheckVersion}` : pin));
 }
