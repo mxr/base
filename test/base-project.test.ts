@@ -402,7 +402,9 @@ describe("BaseProject github-actions stack", () => {
     const main = Testing.synth(new BaseProject({ name: "test", stack }))[".github/workflows/main.yml"];
     expect(main).toContain("\n  bats:\n    runs-on: ubuntu-26.04\n");
     expect(main).toContain("    - run: git ls-files -z '*.bats' | xargs -0 bats");
-    expect(main).toContain("        bats-version: ${{ env.BATS_VERSION }}\n");
+    expect(main).toContain(
+      "        bats-version: ${{ env.BATS_VERSION }}\n        support-install: false\n        assert-install: false\n        detik-install: false\n        file-install: false\n",
+    );
     if (otherJob) {
       expect(main).toContain(otherJob);
     }
