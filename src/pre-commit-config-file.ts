@@ -33,6 +33,13 @@ export interface PreCommitConfigFileOptions extends FileBaseOptions {
    * Regexes for the file's top-level `exclude`.
    */
   readonly exclude?: string[];
+
+  /**
+   * The actionlint hook's go-shellcheck version in the downstream repo's
+   * current `.pre-commit-config.yaml`. A re-synth keeps it instead of
+   * resetting it to the default.
+   */
+  readonly shellcheckVersion?: string;
 }
 
 /**
@@ -44,6 +51,7 @@ export class PreCommitConfigFile extends FileBase {
   private readonly existingRevs: ReadonlyMap<string, ExistingRev>;
   private readonly typeChecksInGithubActions: boolean;
   private readonly exclude: string[];
+  private readonly shellcheckVersion: string | undefined;
 
   /**
    * Non-local repo URLs that are not in `existingRevs`. The caller runs
@@ -58,6 +66,7 @@ export class PreCommitConfigFile extends FileBase {
     this.existingRevs = new Map(Object.entries(options.existingRevs ?? {}));
     this.typeChecksInGithubActions = options.typeChecksInGithubActions ?? false;
     this.exclude = options.exclude ?? [];
+    this.shellcheckVersion = options.shellcheckVersion;
     this.newRepoUrls = newRepoUrls(this.stack, this.existingRevs);
   }
 
@@ -73,8 +82,11 @@ export class PreCommitConfigFile extends FileBase {
       skips.length > 0
         ? [`ci:`, `  skip: [${skips.flatMap(({ hooks }) => hooks).join(", ")}] # ${skips.map(({ reason }) => reason).join("; ")}`, ""]
         : [];
-    return [`# ${BANNER}`, "", ...ciLines, renderPreCommitConfig(this.stack, this.pythonMinVersion, this.existingRevs, this.exclude)].join(
-      "\n",
-    );
+    return [
+      `# ${BANNER}`,
+      "",
+      ...ciLines,
+      renderPreCommitConfig(this.stack, this.pythonMinVersion, this.existingRevs, this.exclude, this.shellcheckVersion),
+    ].join("\n");
   }
 }

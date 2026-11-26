@@ -6,7 +6,7 @@ import { GitHubProject } from "projen/lib/github";
 import { BANNER } from "./banner";
 import { firstCommitYear } from "./git";
 import { mainWorkflow, readResource } from "./main-workflow";
-import { expandStacks, readExistingRevs } from "./pre-commit";
+import { expandStacks, readExistingRevs, readExistingShellcheckVersion } from "./pre-commit";
 import { PreCommitConfigFile } from "./pre-commit-config-file";
 import { mergePyproject, sqlfluffTables } from "./pyproject";
 import { HOME_ASSISTANT_PYTHON, homeAssistantValidateWorkflow, managedPyproject, pythonToxEnvs, toxEnv, typingWorkflow } from "./python";
@@ -15,7 +15,6 @@ import { PythonPackaging, RenovateCustomManager, Stack } from "./stack";
 import { BATS_VERSION, BUILD_VERSION, MIRROR_MAKER_VERSION, RUST_TOOLCHAIN, VERCEL_VERSION } from "./versions";
 import { applyExistingActionRefs, RUNNER, readExistingActionRefs } from "./workflow-actions";
 import type { GitHubProjectOptions } from "projen/lib/github";
-import type { ExistingRev } from "./pre-commit";
 import type { ManagedTable } from "./pyproject";
 
 // Only new repos get these versions: renovate bumps the annotated `KEY: x` workflow line downstream, and synth keeps it.
@@ -291,9 +290,9 @@ export class BaseProject extends GitHubProject {
 
     // read the current config before PreCommitConfigFile overwrites it, so already-pinned hooks keep their rev
     const existingPreCommitConfigPath = path.join(this.outdir, ".pre-commit-config.yaml");
-    const existingRevs = fs.existsSync(existingPreCommitConfigPath)
-      ? readExistingRevs(fs.readFileSync(existingPreCommitConfigPath, "utf-8"))
-      : new Map<string, ExistingRev>();
+    const existingPreCommitConfig = fs.existsSync(existingPreCommitConfigPath) ? fs.readFileSync(existingPreCommitConfigPath, "utf-8") : "";
+    const existingRevs = readExistingRevs(existingPreCommitConfig);
+    const shellcheckVersion = readExistingShellcheckVersion(existingPreCommitConfig);
 
     const preCommitConfigFile = new PreCommitConfigFile(this, {
       stack: this.stack,
@@ -301,6 +300,7 @@ export class BaseProject extends GitHubProject {
       existingRevs: Object.fromEntries(existingRevs),
       typeChecksInGithubActions: runTypeChecksInGithubActions,
       ...(options.opt?.preCommit?.exclude ? { exclude: options.opt.preCommit.exclude } : {}),
+      ...(shellcheckVersion ? { shellcheckVersion } : {}),
     });
     this.newPreCommitRepoUrls = preCommitConfigFile.newRepoUrls;
 
@@ -448,6 +448,18 @@ export class BaseProject extends GitHubProject {
               matchStrings: [
                 '# renovate: datasource=(?<datasource>[a-zA-Z0-9-._]+?) depName=(?<depName>[^\\s]+?)(?: versioning=(?<versioning>[^\\s]+?))?(?: extractVersion=(?<extractVersion>[^\\s]+?))?\\s+[A-Za-z0-9_]+ = "(?<currentValue>[^"]+)"',
               ],
+            },
+          ]
+        : []),
+      // the actionlint hook's go-shellcheck pin, which renovate's pre-commit manager doesn't bump
+      ...(expandStacks(this.stack).includes(Stack.GITHUB_ACTIONS)
+        ? [
+            {
+              customType: "regex",
+              managerFilePatterns: ["/^\\.pre-commit-config\\.yaml$/"],
+              matchStrings: ["github\\.com/wasilibs/go-shellcheck/cmd/shellcheck@(?<currentValue>v[^\\s,\\]]+)"],
+              depNameTemplate: "github.com/wasilibs/go-shellcheck",
+              datasourceTemplate: "go",
             },
           ]
         : []),
