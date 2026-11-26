@@ -36,6 +36,8 @@ const BATS_JOB = `  bats:
     env:
       # renovate: datasource=github-releases depName=bats-core/bats-core extractVersion=^v(?<version>.+)$
       BATS_VERSION: 0.0.0
+      # renovate: datasource=deb depName=zsh
+      ZSH_VERSION: 0.0.0
     steps:
     - uses: actions/checkout@v0.0.0
       with:
@@ -43,7 +45,7 @@ const BATS_JOB = `  bats:
     - uses: bats-core/bats-action@v0.0.0
       with:
         bats-version: \${{ env.BATS_VERSION }}
-    - run: sudo apt-get update && sudo apt-get install -y zsh
+    - run: sudo apt-get update && sudo apt-get install -y "zsh=$ZSH_VERSION"
     - run: git ls-files -z '*.bats' | xargs -0 bats`;
 
 function mirrorMainWorkflow({ command }: { readonly command: string }): string {
