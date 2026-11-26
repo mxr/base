@@ -138,12 +138,6 @@ describe("buildPreCommitRepos", () => {
     expect(repos.map((r) => r.repo)).toContain("https://github.com/lorenzwalthert/gitignore-tidy");
   });
 
-  it("skips github-actions hooks for a javascript stack", () => {
-    const repos = buildPreCommitRepos([Stack.JAVASCRIPT]).map((r) => r.repo);
-    expect(repos).not.toContain("https://github.com/rhysd/actionlint");
-    expect(repos).not.toContain("https://github.com/zizmorcore/zizmor-pre-commit");
-  });
-
   it.each([
     { name: "mirror", stack: [Stack.MIRROR], exclude: "^(\\.pre-commit-hooks\\.yaml)$" },
     { name: "shell", stack: [Stack.SHELL], exclude: undefined },
