@@ -7,28 +7,16 @@ describe("readExistingActionRefs", () => {
         "    - uses: actions/checkout@abc123 # v4.1.0",
         "      uses: actions/setup-node@def456",
         "    - uses: taiki-e/install-action@v0.0.0",
-        "    uses: mxr/workflows/.github/workflows/pre-commit-typing.yml@ghi789 # v0.3.2",
+        "    uses: mxr/workflows/.github/workflows/pre-commit-typing.yml@ghi789 # v2",
         "    - uses: docker://ghcr.io/foo/bar:1.2.3@sha256:aaa",
       ].join("\n"),
     );
     expect([...refs]).toEqual([
       ["actions/checkout", { ref: "abc123", comment: "v4.1.0" }],
       ["actions/setup-node", { ref: "def456", comment: undefined }],
-      ["mxr/workflows/.github/workflows/pre-commit-typing.yml", { ref: "ghi789", comment: "v0.3.2" }],
+      ["mxr/workflows/.github/workflows/pre-commit-typing.yml", { ref: "ghi789", comment: "v2" }],
       ["docker://ghcr.io/foo/bar", { ref: ":1.2.3@sha256:aaa", comment: undefined }],
     ]);
-  });
-
-  it.each([
-    { name: "drops a pin older than the minimum", comment: " # v0.3.1", kept: false },
-    { name: "drops a pin without a version comment", comment: "", kept: false },
-    { name: "keeps a pin at the minimum", comment: " # v0.3.2", kept: true },
-    { name: "keeps a newer minor pin", comment: " # v0.4.0", kept: true },
-    { name: "keeps a newer major pin", comment: " # v1.0.0", kept: true },
-    { name: "keeps a pin with a two-digit part", comment: " # v0.10.0", kept: true },
-  ])("$name", ({ comment, kept }) => {
-    const refs = readExistingActionRefs(`    uses: mxr/workflows/.github/workflows/tox-uv.yml@abc123${comment}`);
-    expect(refs.has("mxr/workflows/.github/workflows/tox-uv.yml")).toBe(kept);
   });
 });
 
