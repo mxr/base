@@ -6,7 +6,16 @@ import { Testing } from "projen";
 import { parse } from "yaml";
 import { BaseProject } from "../src/base-project";
 import { PythonPackaging, RenovateCustomManager, Stack } from "../src/stack";
-import { LATEST_PYTHON, SHELLCHECK_VERSION, STABLE_PYTHON } from "../src/versions";
+import {
+  LATEST_PYTHON,
+  PRE_COMMIT_UV_VERSION,
+  PRE_COMMIT_VERSION,
+  SHELLCHECK_VERSION,
+  STABLE_PYTHON,
+  TOX_UV_VERSION,
+  TOX_VERSION,
+  UV_VERSION,
+} from "../src/versions";
 
 // the tox env list a 3.12 wheel runs: every CPython through LATEST_PYTHON, plus pypy312
 const PY312_ENVS = JSON.stringify([
@@ -243,8 +252,10 @@ describe("BaseProject", () => {
   it("adds a renovate custom manager for annotated constants with opt.python.customManagers", () => {
     const opt = { python: { minVersion: "3.14", customManagers: true } };
     const python = Testing.synth(new BaseProject({ name: "test", stack: [Stack.PYTHON], opt }));
-    const manager = python[".github/renovate.jsonc"].customManagers[1];
-    expect(manager.managerFilePatterns).toEqual(["/\\.py$/"]);
+    const manager = python[".github/renovate.jsonc"].customManagers.find(
+      (m: { managerFilePatterns: string[] }) => m.managerFilePatterns[0] === "/\\.py$/",
+    );
+    expect(manager).toBeDefined();
     const source = '# Pin an LTS release.\n# renovate: datasource=node-version depName=node\nNODE_VERSION = "24.20.0"\n';
     const match = new RegExp(manager.matchStrings[0]).exec(source);
     expect(match?.groups).toEqual({
@@ -256,7 +267,41 @@ describe("BaseProject", () => {
     });
 
     const off = Testing.synth(new BaseProject({ name: "test", stack: [Stack.PYTHON], opt: { python: { minVersion: "3.14" } } }));
-    expect(off[".github/renovate.jsonc"].customManagers).toHaveLength(2);
+    expect(off[".github/renovate.jsonc"].customManagers).toHaveLength(3);
+  });
+
+  it.each([
+    { name: "the default tool versions for a new repo", existing: undefined, uv: UV_VERSION, tox: TOX_VERSION },
+    { name: "the existing tool versions", existing: "      uv-version: 9.8.7\n      tox-version: 6.5.4\n", uv: "9.8.7", tox: "6.5.4" },
+  ])("passes mxr/workflows $name that renovate bumps", ({ existing, uv, tox }) => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "base-projen-tool-versions-"));
+    if (existing) {
+      fs.mkdirSync(path.join(dir, ".github/workflows"), { recursive: true });
+      fs.writeFileSync(path.join(dir, ".github/workflows/main.yml"), existing);
+      fs.writeFileSync(path.join(dir, ".github/workflows/typing.yml"), existing);
+    }
+    const opt = { python: { minVersion: "3.14", packaging: PythonPackaging.WHEEL, runTypeChecksInGithubActions: true } };
+    const snapshot = Testing.synth(new BaseProject({ name: "test", stack: [Stack.PYTHON], opt, outdir: dir }));
+    const manager = snapshot[".github/renovate.jsonc"].customManagers.find((m: { managerFilePatterns: string[] }) =>
+      m.managerFilePatterns[0]?.includes("typing"),
+    );
+    const bumps = (file: string) =>
+      [...snapshot[file].matchAll(new RegExp(manager.matchStrings[0], "g"))].map((match) => [
+        match.groups?.depName,
+        match.groups?.currentValue,
+      ]);
+    const toxJob = [
+      ["uv", uv],
+      ["tox", tox],
+      ["tox-uv", TOX_UV_VERSION],
+    ];
+    // the linux and windows jobs
+    expect(bumps(".github/workflows/main.yml")).toEqual([...toxJob, ...toxJob]);
+    expect(bumps(".github/workflows/typing.yml")).toEqual([
+      ["uv", uv],
+      ["pre-commit", PRE_COMMIT_VERSION],
+      ["pre-commit-uv", PRE_COMMIT_UV_VERSION],
+    ]);
   });
 
   it.each([

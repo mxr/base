@@ -40,6 +40,16 @@ export const VERCEL_VERSION = "66.1.0";
 export const BUILD_VERSION = "1.6.1";
 // renovate: datasource=pypi depName=pre-commit-mirror-maker
 export const MIRROR_MAKER_VERSION = "1.14.0";
+// renovate: datasource=pypi depName=pre-commit
+export const PRE_COMMIT_VERSION = "4.7.0";
+// renovate: datasource=pypi depName=pre-commit-uv
+export const PRE_COMMIT_UV_VERSION = "4.4.3";
+// renovate: datasource=pypi depName=tox
+export const TOX_VERSION = "4.67.15";
+// renovate: datasource=pypi depName=tox-uv
+export const TOX_UV_VERSION = "1.37.9";
+// renovate: datasource=pypi depName=uv
+export const UV_VERSION = "0.13.9";
 
 // python-version
 

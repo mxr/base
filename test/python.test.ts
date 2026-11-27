@@ -40,7 +40,7 @@ describe("pythonMainWorkflow", () => {
       stack: [Stack.PYTHON],
     }).join("\n");
     expect(workflow).toContain(
-      `    uses: mxr/workflows/.github/workflows/tox-uv.yml@v0.0.0\n    with:\n      env: '${envs}'\n      os: ubuntu-26.04\n`,
+      `    uses: mxr/workflows/.github/workflows/tox-uv.yml@v0.0.0\n    with:\n      env: '${envs}'\n      os: ubuntu-26.04\n      # renovate: datasource=pypi depName=uv\n      uv-version: 0.0.0\n      # renovate: datasource=pypi depName=tox\n      tox-version: 0.0.0\n      # renovate: datasource=pypi depName=tox-uv\n      tox-uv-version: 0.0.0\n`,
     );
     expect(workflow).toContain("            - uv.lock\n");
     expect(workflow).toContain(`      env: '["${`py${minVersion.replace(".", "")}`}"]'\n      os: windows-2025\n`);
@@ -91,7 +91,7 @@ describe("typingWorkflow", () => {
       "          typing_linting_files:\n            - .github/workflows/typing.yml\n            - '**/*.py'\n            - .pre-commit-config.yaml\n",
     );
     expect(workflow).toContain(
-      "  typing-real:\n    needs: [changes]\n    if: needs.changes.outputs.typing_linting_files == 'true'\n    uses: mxr/workflows/.github/workflows/pre-commit-typing.yml@v0.0.0\n",
+      "  typing-real:\n    needs: [changes]\n    if: needs.changes.outputs.typing_linting_files == 'true'\n    uses: mxr/workflows/.github/workflows/pre-commit-typing.yml@v0.0.0\n    with:\n      # renovate: datasource=pypi depName=uv\n      uv-version: 0.0.0\n      # renovate: datasource=pypi depName=pre-commit\n      pre-commit-version: 0.0.0\n      # renovate: datasource=pypi depName=pre-commit-uv\n      pre-commit-uv-version: 0.0.0\n",
     );
     expect(workflow).toContain('        if [ "$TYPING_REAL_RESULT" != "success" ]; then\n');
   });

@@ -82,11 +82,17 @@ ${real}
 `;
 }
 
+// `with:` lines for mxr/workflows inputs that pin a PyPI tool. Base fills in each `0.0.0` and renovate bumps it after that
+function toolVersionInputs(tools: readonly string[]): string {
+  return tools.map((tool) => `      # renovate: datasource=pypi depName=${tool}\n      ${tool}-version: 0.0.0`).join("\n");
+}
+
 function toxJob(envs: readonly string[], os: string): string {
   return `    uses: mxr/workflows/.github/workflows/tox-uv.yml@v0.0.0
     with:
       env: '${JSON.stringify(envs).replace(/,/g, ", ")}'
-      os: ${os}`;
+      os: ${os}
+${toolVersionInputs(["uv", "tox", "tox-uv"])}`;
 }
 
 /**
@@ -120,7 +126,15 @@ export function typingWorkflow(): string[] {
     "typing",
     "typing_linting_files",
     [".github/workflows/typing.yml", "'**/*.py'", ".pre-commit-config.yaml"],
-    [gatedJob("typing", "typing_linting_files", "    uses: mxr/workflows/.github/workflows/pre-commit-typing.yml@v0.0.0")],
+    [
+      gatedJob(
+        "typing",
+        "typing_linting_files",
+        `    uses: mxr/workflows/.github/workflows/pre-commit-typing.yml@v0.0.0
+    with:
+${toolVersionInputs(["uv", "pre-commit", "pre-commit-uv"])}`,
+      ),
+    ],
   );
 }
 
