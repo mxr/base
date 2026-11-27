@@ -12,6 +12,18 @@ const USES_RE = /^(\s*(?:-\s+)?uses:\s+)([^\s@]+)@(\S+)(?:(\s+)#\s*(.*?))?\s*$/;
 // The tag is the last `:` segment before the digest, since a registry can have a port.
 const DOCKER_RE = /^(docker:\/\/[^@]+?)((?::[^:/@]+)?@.+)$/;
 
+// pins older than these lack inputs that base's template passes, so they're dropped for pinact to re-resolve
+const MIN_ACTION_VERSIONS: ReadonlyMap<string, string> = new Map([
+  ["mxr/workflows/.github/workflows/pre-commit-typing.yml", "0.3.2"],
+  ["mxr/workflows/.github/workflows/tox-uv.yml", "0.3.2"],
+]);
+
+// whether a `vX.Y.Z` pin comment is older than `min`. A pin without a version comment counts as older
+function olderThan(comment: string | undefined, min: string): boolean {
+  const version = /^v?(\d+\.\d+\.\d+)$/.exec(comment ?? "")?.[1];
+  return version === undefined || version.localeCompare(min, undefined, { numeric: true }) < 0;
+}
+
 interface UsesLine {
   prefix: string;
   action: string;
@@ -35,14 +47,16 @@ function parseUsesLine(line: string): UsesLine | undefined {
 
 /**
  * Maps each action, such as `actions/checkout`, to its `ref` and inline comment
- * in the downstream repo's current workflow file. Skips placeholder refs. A
- * `docker://` step maps its image to `:<tag>@<digest>`.
+ * in the downstream repo's current workflow file. Skips placeholder refs and
+ * pins older than {@link MIN_ACTION_VERSIONS}. A `docker://` step maps its
+ * image to `:<tag>@<digest>`.
  */
 export function readExistingActionRefs(workflowYaml: string): Map<string, ExistingActionRef> {
   const refs = new Map<string, ExistingActionRef>();
   for (const line of workflowYaml.split("\n")) {
     const uses = parseUsesLine(line);
-    if (uses && uses.ref !== PLACEHOLDER_REF) {
+    const min = uses && MIN_ACTION_VERSIONS.get(uses.action);
+    if (uses && uses.ref !== PLACEHOLDER_REF && !(min && olderThan(uses.comment, min))) {
       refs.set(uses.action, { ref: uses.ref, ...(uses.comment ? { comment: uses.comment } : {}) });
     }
   }

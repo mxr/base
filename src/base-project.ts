@@ -12,7 +12,19 @@ import { mergePyproject, sqlfluffTables } from "./pyproject";
 import { HOME_ASSISTANT_PYTHON, homeAssistantValidateWorkflow, managedPyproject, pythonToxEnvs, toxEnv, typingWorkflow } from "./python";
 import { cargoReleaseWorkflow, homeAssistantReleaseWorkflow, wheelReleaseWorkflow } from "./release";
 import { PythonPackaging, RenovateCustomManager, Stack } from "./stack";
-import { BATS_VERSION, BUILD_VERSION, MIRROR_MAKER_VERSION, RUST_TOOLCHAIN, VERCEL_VERSION, ZSH_VERSION } from "./versions";
+import {
+  BATS_VERSION,
+  BUILD_VERSION,
+  MIRROR_MAKER_VERSION,
+  PRE_COMMIT_UV_VERSION,
+  PRE_COMMIT_VERSION,
+  RUST_TOOLCHAIN,
+  TOX_UV_VERSION,
+  TOX_VERSION,
+  UV_VERSION,
+  VERCEL_VERSION,
+  ZSH_VERSION,
+} from "./versions";
 import { applyExistingActionRefs, RUNNER, readExistingActionRefs } from "./workflow-actions";
 import type { GitHubProjectOptions } from "projen/lib/github";
 import type { ManagedTable } from "./pyproject";
@@ -26,6 +38,11 @@ const PINNED_VERSIONS: Record<string, string> = {
   ZSH_VERSION,
   BUILD_VERSION,
   MIRROR_MAKER_VERSION,
+  "uv-version": UV_VERSION,
+  "tox-version": TOX_VERSION,
+  "tox-uv-version": TOX_UV_VERSION,
+  "pre-commit-version": PRE_COMMIT_VERSION,
+  "pre-commit-uv-version": PRE_COMMIT_UV_VERSION,
 };
 const PINNED_VERSION_PLACEHOLDER_RE = new RegExp(`^( +)(${Object.keys(PINNED_VERSIONS).join("|")}): 0\\.0\\.0$`, "gm");
 
@@ -438,6 +455,18 @@ export class BaseProject extends GitHubProject {
               matchStrings: ["\\sos: (?<depName>windows)-(?<currentValue>\\S+)"],
               datasourceTemplate: "github-runners",
               versioningTemplate: "docker",
+            },
+          ]
+        : []),
+      // mxr/workflows' tool version inputs, which the githubActionsVersions preset misses because they aren't `*_VERSION` env vars
+      ...(this.stack.includes(Stack.PYTHON)
+        ? [
+            {
+              customType: "regex",
+              managerFilePatterns: ["/^\\.github/workflows/(?:main|typing)\\.yml$/"],
+              matchStrings: [
+                "# renovate: datasource=(?<datasource>[a-zA-Z0-9-._]+?) depName=(?<depName>[^\\s]+?)\\s+[a-z0-9-]+-version: (?<currentValue>\\S+)",
+              ],
             },
           ]
         : []),
